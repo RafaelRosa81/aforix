@@ -1,0 +1,1 @@
+schema_version,source,station_id,measurement_id,measurement_date,measurement_time,timezone,input_file,input_path,point_index,gate_index,h_m,v_ms,q_m3s,area_m2,extras_json

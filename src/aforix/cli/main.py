@@ -1,3 +1,4 @@
+import typer
 from pathlib import Path
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
@@ -9,7 +10,7 @@ from aforix.analysis.statistics import run as run_statistics
 from aforix.groups.build import run as run_build_groups
 from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
-import typer
+from aforix.database.consolidate import consolidate_flowtracker_run
 
 
 app = typer.Typer(
@@ -21,10 +22,12 @@ app = typer.Typer(
 ingest_app = typer.Typer(help="Import and standardize raw measurement files.")
 analyze_app = typer.Typer(help="Run hydrological and statistical analyses.")
 export_app = typer.Typer(help="Export processed results.")
+consolidate_app = typer.Typer(help="Consolidate runs into stable databases.")
 
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(analyze_app, name="analyze")
 app.add_typer(export_app, name="export")
+app.add_typer(consolidate_app, name="consolidate")
 
 @app.callback()
 def main():
@@ -112,6 +115,19 @@ def export_excel(
 ):
     run_dir = run_export_excel(Path(config))
     typer.echo(f"Excel export completed: {run_dir}")
+
+
+@consolidate_app.command("flowtracker")
+def consolidate_flowtracker(
+    run_dir: str = typer.Option(..., "--run-dir", help="Path to FlowTracker ingest run directory."),
+    database_root: str = typer.Option("database", "--database-root", help="Root database directory."),
+):
+    """Consolidate FlowTracker ingest outputs into unified CSV files."""
+    target_root = consolidate_flowtracker_run(
+        run_dir=Path(run_dir),
+        database_root=Path(database_root),
+    )
+    typer.echo(f"FlowTracker database updated: {target_root}")
 
 
 if __name__ == "__main__":
