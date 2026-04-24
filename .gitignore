@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environments
+.env
+.venv
+
+# Conda
+envs/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Aforix
+runs/
+outputs/
+data/
