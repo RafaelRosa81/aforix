@@ -1,0 +1,103 @@
+version: 1
+
+summary:
+  # Claves CANÓNICAS (las que tu pipeline espera internamente)
+  required_keys:
+    - "Fecha_y_hora_de_inicio"
+    - "Nom._del_punto_de_aforo"
+    - "#_Estaciones"
+    - "Ancho_total"
+    - "Area_total"
+    - "Caudal_total"
+    - "Velocidad_media"
+
+  # Aliases por clave canónica: si el .dis trae cualquiera de estas etiquetas,
+  # se guarda bajo la clave CANÓNICA.
+  key_aliases:
+    "Fecha_y_hora_de_inicio":
+      - "Fecha_y_hora_de_inicio"
+      - "Fecha y hora de inicio"
+      - "Start_Date_and_Time"
+      - "Start Date and Time"
+      - "Start Date/Time"
+      - "Start_Date/Time"
+
+    "Nom._del_punto_de_aforo":
+      - "Nom._del_punto_de_aforo"
+      - "Nom. del punto de aforo"
+      - "Nombre_del_punto_de_aforo"
+      - "Site_Name"
+      - "Site Name"
+      - "Station_Name"
+      - "Station Name"
+
+    "#_Estaciones":
+      - "#_Estaciones"
+      - "# Estaciones"
+      - "Nro. Estaciones"
+      - "#_Stations"
+      - "# Stations"
+      - "Number_of_Stations"
+      - "Number of Stations"
+
+    "Ancho_total":
+      - "Ancho_total"
+      - "Ancho total"
+      - "Total_Width"
+      - "Total Width"
+      - "Width_Total"
+
+    "Area_total":
+      - "Area_total"
+      - "Área total"
+      - "Total_Area"
+      - "Total Area"
+      - "Area_Total"
+
+    "Caudal_total":
+      - "Caudal_total"
+      - "Caudal total"
+      - "Total_Discharge"
+      - "Total Discharge"
+      - "Discharge_Total"
+
+    "Velocidad_media":
+      - "Velocidad_media"
+      - "Velocidad media"
+      - "Mean_Velocity"
+      - "Mean Velocity"
+      - "Average_Velocity"
+      - "Average Velocity"
+
+points:
+  # La detección de la cabecera de la tabla de puntos cambia entre ES y EN.
+  # El adapter debe encontrar la PRIMERA línea que cumpla una de estas variantes.
+  header_variants:
+    - name: "es"
+      tokens_all:
+        - "Vert"
+        - "Progr"
+        - "Prof"
+    - name: "en"
+      tokens_all:
+        - "St"
+        - "Loc"
+        - "Depth"
+
+  # Opcional: tokens que ayudan a confirmar que esa línea ES la cabecera
+  # (no todos los archivos los tienen, por eso no los pongo como obligatorios).
+  header_tokens_any:
+    - "Clock"
+    - "Angle"
+    - "Vel"
+    - "Velocity"
+
+meta:
+  # Si tu normalizador usa fecha/hora separadas, acá definimos cómo parsearlas
+  # a partir de la clave canónica "Fecha_y_hora_de_inicio"
+  datetime_in_summary_key: "Fecha_y_hora_de_inicio"
+  date_out: "YYYYMMDD"
+  time_out: "HHMMSS"
+
+station:
+  from_summary_key: "Nom._del_punto_de_aforo"

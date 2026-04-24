@@ -1,0 +1,418 @@
+registry_version: '0.1'
+core_fields:
+- schema_version
+- source
+- station_id
+- measurement_id
+- measurement_date
+- measurement_time
+- timezone
+- input_file
+- input_path
+- extras_json
+defaults:
+  schema_version: '0.1'
+  timezone: America/Montevideo
+canonical_dictionary:
+  summary:
+    operator:
+      type: str
+      aliases:
+      - Operadores
+      - operator
+      - operador
+    device_model:
+      type: str
+      aliases:
+      - Tipo_de_sensor
+      - device_model
+      - sensor_type
+    device_serial:
+      type: str
+      aliases:
+      - Numero_de_serie_#
+      - serial
+      - device_serial
+    software_version:
+      type: str
+      aliases:
+      - Version_de_software
+      - software_version
+    method:
+      type: str
+      aliases:
+      - Metodo
+      - método
+      - metodo
+      - method
+      - Ecuacion_de_calculo_del_caudal
+    n_verticals:
+      type: int
+      aliases:
+      - '#_Estaciones'
+      - n_verticals
+      - verticales
+      - num_verticals
+    width_m:
+      type: float
+      unit: m
+      aliases:
+      - Ancho_total
+      - Ancho del río
+      - ancho_total
+      - width
+      - Total_Width
+      - Total Width
+      - Ancho_total
+      - Ancho total
+    area_m2:
+      type: float
+      unit: m2
+      aliases:
+      - Area_total
+      - AREA TOT.
+      - area_total
+      - area
+    q_total_m3s:
+      type: float
+      unit: m3/s
+      aliases:
+      - Caudal_total
+      - Caudal
+      - Q
+      - q_total
+      - caudal_total
+    v_mean_ms:
+      type: float
+      unit: m/s
+      aliases:
+      - Velocidad_media
+      - Vel. Media
+      - v_media
+      - v_mean
+    max_depth_m:
+      type: float
+      unit: m
+      aliases:
+      - Prof. máxima
+      - max_depth
+      - prof_max
+    depth_measured_m:
+      type: float
+      unit: m
+      aliases:
+      - Calado_medido
+      - calado_medido
+      - Mean_Depth
+    temp_mean_c:
+      type: float
+      unit: deg C
+      aliases:
+      - Temp_promedio
+      - temp_promedio
+      - temperature
+      - Mean_Temp
+      - Temp_promedio
+    notes:
+      type: str
+      aliases:
+      - Comentarios
+      - Observaciones
+      - notes
+      - comment
+  points:
+    point_index:
+      type: str
+      aliases:
+      - St
+      - Vert. nº
+      - Vert
+      - vertical
+      - point_index
+    dist_from_left_m:
+      type: float
+      unit: m
+      aliases:
+      - PtoAfo
+      - Progr.
+      - PROG.
+      - dist
+      - distance
+    depth_m:
+      type: float
+      unit: m
+      aliases:
+      - Calado
+      - Prof.
+      - Prof
+      - depth
+    v_mean_ms:
+      type: float
+      unit: m/s
+      aliases:
+      - Vmedia
+      - M E D I A
+      - Veloc.
+      - V
+      - v_mean
+    area_partial_m2:
+      type: float
+      unit: m2
+      aliases:
+      - Area
+      - AREA (m2)
+      - area_partial
+    q_partial_m3s:
+      type: float
+      unit: m3/s
+      aliases:
+      - Caudal
+      - CAUDAL (m3/s)
+      - q_partial
+    q_partial_ls:
+      type: float
+      unit: l/s
+      aliases:
+      - q_partial_ls
+    quality_flag:
+      type: str
+      aliases:
+      - Bnd
+      - flag
+      - quality
+    notes:
+      type: str
+      aliases:
+      - Comentarios
+      - Observaciones
+      - notes
+      - comment
+  sections:
+    section_index:
+      type: str
+      aliases:
+      - index
+      - sect_index
+      - Secc.
+      - Secc
+      - section
+    x_m:
+      type: float
+      unit: m
+      aliases:
+      - x
+      - pos
+      - pos [m]
+      - position
+    h_m:
+      type: float
+      unit: m
+      aliases:
+      - h
+      - h [m]
+      - Prof seccion (m)
+      - depth_section
+    v_ms:
+      type: float
+      unit: m/s
+      aliases:
+      - v
+      - v [m/s]
+      - Veloc.
+      - velocity
+    q_m3s:
+      type: float
+      unit: m3/s
+      aliases:
+      - q
+      - q [m3/s]
+      - Caudal
+    area_m2:
+      type: float
+      unit: m2
+      aliases:
+      - Area
+      - AREA
+      - area
+    notes:
+      type: str
+      aliases:
+      - notes
+      - comment
+      - Observaciones
+  gates:
+    point_index:
+      type: str
+      aliases:
+      - Point Index
+      - point_index
+    gate_index:
+      type: str
+      aliases:
+      - gate_index
+      - Gate
+      - gate
+    h_m:
+      type: float
+      unit: m
+      aliases:
+      - h
+      - h [m]
+    v_ms:
+      type: float
+      unit: m/s
+      aliases:
+      - v
+      - v [m/s]
+    q_m3s:
+      type: float
+      unit: m3/s
+      aliases:
+      - q
+      - q [m3/s]
+    area_m2:
+      type: float
+      unit: m2
+      aliases:
+      - Area
+      - area
+sources:
+  nivus:
+    id: nivus
+    input_types:
+    - xml
+    summary_mode: long_parameter_value
+    station_id:
+      from: path_or_config
+    datetime:
+      from: filename
+      pattern: (?P<date>\d{8})_(?P<time>\d{6})
+      date_format: '%Y%m%d'
+      time_format: '%H%M%S'
+    mapping:
+      summary:
+        mode: pivot_long_to_wide
+        parameter_field: Parameter
+        value_field: Value
+        fields:
+          q [l/s]: q_total_m3s
+          q [m3/s]: q_total_m3s
+          Area [m2]: area_m2
+          Ancho [m]: width_m
+          v [m/s]: v_mean_ms
+          Temp [degC]: temp_mean_c
+      points:
+        mode: direct_key_match
+      sections:
+        mode: direct_key_match
+      gates:
+        mode: direct_key_match
+  flowtracker:
+    id: flowtracker
+    input_types:
+    - dis
+    station_id:
+      from: summary_key
+      key: Nom._del_punto_de_aforo
+    datetime:
+      from: summary_key
+      key: Fecha_y_hora_de_inicio
+      format: '%Y/%m/%d %H:%M:%S'
+    mapping:
+      summary:
+        mode: key_value_lines
+        fields:
+          Operadores: operator
+          Tipo_de_sensor: device_model
+          Numero_de_serie_#: device_serial
+          Version_de_software: software_version
+          Ecuacion_de_calculo_del_caudal: method
+          '#_Estaciones': n_verticals
+          Ancho_total: width_m
+          Area_total: area_m2
+          Caudal_total: q_total_m3s
+          Velocidad_media: v_mean_ms
+          Calado_medido: depth_measured_m
+          Temp_promedio: temp_mean_c
+          '#_Stations': n_verticals
+          Total_Width: width_m
+          Total_Area: area_m2
+          Total_Discharge: q_total_m3s
+          Mean_Velocity: v_mean_ms
+          Measured_Stage: depth_measured_m
+          Avg_Temp: temp_mean_c
+          Operator(s): operator
+          Sensor_Type: device_model
+          Serial_Number: device_serial
+          Software_Version: software_version
+          Discharge_Computation_Method: method
+        value_parsing:
+          strip_units: true
+          decimal_comma: false
+      points:
+        mode: fixed_width_table
+        column_map:
+          St: point_index
+          PtoAfo: dist_from_left_m
+          Calado: depth_m
+          Vmedia: v_mean_ms
+          Area: area_partial_m2
+          Caudal: q_partial_m3s
+          Bnd: quality_flag
+        keep_raw_columns_in_extras: true
+      sections:
+        mode: none
+      gates:
+        mode: none
+  molinete:
+    id: molinete
+    input_types:
+    - xls
+    - xlsx
+    station_id:
+      from: sheet_cell_or_header
+      regex: ESTACION\s+Nº:\s+.*?,\s*(P\d+)
+      fallback_from_filename_regex: (P\d+)
+    datetime:
+      from: sheet_cell_or_header
+      date_regex: FECHA:\s*(\d{2}/\d{2}/\d{4})
+      date_format: '%m/%d/%Y'
+      time_regex: 'Hora\s+Ini\.:\s*([0-9: ]+(AM|PM))'
+      time_format: '%I:%M:%S %p'
+    mapping:
+      summary:
+        mode: header_kv_scan
+        fields:
+          Caudal: q_total_m3s
+          Vel. Media: v_mean_ms
+          Prof. máxima: max_depth_m
+          Ancho del río: width_m
+        value_parsing:
+          strip_units: true
+      points:
+        mode: table_with_multiline_header
+        header_start_regex: ^Vert\. nº
+        column_aliases:
+          Vert. nº: point_index
+          Progr.: dist_from_left_m
+          PROG.: dist_from_left_m
+          Prof.: depth_m
+          Prof: depth_m
+          M E D I A: v_mean_ms
+          Veloc.: v_mean_ms
+          AREA (m2): area_partial_m2
+          CAUDAL (m3/s): q_partial_m3s
+        keep_unmapped_columns_in_extras: true
+      sections:
+        mode: none
+      gates:
+        mode: none
+derived_fields:
+- when_present:
+  - q_total_m3s
+  create: q_total_ls
+  formula: q_total_m3s * 1000.0
+- when_present:
+  - q_partial_m3s
+  create: q_partial_ls
+  formula: q_partial_m3s * 1000.0

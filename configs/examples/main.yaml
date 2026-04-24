@@ -1,2 +1,11 @@
 project:
   name: aforix
+
+timezone: America/Montevideo
+
+raw_data_path_dir: "D:\\Dropbox\\MADI\\DINAGUA_SL\\03-Proces_Info_DIN\\01-Salidas_campo"
+subfolder_raw_data_word_dir: "Salida"
+subsubfolder_raw_data_word_dir_FT: "flowtracker_S13"
+
+flowtracker_spec_path: "configs/specs/flowtracker_spec_v1.yml"
+registry_path: "configs/registries/registry.yml"
