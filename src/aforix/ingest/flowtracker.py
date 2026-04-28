@@ -1,11 +1,11 @@
 from pathlib import Path
 import re
-import yaml
+import pandas as pd
+from datetime import datetime
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
-from aforix.ingest.adapters.flowtracker_dis import FlowTrackerDISAdapter
-from aforix.canonical.normalizer import Normalizer, SourceMeta
+from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 
 
 def _station_id_from_point_folder(point_folder: str) -> str:
@@ -58,9 +58,6 @@ def run(config_path: Path) -> Path:
     cfg = load_config(config_path)
     run_dir = create_run("ingest_flowtracker", config_path)
 
-    spec_path = Path(cfg["flowtracker_spec_path"])
-    registry_path = Path(cfg["registry_path"])
-
     outdir_root = run_dir / "outputs" / "raw_canonical" / "flowtracker"
 
     group_dirs = {
@@ -70,12 +67,6 @@ def run(config_path: Path) -> Path:
 
     for group_dir in group_dirs.values():
         group_dir.mkdir(parents=True, exist_ok=True)
-
-    with open(registry_path, "r", encoding="utf-8") as f:
-        registry = yaml.safe_load(f) or {}
-
-    normalizer = Normalizer(registry)
-    adapter = FlowTrackerDISAdapter()
 
     candidates = _find_dis_files_flowtracker(cfg)
 
@@ -94,27 +85,54 @@ def run(config_path: Path) -> Path:
         station_id = _station_id_from_point_folder(item["point_folder"])
 
         try:
-            res = adapter.parse_file_strict(dis_path, str(spec_path))
+            summary, points = parse_flowtracker_dis(dis_path)
 
-            meta = SourceMeta(
-                source="flowtracker",
-                station_id=station_id,
-                measurement_date=res.extracted_meta["measurement_date"],
-                measurement_time=res.extracted_meta.get("measurement_time") or "000000",
-                timezone=cfg.get("timezone", "America/Montevideo"),
-                input_file=Path(dis_path).name,
-                input_path=str(Path(dis_path).resolve()),
-                run_id=run_dir.name,
+            start_dt = summary.get("start_date_time")
+
+            if not start_dt:
+                raise ValueError(f"Missing start_date_time in FlowTracker summary: {dis_path}")
+
+            dt = datetime.strptime(start_dt, "%Y/%m/%d %H:%M:%S")
+
+            measurement_date = dt.strftime("%Y%m%d")
+            measurement_time = dt.strftime("%H%M%S")
+
+            # -------------------------
+            # Summary RAW
+            # -------------------------
+            summary_df = pd.DataFrame([summary])
+
+            summary_outpath = (
+                group_dirs["Summary"]
+                / f"{station_id}_Summary_{measurement_date}_{measurement_time}.csv"
             )
+            summary_df.to_csv(summary_outpath, index=False)
+            print(f"Saved: {summary_outpath}")
 
-            dfs = normalizer.normalize_measurement(res.raw_groups, meta)
+            # -------------------------
+            # Points RAW
+            # -------------------------
+            if isinstance(points, pd.DataFrame):
+                points_df = points
+            else:
+                points_df = pd.DataFrame(points)
 
-            for group, df in dfs.items():
+            points_outpath = (
+                group_dirs["Points"]
+                / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
+            )
+            points_df.to_csv(points_outpath, index=False)
+            print(f"Saved: {points_outpath}")
+
+            # -------------------------
+            # Sections / Gates empty for now
+            # -------------------------
+            for group in ["Sections", "Gates"]:
                 outpath = (
                     group_dirs[group]
-                    / f"{station_id}_{group}_{meta.measurement_date}_{meta.measurement_time}.csv"
+                    / f"{station_id}_{group}_{measurement_date}_{measurement_time}.csv"
                 )
-                df.to_csv(outpath, index=False)
+                pd.DataFrame().to_csv(outpath, index=False)
                 print(f"Saved: {outpath}")
 
             processed += 1

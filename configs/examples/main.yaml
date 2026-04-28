@@ -9,3 +9,8 @@ subsubfolder_raw_data_word_dir_FT: "flowtracker_S13"
 
 flowtracker_spec_path: "configs/specs/flowtracker_spec_v1.yml"
 registry_path: "configs/registries/registry.yml"
+
+subsubfolder_raw_data_word_dir_ML: "molinete_S14"
+molinete_sheet_name: "CALCULO"
+
+subsubfolder_raw_data_word_dir_NIV: "Output_NIVUS_S13"
