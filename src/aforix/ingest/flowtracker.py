@@ -123,7 +123,7 @@ def run(config_path: Path) -> Path:
             )
             points_df.to_csv(points_outpath, index=False)
             print(f"Saved: {points_outpath}")
-
+            """
             # -------------------------
             # Sections / Gates empty for now
             # -------------------------
@@ -134,7 +134,7 @@ def run(config_path: Path) -> Path:
                 )
                 pd.DataFrame().to_csv(outpath, index=False)
                 print(f"Saved: {outpath}")
-
+            """
             processed += 1
 
         except Exception as e:
