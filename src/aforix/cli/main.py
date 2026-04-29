@@ -13,6 +13,7 @@ from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
 from aforix.normalize.summary import run as run_normalize_summary
 from aforix.normalize.points import run as run_normalize_points
+from aforix.export.tables.cli import main as export_tables_main
 
 
 app = typer.Typer(
@@ -119,6 +120,20 @@ def export_excel(
 ):
     run_dir = run_export_excel(Path(config))
     typer.echo(f"Excel export completed: {run_dir}")
+
+
+@export_app.command("tables")
+def export_tables(
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
+    interactive: bool = typer.Option(False, "--interactive", help="Run interactive export tables menu"),
+):
+    """Export normalized tables from database/normalized."""
+    argv = ["-c", config]
+
+    if interactive:
+        argv.append("--interactive")
+
+    export_tables_main(argv)
 
 
 @consolidate_app.command("flowtracker")

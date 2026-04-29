@@ -229,3 +229,47 @@ percent_q
 ## 👤 Autor
 
 Rafael Rosa
+
+## Export tables
+
+Aforix can export normalized data tables from the stable normalized database.
+
+### Input
+
+The exporter reads from:
+
+```text
+database/normalized/
+Expected normalized tables include, for example:
+
+database/normalized/Summary/
+database/normalized/Points/
+
+Each normalized CSV should include standard columns such as:
+
+instrument
+station_id
+measurement_date
+Interactive use
+aforix export tables -c configs/examples/main.yaml --interactive
+The interactive exporter allows selecting:
+
+normalized table, for example Summary or Points;
+instrument, for example flowtracker, molinete, nivus, or all;
+stations/points;
+parameters;
+date range;
+grouping mode: none, monthly, or daily;
+output format: xlsx or csv.
+Output
+
+Exported tables are saved in:
+
+runs/export_tables/<timestamp>/
+
+For example:
+
+runs/export_tables/20260429_153000/Summary_all_pivot.xlsx
+Notes
+
+When using monthly or daily grouping, the exporter creates a pivot table with periods as the main column groups and selected parameters inside each period.

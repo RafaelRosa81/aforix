@@ -26,3 +26,22 @@ build_groups:
 normalize_summary:
   input_file: "database/data_groups/Summary/summary_all.csv"
   output_file: "database/normalized/Summary/summary_normalized.csv"
+
+project:
+  runs_root: runs
+  database_root: database
+
+instruments:
+  flowtracker:
+    enabled: true
+  molinete:
+    enabled: true
+  nivus:
+    enabled: true
+  m9:
+    enabled: false
+
+normalized_data:
+  root: database/normalized
+  summary: database/normalized/summary/summary_normalized.csv
+  points: database/normalized/points/points_normalized.csv
