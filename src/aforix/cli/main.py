@@ -11,6 +11,8 @@ from aforix.groups.build import run as run_build_groups
 from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
+from aforix.normalize.summary import run as run_normalize_summary
+from aforix.normalize.points import run as run_normalize_points
 
 
 app = typer.Typer(
@@ -23,11 +25,13 @@ ingest_app = typer.Typer(help="Import and standardize raw measurement files.")
 analyze_app = typer.Typer(help="Run hydrological and statistical analyses.")
 export_app = typer.Typer(help="Export processed results.")
 consolidate_app = typer.Typer(help="Consolidate runs into stable databases.")
+normalize_app = typer.Typer(help="Normalize raw grouped datasets.")
 
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(analyze_app, name="analyze")
 app.add_typer(export_app, name="export")
 app.add_typer(consolidate_app, name="consolidate")
+app.add_typer(normalize_app, name="normalize")
 
 @app.callback()
 def main():
@@ -128,6 +132,23 @@ def consolidate_flowtracker(
         database_root=Path(database_root),
     )
     typer.echo(f"FlowTracker database updated: {target_root}")
+
+
+@normalize_app.command("summary")
+def normalize_summary(
+    config: str = typer.Option(..., "--config", "-c"),
+):
+    """Normalize Summary group into canonical columns."""
+    run_dir = run_normalize_summary(Path(config))
+    typer.echo(f"Summary normalization completed: {run_dir}")
+
+
+@normalize_app.command("points")
+def normalize_points(
+    config: str = typer.Option(..., "--config", "-c"),
+):
+    run_dir = run_normalize_points(Path(config))
+    typer.echo(f"Points normalization completed: {run_dir}")
 
 
 if __name__ == "__main__":

@@ -14,3 +14,15 @@ subsubfolder_raw_data_word_dir_ML: "molinete_S14"
 molinete_sheet_name: "CALCULO"
 
 subsubfolder_raw_data_word_dir_NIV: "Output_NIVUS_S13"
+
+build_groups:
+  output_dir: "database/data_groups"
+
+  sources:
+    flowtracker: "runs/ingest_flowtracker/20260428_194305"
+    molinete: "runs/ingest_molinete/20260428_005839"
+    nivus: "runs/ingest_nivus/20260428_164739"
+
+normalize_summary:
+  input_file: "database/data_groups/Summary/summary_all.csv"
+  output_file: "database/normalized/Summary/summary_normalized.csv"

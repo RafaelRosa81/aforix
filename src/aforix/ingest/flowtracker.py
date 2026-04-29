@@ -97,44 +97,61 @@ def run(config_path: Path) -> Path:
             measurement_date = dt.strftime("%Y%m%d")
             measurement_time = dt.strftime("%H%M%S")
 
-            # -------------------------
-            # Summary RAW
-            # -------------------------
+            # --------------------------------------------------
+            # SUMMARY
+            # --------------------------------------------------
+            summary["station_id"] = station_id
+            summary["measurement_date"] = measurement_date
+            summary["measurement_time"] = measurement_time
+            summary["instrument"] = "flowtracker"
+            summary["source_csv"] = str(dis_path)
+            summary["source_run_dir"] = str(run_dir)
+
             summary_df = pd.DataFrame([summary])
 
             summary_outpath = (
                 group_dirs["Summary"]
                 / f"{station_id}_Summary_{measurement_date}_{measurement_time}.csv"
             )
+
             summary_df.to_csv(summary_outpath, index=False)
             print(f"Saved: {summary_outpath}")
 
-            # -------------------------
-            # Points RAW
-            # -------------------------
+            # --------------------------------------------------
+            # POINTS (FIX CLAVE)
+            # --------------------------------------------------
             if isinstance(points, pd.DataFrame):
-                points_df = points
+                points_df = points.copy()
             else:
                 points_df = pd.DataFrame(points)
 
-            points_outpath = (
-                group_dirs["Points"]
-                / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
-            )
-            points_df.to_csv(points_outpath, index=False)
-            print(f"Saved: {points_outpath}")
-            """
-            # -------------------------
-            # Sections / Gates empty for now
-            # -------------------------
+            if not points_df.empty:
+                points_df["station_id"] = station_id
+                points_df["measurement_date"] = measurement_date
+                points_df["measurement_time"] = measurement_time
+                points_df["instrument"] = "flowtracker"
+                points_df["source_csv"] = str(dis_path)
+                points_df["source_run_dir"] = str(run_dir)
+
+                points_outpath = (
+                    group_dirs["Points"]
+                    / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
+                )
+
+                points_df.to_csv(points_outpath, index=False)
+                print(f"Saved: {points_outpath}")
+
+            # --------------------------------------------------
+            # SECTIONS / GATES (vacíos)
+            # --------------------------------------------------
             for group in ["Sections", "Gates"]:
                 outpath = (
                     group_dirs[group]
                     / f"{station_id}_{group}_{measurement_date}_{measurement_time}.csv"
                 )
+
                 pd.DataFrame().to_csv(outpath, index=False)
-                print(f"Saved: {outpath}")
-            """
+
             processed += 1
 
         except Exception as e:
