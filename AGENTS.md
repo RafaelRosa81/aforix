@@ -1,0 +1,7 @@
+- no subir database/, runs/, outputs/, data/
+- no hardcodear rutas locales
+- mantener CLI con Typer
+- usar config centralizado
+- soportar nuevos instrumentos vía columna instrument
+- mantener outputs reproducibles
+- trabajar por branches
