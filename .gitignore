@@ -26,7 +26,7 @@ runs/
 outputs/
 data/
 borrar/
+database/
 #Archivos
 crear_carpetas.py
 tree_aforix.txt
-pyproject.toml
