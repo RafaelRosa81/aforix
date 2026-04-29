@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-import yaml
+import pandas as pd
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
@@ -8,7 +8,9 @@ from aforix.ingest.adapters.nivus_xml import (
     parse_nivus_xml,
     parse_datetime_from_filename,
 )
-from aforix.canonical.normalizer import Normalizer, SourceMeta
+
+
+GROUPS = ["Summary", "Points", "Sections", "Gates"]
 
 
 def _find_nivus_xml_files(config: dict) -> list[dict]:
@@ -16,7 +18,7 @@ def _find_nivus_xml_files(config: dict) -> list[dict]:
     stage1_keyword = config["subfolder_raw_data_word_dir"]
     stage2_foldername = config["subsubfolder_raw_data_word_dir_NIV"]
 
-    candidates = []
+    candidates: list[dict] = []
 
     for folder in raw_data_root.iterdir():
         if not folder.is_dir():
@@ -60,28 +62,70 @@ def _find_nivus_xml_files(config: dict) -> list[dict]:
     return candidates
 
 
-def run(config_path: Path) -> Path:
-    """Run Nivus XML ingest pipeline."""
+def _rows_to_dataframe(rows: list[dict]) -> pd.DataFrame:
+    """Create a DataFrame while preserving first-seen column order."""
+    if not rows:
+        return pd.DataFrame()
 
+    columns: list[str] = []
+    seen: set[str] = set()
+
+    for row in rows:
+        for key in row.keys():
+            if key not in seen:
+                seen.add(key)
+                columns.append(key)
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _add_ingest_metadata(
+    df: pd.DataFrame,
+    *,
+    source: str,
+    station_id: str,
+    measurement_date: str,
+    measurement_time: str,
+    timezone: str,
+    input_file: str,
+    input_path: str,
+    run_id: str,
+) -> pd.DataFrame:
+    """Add minimal ingest metadata to every output table."""
+    metadata = {
+        "source": source,
+        "station_id": station_id,
+        "measurement_date": measurement_date,
+        "measurement_time": measurement_time,
+        "timezone": timezone,
+        "input_file": input_file,
+        "input_path": input_path,
+        "run_id": run_id,
+    }
+
+    for key, value in reversed(metadata.items()):
+        df.insert(0, key, value)
+
+    return df
+
+
+def run(config_path: Path) -> Path:
+    """Run clean raw Nivus XML ingest pipeline.
+
+    This stage does NOT call the Aforix Normalizer and does NOT use registry.
+    It only extracts all available XML data into clean CSV tables.
+    """
     cfg = load_config(config_path)
     run_dir = create_run("ingest_nivus", config_path)
 
-    registry_path = Path(cfg["registry_path"])
-
+    # Keep the existing output convention if the rest of the project expects it.
+    # If you prefer a more explicit name, change raw_canonical -> raw_clean here.
     outdir_root = run_dir / "outputs" / "raw_canonical" / "nivus"
 
-    group_dirs = {
-        group: outdir_root / group
-        for group in ["Summary", "Points", "Sections", "Gates"]
-    }
+    group_dirs = {group: outdir_root / group for group in GROUPS}
 
     for group_dir in group_dirs.values():
         group_dir.mkdir(parents=True, exist_ok=True)
-
-    with open(registry_path, "r", encoding="utf-8") as f:
-        registry = yaml.safe_load(f) or {}
-
-    normalizer = Normalizer(registry)
 
     candidates = _find_nivus_xml_files(cfg)
 
@@ -93,44 +137,44 @@ def run(config_path: Path) -> Path:
         return run_dir
 
     processed = 0
-    failed = []
+    failed: list[str] = []
 
     for item in candidates:
-        xml_path = item["xml_path"]
+        xml_path = Path(item["xml_path"])
         station_id = item["point_folder"].upper()
 
         try:
             raw_groups = parse_nivus_xml(xml_path)
-            measurement_date, measurement_time = parse_datetime_from_filename(
-                Path(xml_path).name
-            )
+            measurement_date, measurement_time = parse_datetime_from_filename(xml_path.name)
 
-            meta = SourceMeta(
-                source="nivus",
-                station_id=station_id,
-                measurement_date=measurement_date,
-                measurement_time=measurement_time,
-                timezone=cfg.get("timezone", "America/Montevideo"),
-                input_file=Path(xml_path).name,
-                input_path=str(Path(xml_path).resolve()),
-                run_id=run_dir.name,
-            )
+            for group in GROUPS:
+                rows = raw_groups.get(group, [])
+                df = _rows_to_dataframe(rows)
 
-            dfs = normalizer.normalize_measurement(raw_groups, meta)
+                df = _add_ingest_metadata(
+                    df,
+                    source="nivus",
+                    station_id=station_id,
+                    measurement_date=measurement_date,
+                    measurement_time=measurement_time,
+                    timezone=cfg.get("timezone", "America/Montevideo"),
+                    input_file=xml_path.name,
+                    input_path=str(xml_path.resolve()),
+                    run_id=run_dir.name,
+                )
 
-            for group, df in dfs.items():
                 outpath = (
                     group_dirs[group]
-                    / f"{meta.station_id}_{group}_{meta.measurement_date}_{meta.measurement_time}.csv"
+                    / f"{station_id}_{group}_{measurement_date}_{measurement_time}.csv"
                 )
-                df.to_csv(outpath, index=False)
+                df.to_csv(outpath, index=False, encoding="utf-8-sig")
                 print(f"Saved: {outpath}")
 
             processed += 1
 
         except Exception as e:
             print(f"ERROR processing {xml_path}: {e}")
-            failed.append(xml_path)
+            failed.append(str(xml_path))
 
     print(f"Processed OK: {processed}/{len(candidates)}")
 
@@ -140,5 +184,4 @@ def run(config_path: Path) -> Path:
             print(f" - {f}")
 
     print(f"Run created: {run_dir}")
-
     return run_dir
