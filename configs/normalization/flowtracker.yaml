@@ -1,0 +1,150 @@
+instrument: flowtracker
+
+tables:
+
+  Points:
+    canonical_name: points
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      vertical_label:
+        source: station
+        dtype: string
+
+      distance_m:
+        source: location_m
+        dtype: float
+
+      depth_m:
+        source: depth_m
+        dtype: float
+
+      measured_depth_m:
+        source: measured_depth_m
+        dtype: float
+
+      percent_depth:
+        source: percent_depth
+        dtype: float
+
+      velocity_ms:
+        source: velocity_m_s
+        dtype: float
+
+      area_m2:
+        source: area_m2
+        dtype: float
+
+      q_m3s:
+        source: discharge_m3_s
+        dtype: float
+
+      percent_discharge:
+        source: percent_discharge
+        dtype: float
+
+      instrument:
+        source: instrument
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      source_csv:
+        source: source_csv
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+    required:
+      - point_id
+      - distance_m
+      - depth_m
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - depth_m
+        - measured_depth_m
+        - area_m2
+
+      allow_negative:
+        - velocity_ms
+        - q_m3s
+  
+  Summary:
+    canonical_name: summary
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      q_m3s:
+        source: discharge_m3_s
+        dtype: float
+
+      area_m2:
+        source: area_m2
+        dtype: float
+
+      width_m:
+        source: width_m
+        dtype: float
+
+      mean_velocity_ms:
+        source: meanv
+        dtype: float
+
+      instrument:
+        source: instrument
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      source_csv:
+        source: source_csv
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+    required:
+      - point_id
+      - q_m3s
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
