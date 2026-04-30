@@ -1,0 +1,471 @@
+instrument: nivus
+
+tables:
+
+  Summary:
+    canonical_name: summary
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      timezone:
+        source: timezone
+        dtype: string
+
+      station_name:
+        source: name
+        dtype: string
+
+      reference:
+        source: ref
+        dtype: string
+
+      notes:
+        source: notes
+        dtype: string
+
+      sensor_serial_number:
+        source: sens_sn
+        dtype: string
+
+      sensor_article_number:
+        source: sens_an
+        dtype: string
+
+      material:
+        source: material
+        dtype: string
+
+      width_m:
+        source: w [m]
+        dtype: float
+
+      total_discharge_ls:
+        source: q [l/s]
+        dtype: float
+
+      mean_depth_m:
+        source: h_mean [m]
+        dtype: float
+
+      min_depth_m:
+        source: h_min [m]
+        dtype: float
+
+      max_depth_m:
+        source: h_max [m]
+        dtype: float
+
+      mean_velocity_ms:
+        source: v_mean [m/s]
+        dtype: float
+
+      min_velocity_ms:
+        source: v_min [m/s]
+        dtype: float
+
+      max_velocity_ms:
+        source: v_max [m/s]
+        dtype: float
+
+      temperature_c:
+        source: t [°C]
+        dtype: float
+
+      total_area_m2:
+        source: a [m²]
+        dtype: float
+
+      wetted_perimeter_m:
+        source: p [m]
+        dtype: float
+
+      hydraulic_radius_m:
+        source: rh [m]
+        dtype: float
+
+      offset_bank:
+        source: offset_bank
+        dtype: string
+
+      offset_m:
+        source: offset [m]
+        dtype: float
+
+      calibration_depth_m:
+        source: h_calib [m]
+        dtype: float
+
+      tq_min_percent:
+        source: tq_min [%]
+        dtype: float
+
+      atq_min_percent:
+        source: atq_min [%]
+        dtype: float
+
+      n_points:
+        source: points
+        dtype: int
+
+      n_sections:
+        source: sections
+        dtype: int
+
+      start_bank:
+        source: start_bank
+        dtype: string
+
+      end_bank:
+        source: end_bank
+        dtype: string
+
+      start_depth_m:
+        source: start_h [m]
+        dtype: float
+
+      end_depth_m:
+        source: end_h [m]
+        dtype: float
+
+      start_k_percent:
+        source: start_k [%]
+        dtype: float
+
+      end_k_percent:
+        source: end_k [%]
+        dtype: float
+
+      calc_mode:
+        source: calc_mode
+        dtype: string
+
+      start_time:
+        source: stime
+        dtype: datetime
+
+      end_time:
+        source: etime
+        dtype: datetime
+
+      instrument:
+        source: source
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      input_path:
+        source: input_path
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+    required:
+      - point_id
+      - total_discharge_ls
+      - total_area_m2
+      - mean_depth_m
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - width_m
+        - total_area_m2
+        - mean_depth_m
+        - max_depth_m
+
+
+  Points:
+    canonical_name: points
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      timezone:
+        source: timezone
+        dtype: string
+
+      point_index:
+        source: index
+        dtype: int
+
+      distance_m:
+        source: pos [m]
+        dtype: float
+
+      depth_m:
+        source: h [m]
+        dtype: float
+
+      measured_depth_m:
+        source: h_meas [m]
+        dtype: float
+
+      user_depth_m:
+        source: h_user [m]
+        dtype: string
+
+      velocity_ms:
+        source: v [m/s]
+        dtype: float
+
+      temperature_c:
+        source: t [°C]
+        dtype: float
+
+      tq_percent:
+        source: tq [%]
+        dtype: float
+
+      atq_percent:
+        source: atq [%]
+        dtype: float
+
+      hq_percent:
+        source: hq [%]
+        dtype: float
+
+      tq_valid:
+        source: tq_valid
+        dtype: int
+
+      noise_typical_db:
+        source: ntyp [dBµ]
+        dtype: float
+
+      noise_max_db:
+        source: nmax [dBµ]
+        dtype: float
+
+      start_time:
+        source: stime
+        dtype: datetime
+
+      end_time:
+        source: etime
+        dtype: datetime
+
+      measurement_duration_s:
+        source: mtime [s]
+        dtype: float
+
+      instrument:
+        source: source
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      input_path:
+        source: input_path
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+    required:
+      - point_id
+      - point_index
+      - distance_m
+      - depth_m
+      - velocity_ms
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - distance_m
+        - depth_m
+        - measured_depth_m
+
+
+  Sections:
+    canonical_name: sections
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      timezone:
+        source: timezone
+        dtype: string
+
+      section_index:
+        source: index
+        dtype: int
+
+      distance_m:
+        source: pos [m]
+        dtype: float
+
+      q_ls:
+        source: q [l/s]
+        dtype: float
+
+      q_percent:
+        source: factor [%]
+        dtype: float
+
+      width_m:
+        source: w [m]
+        dtype: float
+
+      depth_m:
+        source: h [m]
+        dtype: float
+
+      velocity_ms:
+        source: v [m/s]
+        dtype: float
+
+      instrument:
+        source: source
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      input_path:
+        source: input_path
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+    required:
+      - point_id
+      - section_index
+      - distance_m
+      - q_ls
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - distance_m
+        - width_m
+        - depth_m
+
+
+  Gates:
+    canonical_name: gates
+
+    columns:
+
+      point_id:
+        source: station_id
+        dtype: string
+
+      date:
+        source: measurement_date
+        dtype: date
+
+      measurement_time:
+        source: measurement_time
+        dtype: time_hhmmss
+
+      timezone:
+        source: timezone
+        dtype: string
+
+      point_index:
+        source: point_index
+        dtype: int
+
+      gate_index:
+        source: index
+        dtype: int
+
+      gate_position_m:
+        source: pos [m]
+        dtype: float
+
+      velocity_ms:
+        source: v [m/s]
+        dtype: float
+
+      original_velocity_ms:
+        source: orig [m/s]
+        dtype: string
+
+      instrument:
+        source: source
+        dtype: string
+
+      input_file:
+        source: input_file
+        dtype: string
+
+      input_path:
+        source: input_path
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+    required:
+      - point_id
+      - point_index
+      - gate_index
+      - gate_position_m
+      - velocity_ms
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - gate_position_m

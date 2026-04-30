@@ -108,20 +108,28 @@ tables:
         source: measurement_time
         dtype: time_hhmmss
 
-      q_m3s:
-        source: discharge_m3_s
+      station_name:
+        source: station_name
+        dtype: string
+
+      total_width_m:
+        source: total_width_m
         dtype: float
 
-      area_m2:
-        source: area_m2
+      total_area_m2:
+        source: total_area_m2
         dtype: float
 
-      width_m:
-        source: width_m
+      total_discharge_m3s:
+        source: total_discharge_m3_s
+        dtype: float
+
+      mean_depth_m:
+        source: mean_depth_m
         dtype: float
 
       mean_velocity_ms:
-        source: meanv
+        source: mean_velocity_m_s
         dtype: float
 
       instrument:
@@ -142,7 +150,7 @@ tables:
 
     required:
       - point_id
-      - q_m3s
+      - total_discharge_m3s
 
     transforms:
       - name: strip_strings

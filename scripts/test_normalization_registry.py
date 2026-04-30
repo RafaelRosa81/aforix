@@ -10,7 +10,7 @@ registry = NormalizationRegistry(Path("configs/normalization"))
 
 # --- Ruta a UN archivo real de Points ---
 input_csv = Path(
-    r"D:\Dropbox\MADI\DINAGUA_SL\03-Proces_Info_DIN\04-Codigo\aforix\runs\ingest_flowtracker\20260428_194305\outputs\raw_canonical\flowtracker\Points/P8_Points_20251215_115907.csv"
+    r"D:\Dropbox\MADI\DINAGUA_SL\03-Proces_Info_DIN\04-Codigo\aforix\runs\ingest_flowtracker\20260429_214706\outputs\raw_canonical\flowtracker\Summary/P8_Summary_20251215_115907.csv"
 )
 
 # --- Leer datos ---
@@ -20,7 +20,7 @@ print("\n--- RAW COLUMNS ---")
 print(df_raw.columns)
 
 # --- Obtener spec ---
-spec = registry.get("flowtracker", "Points")
+spec = registry.get("flowtracker", "Summary")
 
 # --- Normalizar ---
 df_norm = normalize_table(df_raw, spec)
