@@ -1,72 +1,155 @@
+from __future__ import annotations
+
 from pathlib import Path
 import re
-import yaml
+from typing import Any
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
 from aforix.ingest.adapters.molinete_excel import MolineteExcelAdapter
 
 
-def _find_molinete_excels(config: dict) -> list[dict]:
-    raw_data_root = Path(config["raw_data_path_dir"])
-    stage1_keyword = config["subfolder_raw_data_word_dir"]
-    stage2_foldername = config["subsubfolder_raw_data_word_dir_ML"]
+INSTRUMENT_NAME = "molinete"
+EXCEL_EXTENSIONS = {".xls", ".xlsx", ".xlsm"}
 
-    exts = {".xls", ".xlsx", ".xlsm"}
-    candidates = []
 
-    for folder in raw_data_root.iterdir():
-        if not folder.is_dir():
+def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
+    path = Path(path_value)
+
+    if not path.is_absolute():
+        path = project_root / path
+
+    return path.resolve()
+
+
+def _get_project_root(config_path: Path) -> Path:
+    resolved = config_path.resolve()
+
+    # Expected layout:
+    # project_root/configs/examples/main.yaml
+    if len(resolved.parents) >= 3:
+        return resolved.parents[2]
+
+    return Path.cwd().resolve()
+
+
+def _get_molinete_config(cfg: dict[str, Any]) -> dict[str, Any]:
+    try:
+        return cfg["ingest"][INSTRUMENT_NAME]
+    except KeyError as exc:
+        raise ValueError(
+            "Missing Molinete configuration section: "
+            "'ingest.molinete'."
+        ) from exc
+
+
+def _get_raw_data_root(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> Path:
+    project_root = _get_project_root(config_path)
+
+    try:
+        raw_data_dir = cfg["paths"]["raw_data_dir"]
+    except KeyError as exc:
+        raise ValueError(
+            "Missing required config key: 'paths.raw_data_dir'."
+        ) from exc
+
+    return _resolve_config_path(raw_data_dir, project_root=project_root)
+
+
+def _get_molinete_raw_root(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> Path:
+    raw_data_root = _get_raw_data_root(cfg, config_path=config_path)
+    molinete_cfg = _get_molinete_config(cfg)
+
+    raw_subdir = molinete_cfg.get("raw_subdir")
+
+    if not raw_subdir:
+        raise ValueError(
+            "Missing required config key: 'ingest.molinete.raw_subdir'."
+        )
+
+    molinete_root = raw_data_root / str(raw_subdir)
+
+    if not molinete_root.exists():
+        raise ValueError(
+            "Molinete raw data directory does not exist: "
+            f"{molinete_root}"
+        )
+
+    if not molinete_root.is_dir():
+        raise ValueError(
+            "Molinete raw data path is not a directory: "
+            f"{molinete_root}"
+        )
+
+    return molinete_root.resolve()
+
+
+def _iter_point_dirs(molinete_root: Path) -> list[Path]:
+    point_dirs: list[Path] = []
+
+    for path in sorted(molinete_root.rglob("*")):
+        if not path.is_dir():
             continue
 
-        if not re.match(rf"\d{{8}}_{re.escape(stage1_keyword)}_\d+", folder.name):
-            continue
+        if re.match(r"^P\d{1,3}$", path.name, flags=re.IGNORECASE):
+            point_dirs.append(path)
 
-        stage2_path = folder / stage2_foldername
-        if not stage2_path.is_dir():
-            continue
+    return point_dirs
 
-        for point_path in stage2_path.iterdir():
-            if not point_path.is_dir():
+
+def _find_molinete_excels(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> list[dict[str, str]]:
+    molinete_root = _get_molinete_raw_root(cfg, config_path=config_path)
+
+    candidates: list[dict[str, str]] = []
+
+    for point_path in _iter_point_dirs(molinete_root):
+        for file_path in sorted(point_path.iterdir()):
+            if not file_path.is_file():
                 continue
 
-            if not re.match(r"P\d+", point_path.name, flags=re.IGNORECASE):
+            if file_path.suffix.lower() not in EXCEL_EXTENSIONS:
                 continue
 
-            for file_path in point_path.iterdir():
-                if file_path.suffix.lower() in exts and file_path.is_file():
-                    candidates.append(
-                        {
-                            "campaign_folder": folder.name,
-                            "point_folder": point_path.name,
-                            "point_path": str(point_path),
-                            "xls_file": file_path.name,
-                            "xls_path": str(file_path),
-                        }
-                    )
+            candidates.append(
+                {
+                    "point_folder": point_path.name,
+                    "point_path": str(point_path),
+                    "xls_file": file_path.name,
+                    "xls_path": str(file_path),
+                }
+            )
 
     return candidates
 
 
-def _format_date_yyyymmdd(value: str) -> str:
-    if not value:
+def _format_date_yyyymmdd(value: Any) -> str:
+    if value is None or value == "":
         return "00000000"
-    return str(value).replace("-", "").replace("/", "")
+
+    return str(value).replace("-", "").replace("/", "").strip()
 
 
-def _format_time_hhmmss(value: str) -> str:
-    if not value:
+def _format_time_hhmmss(value: Any) -> str:
+    if value is None or value == "":
         return "000000"
-    return str(value).replace(":", "")
+
+    return str(value).replace(":", "").strip()
 
 
-def run(config_path: Path) -> Path:
-    """Run Molinete ingest pipeline (RAW EXPORT, no normalizer)."""
-
-    cfg = load_config(config_path)
-    run_dir = create_run("ingest_molinete", config_path)
-
-    outdir_root = run_dir / "outputs" / "raw_canonical" / "molinete"
+def _prepare_output_dirs(run_dir: Path) -> dict[str, Path]:
+    outdir_root = run_dir / "outputs" / "raw_canonical" / INSTRUMENT_NAME
 
     group_dirs = {
         group: outdir_root / group
@@ -76,80 +159,151 @@ def run(config_path: Path) -> Path:
     for group_dir in group_dirs.values():
         group_dir.mkdir(parents=True, exist_ok=True)
 
+    return group_dirs
+
+
+def _get_sheet_name(cfg: dict[str, Any]) -> str:
+    molinete_cfg = _get_molinete_config(cfg)
+    sheet_name = molinete_cfg.get("sheet_name", "CALCULO")
+
+    if not isinstance(sheet_name, str) or not sheet_name.strip():
+        raise ValueError(
+            "'ingest.molinete.sheet_name' must be a non-empty string."
+        )
+
+    return sheet_name.strip()
+
+
+def _write_group_csv(
+    df,
+    *,
+    group_name: str,
+    output_dir: Path,
+    station_id: str,
+    measurement_date: str,
+    measurement_time: str,
+) -> Path | None:
+    if df is None:
+        return None
+
+    df = df.drop(columns=["extras_json"], errors="ignore")
+
+    if df.empty:
+        return None
+
+    output_path = (
+        output_dir
+        / f"{station_id}_{group_name}_{measurement_date}_{measurement_time}.csv"
+    )
+
+    df.to_csv(output_path, index=False)
+    return output_path
+
+
+def _process_excel_file(
+    item: dict[str, str],
+    *,
+    adapter: MolineteExcelAdapter,
+    sheet_name: str,
+    group_dirs: dict[str, Path],
+) -> None:
+    xls_path = item["xls_path"]
+
+    res = adapter.parse_file_strict(
+        xls_path,
+        sheet_name=sheet_name,
+    )
+
+    station_id = res.extracted_meta["station_id"]
+
+    measurement_date = _format_date_yyyymmdd(
+        res.extracted_meta.get("measurement_date", "")
+    )
+    measurement_time = _format_time_hhmmss(
+        res.extracted_meta.get("measurement_time", "")
+    )
+
+    summary_outpath = _write_group_csv(
+        res.raw_groups.get("Summary"),
+        group_name="Summary",
+        output_dir=group_dirs["Summary"],
+        station_id=station_id,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+    )
+
+    if summary_outpath is not None:
+        print(f"Saved: {summary_outpath}")
+
+    points_outpath = _write_group_csv(
+        res.raw_groups.get("Points"),
+        group_name="Points",
+        output_dir=group_dirs["Points"],
+        station_id=station_id,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+    )
+
+    if points_outpath is not None:
+        print(f"Saved: {points_outpath}")
+
+
+def run(config_path: Path) -> Path:
+    """Run Molinete ingest pipeline."""
+
+    config_path = Path(config_path).resolve()
+    cfg = load_config(config_path)
+
+    molinete_cfg = _get_molinete_config(cfg)
+
+    if molinete_cfg.get("enabled") is False:
+        print("Molinete ingest is disabled in config.")
+        return create_run("ingest_molinete", config_path)
+
+    run_dir = create_run("ingest_molinete", config_path)
+    group_dirs = _prepare_output_dirs(run_dir)
+
     adapter = MolineteExcelAdapter()
-    candidates = _find_molinete_excels(cfg)
+    sheet_name = _get_sheet_name(cfg)
+
+    candidates = _find_molinete_excels(
+        cfg,
+        config_path=config_path,
+    )
 
     print(f"Found Molinete Excel files: {len(candidates)}")
 
     if not candidates:
         print("No Molinete Excel files found.")
+        print(f"Expected Molinete raw directory: {_get_molinete_raw_root(cfg, config_path=config_path)}")
         print(f"Run created: {run_dir}")
         return run_dir
 
     processed = 0
-    failed = []
-
-    sheet_name = cfg.get("molinete_sheet_name", "CALCULO")
+    failed: list[tuple[str, str]] = []
 
     for item in candidates:
         xls_path = item["xls_path"]
 
         try:
-            res = adapter.parse_file_strict(
-                xls_path,
+            _process_excel_file(
+                item,
+                adapter=adapter,
                 sheet_name=sheet_name,
+                group_dirs=group_dirs,
             )
-
-            station_id = res.extracted_meta["station_id"]
-            measurement_date = _format_date_yyyymmdd(
-                res.extracted_meta.get("measurement_date", "")
-            )
-            measurement_time = _format_time_hhmmss(
-                res.extracted_meta.get("measurement_time", "")
-            )
-
-            # ------------------------------------------------------------------
-            # Summary
-            # ------------------------------------------------------------------
-            summary_df = res.raw_groups.get("Summary")
-            if summary_df is not None:
-                summary_df = summary_df.drop(columns=["extras_json"], errors="ignore")
-
-                outpath = (
-                    group_dirs["Summary"]
-                    / f"{station_id}_Summary_{measurement_date}_{measurement_time}.csv"
-                )
-
-                summary_df.to_csv(outpath, index=False)
-                print(f"Saved: {outpath}")
-
-            # ------------------------------------------------------------------
-            # Points
-            # ------------------------------------------------------------------
-            points_df = res.raw_groups.get("Points")
-            if points_df is not None:
-                points_df = points_df.drop(columns=["extras_json"], errors="ignore")
-
-                outpath = (
-                    group_dirs["Points"]
-                    / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
-                )
-
-                points_df.to_csv(outpath, index=False)
-                print(f"Saved: {outpath}")
-
             processed += 1
 
-        except Exception as e:
-            print(f"ERROR processing {xls_path}: {e}")
-            failed.append(xls_path)
+        except Exception as exc:
+            print(f"ERROR processing {xls_path}: {exc}")
+            failed.append((xls_path, str(exc)))
 
     print(f"Processed OK: {processed}/{len(candidates)}")
 
     if failed:
         print("Failed Molinete files:")
-        for f in failed:
-            print(f" - {f}")
+        for path, error in failed:
+            print(f" - {path}: {error}")
 
     print(f"Run created: {run_dir}")
 

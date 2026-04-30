@@ -3,8 +3,10 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 import yaml
 
 
@@ -16,53 +18,83 @@ class FlowTrackerParseResult:
 
 class FlowTrackerDISAdapter:
     """
-    Adapter robusto para archivos FlowTracker .dis en español e inglés.
+    Robust adapter for FlowTracker .dis files in Spanish and English.
 
-    Criterio:
-    - Summary: todo lo anterior a la tabla St.
-    - Points: toda la tabla St, plana, sin extras_json.
-    - Columnas resultantes en inglés.
-    - No deduplicar filas durante ingest.
+    Criteria:
+    - Summary: everything before the St table.
+    - Points: full St table, flat, no extras_json.
+    - Output columns in English where possible.
+    - No row deduplication during ingest.
     """
 
     POINTS_HEADER_MAP = {
         "St": "station",
         "Reloj": "clock",
         "Clock": "clock",
-
         "PtoAfo": "location_m",
         "Loc": "location_m",
-
         "Calado": "depth_m",
         "Depth": "depth_m",
-
         "Hie": "ice_depth_m",
         "IceD": "ice_depth_m",
-
         "%Calado": "percent_depth",
         "%Dep": "percent_depth",
-
         "CalMed": "measured_depth_m",
         "MeasD": "measured_depth_m",
-
         "No": "num_points",
         "FactCorr": "correction_factor",
-
         "Vel": "velocity_m_s",
         "Angle": "angle_deg",
         "MeanVel": "mean_velocity_m_s",
-
         "Area": "area_m2",
-
         "Caudal": "discharge_m3_s",
         "Flow": "discharge_m3_s",
         "%Q": "percent_discharge",
-
         "Q": "quality_flag",
         "Temp": "temperature_c",
         "SNR": "snr_db",
         "Spk": "spike",
         "Verr": "velocity_error",
+    }
+
+    SUMMARY_COMPATIBILITY_ALIASES = {
+        "file_name": [
+            "file_name",
+            "filename",
+            "nombre_del_fichero",
+            "nombre_fichero",
+            "nombre_de_fichero",
+        ],
+        "site_name": [
+            "site_name",
+            "station_name",
+            "measurement_station_name",
+            "nom_del_punto_de_aforo",
+            "nombre_del_punto_de_aforo",
+            "nombre_punto_aforo",
+        ],
+        "station_name": [
+            "site_name",
+            "station_name",
+            "measurement_station_name",
+            "nom_del_punto_de_aforo",
+            "nombre_del_punto_de_aforo",
+            "nombre_punto_aforo",
+        ],
+        "start_date_time": [
+            "start_date_time",
+            "start_date_and_time",
+            "fecha_y_hora_de_inicio",
+            "fecha_hora_inicio",
+        ],
+        "number_stations": [
+            "number_stations",
+            "number_estaciones",
+            "number_verticals",
+            "number_of_stations",
+            "estaciones",
+            "verticals",
+        ],
     }
 
     def parse_file_strict(self, dis_path: str, spec_path: str) -> FlowTrackerParseResult:
@@ -76,6 +108,7 @@ class FlowTrackerDISAdapter:
 
         summary_raw, table_start_idx = self._parse_summary_block(lines, spec)
         summary = self._apply_summary_aliases(summary_raw, spec)
+        summary = self._add_compatibility_summary_fields(summary, dis_path)
 
         summary["input_file"] = os.path.basename(dis_path)
         summary["input_path"] = os.path.abspath(dis_path)
@@ -114,11 +147,12 @@ class FlowTrackerDISAdapter:
 
     def _load_spec(self, spec_path: str) -> Dict[str, Any]:
         with open(spec_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            loaded = yaml.safe_load(f)
+        return loaded or {}
 
     def _read_lines_auto(
         self,
-        path: str,
+        path: str | Path,
         preferred_encoding: Optional[str] = None,
     ) -> Tuple[List[str], str]:
         encodings: List[str] = []
@@ -148,7 +182,6 @@ class FlowTrackerDISAdapter:
         lines: List[str],
         spec: Dict[str, Any],
     ) -> Tuple[Dict[str, Any], int]:
-
         summary: Dict[str, Any] = {}
 
         pt_legacy = spec.get("points_table", {}) or {}
@@ -169,7 +202,6 @@ class FlowTrackerDISAdapter:
                 current_key = None
                 continue
 
-            # Section headers
             section_norm = self._to_snake_case(stripped)
 
             if section_norm in {
@@ -193,21 +225,18 @@ class FlowTrackerDISAdapter:
             if section_norm in {
                 "automatic_quality_control_test_beamcheck",
                 "control_automatico_de_calidad_beamcheck",
-                "control_automatico_de_calidad_beamcheck",
             }:
                 current_section = "beamcheck"
                 summary[f"unparsed_summary_line_{i + 1}"] = stripped
                 current_key = None
                 continue
 
-            # BeamCheck / final unstructured lines: keep as unparsed
             if current_section == "beamcheck":
                 summary[f"unparsed_summary_line_{i + 1}"] = stripped
                 continue
 
             parts = re.split(r"\s{2,}", clean_ln.strip(), maxsplit=1)
 
-            # Continuation line, e.g. Boundary_Condition_(Bnd)
             if len(parts) == 1:
                 if current_key:
                     self._append_value(summary, current_key, parts[0].strip())
@@ -222,7 +251,6 @@ class FlowTrackerDISAdapter:
                     self._append_value(summary, current_key, raw_value)
                 continue
 
-            # Build key, section-aware
             key_base = self._summary_key(raw_key)
 
             if current_section == "discharge_uncertainty_iso":
@@ -230,7 +258,10 @@ class FlowTrackerDISAdapter:
             elif current_section == "discharge_uncertainty_statistical":
                 key_base = f"discharge_uncertainty_statistical_{key_base}"
 
-            final_key, final_value = self._parse_summary_value_with_units(key_base, raw_value)
+            final_key, final_value = self._parse_summary_value_with_units(
+                key_base,
+                raw_value,
+            )
 
             current_key = final_key
 
@@ -241,11 +272,7 @@ class FlowTrackerDISAdapter:
 
         return summary, len(lines)
 
-
     def _summary_key(self, raw_key: str) -> str:
-        """
-        Convert raw FlowTracker summary labels to readable snake_case.
-        """
         key = self._to_snake_case(raw_key)
 
         aliases = {
@@ -259,23 +286,16 @@ class FlowTrackerDISAdapter:
 
         return aliases.get(key, key)
 
-
-    def _parse_summary_value_with_units(self, key_base: str, raw_value: str) -> Tuple[str, Any]:
-        """
-        If value has units, move units to header and keep numeric value in cell.
-
-        Examples:
-          total_width + '5.600 m'      -> total_width_m = 5.600
-          mean_temp + '21.85 deg C'    -> mean_temp_degC = 21.85
-          mean_snr + '29.2 dB'         -> mean_snr_dB = 29.2
-          uncertainty + '4.8 %'        -> ..._percent = 4.8
-        """
-
+    def _parse_summary_value_with_units(
+        self,
+        key_base: str,
+        raw_value: str,
+    ) -> Tuple[str, Any]:
         value = str(raw_value).strip()
 
-        # Numeric + unit
         m = re.match(
-            r"^\s*(?P<num>[+-]?\d+(?:[.,]\d+)?)\s*(?P<unit>%|m\^2|m\^3/s|m/s|m|dB|deg\s*C|sec)\s*$",
+            r"^\s*(?P<num>[+-]?\d+(?:[.,]\d+)?)\s*"
+            r"(?P<unit>%|m\^2|m\^3/s|m/s|m|dB|deg\s*C|sec)\s*$",
             value,
             flags=re.IGNORECASE,
         )
@@ -286,14 +306,12 @@ class FlowTrackerDISAdapter:
             suffix = self._unit_to_suffix(unit)
             return f"{key_base}_{suffix}", num
 
-        # Percent without space can appear, e.g. 0.0%
         m = re.match(r"^\s*(?P<num>[+-]?\d+(?:[.,]\d+)?)%\s*$", value)
         if m:
             num = m.group("num").replace(",", ".")
             return f"{key_base}_percent", num
 
         return key_base, value
-
 
     def _unit_to_suffix(self, unit: str) -> str:
         unit_clean = unit.strip().lower().replace(" ", "")
@@ -326,7 +344,6 @@ class FlowTrackerDISAdapter:
         summary: Dict[str, Any],
         spec: Dict[str, Any],
     ) -> Dict[str, Any]:
-
         alias_map = (spec.get("summary", {}) or {}).get("key_aliases") or {}
 
         if not alias_map:
@@ -342,43 +359,101 @@ class FlowTrackerDISAdapter:
                 reverse[self._norm_key(canonical)] = self._to_snake_case(canonical)
 
             if isinstance(aliases, list):
-                for a in aliases:
-                    if a:
-                        reverse[self._norm_key(str(a))] = self._to_snake_case(canonical)
+                for alias in aliases:
+                    if alias:
+                        reverse[self._norm_key(str(alias))] = self._to_snake_case(canonical)
             elif isinstance(aliases, str) and aliases:
                 reverse[self._norm_key(aliases)] = self._to_snake_case(canonical)
 
         out: Dict[str, Any] = {}
 
-        for k, v in summary.items():
-            canon = reverse.get(
-                self._norm_key(str(k)),
-                self._to_snake_case(str(k)),
+        for key, value in summary.items():
+            canonical_key = reverse.get(
+                self._norm_key(str(key)),
+                self._to_snake_case(str(key)),
             )
 
-            if canon in out:
-                if isinstance(v, list):
-                    for item in v:
-                        self._append_value(out, canon, str(item))
+            if canonical_key in out:
+                if isinstance(value, list):
+                    for item in value:
+                        self._append_value(out, canonical_key, str(item))
                 else:
-                    self._append_value(out, canon, str(v))
+                    self._append_value(out, canonical_key, str(value))
             else:
-                out[canon] = v
+                out[canonical_key] = value
 
         return out
 
-    def _norm_key(self, s: str) -> str:
-        s = s.strip().lower()
-        s = s.replace("\t", " ")
-        s = s.replace("_", " ")
-        s = re.sub(r"[·•]", " ", s)
-        s = re.sub(r"\s+", " ", s)
-        s = s.replace(".", "")
-        return s
+    def _add_compatibility_summary_fields(
+        self,
+        summary: Dict[str, Any],
+        dis_path: str | Path,
+    ) -> Dict[str, Any]:
+        summary = dict(summary)
 
-    def _to_snake_case(self, s: str) -> str:
-        s = str(s).strip()
-        s = s.replace("\ufeff", "")
+        for canonical_key, candidates in self.SUMMARY_COMPATIBILITY_ALIASES.items():
+            if summary.get(canonical_key):
+                continue
+
+            for candidate in candidates:
+                candidate_key = self._to_snake_case(candidate)
+                value = summary.get(candidate_key)
+
+                if value not in (None, ""):
+                    summary[canonical_key] = value
+                    break
+
+        if not summary.get("file_name"):
+            summary["file_name"] = os.path.basename(dis_path)
+
+        if not summary.get("start_date_time"):
+            summary["start_date_time"] = self._extract_datetime(
+                summary.get("start_date_and_time")
+                or summary.get("fecha_y_hora_de_inicio")
+                or ""
+            )
+        else:
+            summary["start_date_time"] = self._extract_datetime(
+                summary.get("start_date_time")
+            )
+
+        if not summary.get("station_name"):
+            summary["station_name"] = (
+                summary.get("site_name")
+                or summary.get("nom_del_punto_de_aforo")
+                or ""
+            )
+
+        if not summary.get("site_name"):
+            summary["site_name"] = summary.get("station_name") or ""
+
+        return summary
+
+    def _extract_datetime(self, value: Any) -> str:
+        text = str(value or "")
+
+        m = re.search(r"\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}", text)
+        if m:
+            return m.group(0)
+
+        m = re.search(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text)
+        if m:
+            return m.group(0).replace("-", "/")
+
+        return text.strip()
+
+    def _norm_key(self, value: str) -> str:
+        value = value.strip().lower()
+        value = value.replace("\t", " ")
+        value = value.replace("_", " ")
+        value = re.sub(r"[·•]", " ", value)
+        value = re.sub(r"\s+", " ", value)
+        value = value.replace(".", "")
+        return value
+
+    def _to_snake_case(self, value: str) -> str:
+        value = str(value).strip()
+        value = value.replace("\ufeff", "")
 
         replacements = {
             "#": "number",
@@ -408,12 +483,12 @@ class FlowTrackerDISAdapter:
         }
 
         for old, new in replacements.items():
-            s = s.replace(old, new)
+            value = value.replace(old, new)
 
-        s = re.sub(r"\s+", "_", s)
-        s = re.sub(r"__+", "_", s)
+        value = re.sub(r"\s+", "_", value)
+        value = re.sub(r"__+", "_", value)
 
-        return s.strip("_").lower()
+        return value.strip("_").lower()
 
     def _validate_summary(
         self,
@@ -421,16 +496,15 @@ class FlowTrackerDISAdapter:
         spec: Dict[str, Any],
         dis_path: str,
     ) -> None:
+        required_keys = (spec.get("summary", {}) or {}).get("required_keys", []) or []
 
-        req = (spec.get("summary", {}) or {}).get("required_keys", []) or []
-
-        if not req:
+        if not required_keys:
             return
 
         missing = [
-            self._to_snake_case(k)
-            for k in req
-            if self._to_snake_case(k) not in summary
+            self._to_snake_case(key)
+            for key in required_keys
+            if self._to_snake_case(key) not in summary
         ]
 
         if missing:
@@ -449,13 +523,12 @@ class FlowTrackerDISAdapter:
         legacy_header_re: re.Pattern,
         header_variants: List[Dict[str, Any]],
     ) -> bool:
+        line = (line or "").strip()
 
-        ln = (line or "").strip()
-
-        if not ln:
+        if not line:
             return False
 
-        tokens = ln.split()
+        tokens = line.split()
 
         if tokens and tokens[0].strip() == "St":
             joined = " ".join(tokens).lower()
@@ -471,14 +544,14 @@ class FlowTrackerDISAdapter:
                 "flow",
             ]
 
-            if any(x in joined for x in indicators):
+            if any(indicator in joined for indicator in indicators):
                 return True
 
         if header_variants:
-            low = ln.lower()
-            for hv in header_variants:
-                tokens_all = hv.get("tokens_all") or []
-                if tokens_all and all(str(t).lower() in low for t in tokens_all):
+            low = line.lower()
+            for header_variant in header_variants:
+                tokens_all = header_variant.get("tokens_all") or []
+                if tokens_all and all(str(token).lower() in low for token in tokens_all):
                     return True
 
         return bool(legacy_header_re.search(line))
@@ -490,7 +563,6 @@ class FlowTrackerDISAdapter:
         spec: Dict[str, Any],
         dis_path: str,
     ) -> Tuple[List[Dict[str, Any]], List[str], str]:
-
         pt_legacy = spec.get("points_table", {}) or {}
 
         header_re = re.compile(
@@ -523,7 +595,7 @@ class FlowTrackerDISAdapter:
 
         raw_header_line = lines[header_idx]
         raw_cols = re.split(r"\s+", raw_header_line.strip())
-        cols = [self._normalize_points_column_name(c) for c in raw_cols]
+        cols = [self._normalize_points_column_name(col) for col in raw_cols]
 
         units_idx = self._find_units_line(
             lines=lines,
@@ -538,22 +610,21 @@ class FlowTrackerDISAdapter:
         started = False
 
         for k in range(data_start, len(lines)):
-            ln_original = lines[k]
-            ln = ln_original.strip()
+            raw_line = lines[k]
+            line = raw_line.strip()
 
-            if ln == "":
+            if line == "":
                 if started:
                     break
                 continue
 
-            if not data_row_re.search(ln):
+            if not data_row_re.search(line):
                 if started:
                     break
                 continue
 
             started = True
-
-            tokens = re.split(r"\s+", ln)
+            tokens = re.split(r"\s+", line)
 
             if len(tokens) < len(cols):
                 raise ValueError(
@@ -562,19 +633,19 @@ class FlowTrackerDISAdapter:
                     f"Line number: {k + 1}\n"
                     f"Expected {len(cols)} columns: {cols}\n"
                     f"Found {len(tokens)} values: {tokens}\n"
-                    f"Raw line: {ln_original}"
+                    f"Raw line: {raw_line}"
                 )
 
             if len(tokens) > len(cols):
                 tokens = tokens[:len(cols)]
 
             row = {
-                c: t
-                for c, t in zip(cols, tokens)
+                column: token
+                for column, token in zip(cols, tokens)
             }
 
             row["source_line_number"] = k + 1
-            row["raw_source_line"] = ln_original
+            row["raw_source_line"] = raw_line
 
             points.append(row)
 
@@ -599,7 +670,6 @@ class FlowTrackerDISAdapter:
         units_startswith: str,
         dis_path: str,
     ) -> int:
-
         default_idx = header_idx + 1
 
         if (
@@ -626,129 +696,98 @@ class FlowTrackerDISAdapter:
         spec: Dict[str, Any],
         dis_path: str,
     ) -> Dict[str, Any]:
-
         extracted: Dict[str, Any] = {
             "source": "flowtracker",
             "input_file": os.path.basename(dis_path),
             "input_path": os.path.abspath(dis_path),
             "format_id": spec.get("format_id"),
             "format_version": spec.get("format_version"),
+            "station_id": self._clean_file_name_as_station_id(
+                summary.get("file_name") or os.path.basename(dis_path)
+            ),
+            "station_name": (
+                summary.get("site_name")
+                or summary.get("station_name")
+                or ""
+            ),
         }
 
-        station_cfg = spec.get("station", {}) or {}
-        st_key = self._to_snake_case(
-            station_cfg.get("from_summary_key", "station_name")
-        )
-
-        extracted["station_name"] = (
-            summary.get(st_key)
-            or summary.get("nom_del_punto_de_aforo")
-            or summary.get("station_name")
-            or summary.get("measurement_station_name")
-            or ""
-        )
-
-        dt_cfg = spec.get("datetime", {}) or {}
-        dt_key = self._to_snake_case(
-            dt_cfg.get("from_summary_key", "start_date_time")
-        )
-
-        dt_val = (
-            summary.get(dt_key)
-            or summary.get("fecha_y_hora_de_inicio")
+        dt_value = (
+            summary.get("start_date_time")
             or summary.get("start_date_and_time")
-            or summary.get("start_date_time")
+            or summary.get("fecha_y_hora_de_inicio")
             or ""
         )
 
-        pattern = dt_cfg.get(
-            "pattern",
-            r"(?P<date>\d{4}/\d{2}/\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})",
-        )
+        dt_value = self._extract_datetime(dt_value)
 
-        m = re.search(pattern, str(dt_val))
+        m = re.search(
+            r"(?P<date>\d{4}/\d{2}/\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})",
+            str(dt_value),
+        )
 
         if m:
-            date_str = m.group("date") if "date" in m.groupdict() else m.group(1)
-            time_str = m.group("time") if "time" in m.groupdict() else m.group(2)
-
-            extracted["measurement_date"] = date_str.replace("/", "").replace("-", "")
-            extracted["measurement_time"] = time_str.replace(":", "")
+            extracted["measurement_date"] = m.group("date").replace("/", "")
+            extracted["measurement_time"] = m.group("time").replace(":", "")
         else:
             extracted["measurement_date"] = ""
             extracted["measurement_time"] = ""
 
         nv_raw = (
-            summary.get("number_estaciones")
+            summary.get("number_stations")
+            or summary.get("number_estaciones")
             or summary.get("number_verticals")
             or summary.get("number_of_stations")
-            or summary.get("number_stations")
             or summary.get("estaciones")
             or summary.get("verticals")
         )
 
-        m2 = re.search(r"\d+", str(nv_raw)) if nv_raw is not None else None
-        extracted["n_verticals"] = int(m2.group()) if m2 else None
+        m_verticals = re.search(r"\d+", str(nv_raw)) if nv_raw is not None else None
+        extracted["n_verticals"] = int(m_verticals.group()) if m_verticals else None
 
         return extracted
-        
 
-def parse_flowtracker_dis(dis_path: str, spec_path: str | None = None):
-    import pandas as pd
+    def _clean_file_name_as_station_id(self, value: Any) -> str:
+        text = str(value or "").strip()
 
-    def scalarize(value):
-        if isinstance(value, list):
-            return " | ".join(str(v) for v in value if v is not None)
-        return value
+        if not text:
+            return "UNKNOWN"
 
-    spec = {}
+        text = Path(text).stem
+
+        if text.upper().endswith(".TXT"):
+            text = Path(text).stem
+
+        text = re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_")
+
+        return text.upper() if text else "UNKNOWN"
+
+
+def parse_flowtracker_dis(dis_path: str | Path, spec_path: str | Path | None = None):
     adapter = FlowTrackerDISAdapter()
+
+    if spec_path is not None:
+        result = adapter.parse_file_strict(str(dis_path), str(spec_path))
+        summary_rows = result.raw_groups.get("Summary", [])
+        points_rows = result.raw_groups.get("Points", [])
+
+        summary = summary_rows[0] if summary_rows else {}
+        points_df = pd.DataFrame(points_rows)
+
+        return summary, points_df
+
+    spec: Dict[str, Any] = {}
 
     lines, detected_encoding = adapter._read_lines_auto(dis_path)
 
     summary_raw, table_start_idx = adapter._parse_summary_block(lines, spec)
     summary = adapter._apply_summary_aliases(summary_raw, spec)
+    summary = adapter._add_compatibility_summary_fields(summary, dis_path)
 
-    # Convert lists to strings for compatibility with old pipeline
-    summary = {k: scalarize(v) for k, v in summary.items()}
-
-    # Compatibility aliases expected by current aforix pipeline
-    def extract_datetime(value):
-        text = str(value or "")
-        m = re.search(r"\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}", text)
-        if m:
-            return m.group(0)
-
-        m = re.search(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text)
-        if m:
-            return m.group(0).replace("-", "/")
-
-        return text
-
-    summary["start_date_time"] = extract_datetime(summary.get("start_date_time"))
-    if "start_date_time" not in summary or not summary["start_date_time"]:
-        summary["start_date_time"] = (
-            summary.get("fecha_y_hora_de_inicio")
-            or summary.get("start_date_and_time")
-            or ""
-        )
-    
-    summary["start_date_time"] = extract_datetime(summary.get("start_date_time"))
-
-    if "station_name" not in summary or not summary["station_name"]:
-        summary["station_name"] = (
-            summary.get("nom_del_punto_de_aforo")
-            or summary.get("station_name")
-            or ""
-        )
-
-    if "number_stations" not in summary or not summary["number_stations"]:
-        summary["number_stations"] = (
-            summary.get("number_estaciones")
-            or summary.get("number_verticals")
-            or summary.get("estaciones")
-            or ""
-        )
+    summary = {
+        key: _scalarize(value)
+        for key, value in summary.items()
+    }
 
     summary["input_file"] = os.path.basename(dis_path)
     summary["input_path"] = os.path.abspath(dis_path)
@@ -758,7 +797,7 @@ def parse_flowtracker_dis(dis_path: str, spec_path: str | None = None):
         lines=lines,
         start_idx=table_start_idx,
         spec=spec,
-        dis_path=dis_path,
+        dis_path=str(dis_path),
     )
 
     for row in points:
@@ -770,3 +809,9 @@ def parse_flowtracker_dis(dis_path: str, spec_path: str | None = None):
     points_df = pd.DataFrame(points)
 
     return summary, points_df
+
+
+def _scalarize(value: Any) -> Any:
+    if isinstance(value, list):
+        return " | ".join(str(item) for item in value if item is not None)
+    return value
