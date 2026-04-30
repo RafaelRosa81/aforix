@@ -1,7 +1,6 @@
 import typer
 from pathlib import Path
 from aforix.config.loader import load_config
-from aforix.runs.manager import create_run
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.nivus import run as run_nivus
 from aforix.ingest.molinete import run as run_molinete
@@ -11,9 +10,8 @@ from aforix.groups.build import run as run_build_groups
 from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
-from aforix.normalize.summary import run as run_normalize_summary
-from aforix.normalize.points import run as run_normalize_points
 from aforix.export.tables.cli import main as export_tables_main
+from aforix.normalize.run import normalize_run
 
 
 app = typer.Typer(
@@ -149,21 +147,33 @@ def consolidate_flowtracker(
     typer.echo(f"FlowTracker database updated: {target_root}")
 
 
-@normalize_app.command("summary")
-def normalize_summary(
-    config: str = typer.Option(..., "--config", "-c"),
+@normalize_app.command("run")
+def normalize_run_cmd(
+    run_dir: Path = typer.Option(
+        ...,
+        "--run-dir",
+        "-r",
+        help="Run directory to normalize",
+    ),
+    registry_dir: Path = typer.Option(
+        Path("configs/normalization"),
+        "--registry-dir",
+        help="Normalization registry directory",
+    ),
 ):
-    """Normalize Summary group into canonical columns."""
-    run_dir = run_normalize_summary(Path(config))
-    typer.echo(f"Summary normalization completed: {run_dir}")
+    """
+    Normalize raw_canonical outputs using the registry.
+    """
 
+    print(f"Normalizing run: {run_dir}")
+    print(f"Using registry: {registry_dir}")
 
-@normalize_app.command("points")
-def normalize_points(
-    config: str = typer.Option(..., "--config", "-c"),
-):
-    run_dir = run_normalize_points(Path(config))
-    typer.echo(f"Points normalization completed: {run_dir}")
+    normalized_root = normalize_run(
+        run_dir=run_dir,
+        registry_dir=registry_dir,
+    )
+
+    print(f"Normalized output: {normalized_root}")
 
 
 if __name__ == "__main__":

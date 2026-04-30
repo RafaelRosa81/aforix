@@ -8,6 +8,11 @@ from aforix.runs.manager import create_run
 from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 
 
+TABLES_BY_INSTRUMENT = {
+    "flowtracker": ["Summary", "Points"],
+}
+
+
 def _station_id_from_point_folder(point_folder: str) -> str:
     m = re.match(r"^(P\d{1,3})$", point_folder.strip(), flags=re.IGNORECASE)
     return m.group(1).upper() if m else "UNKNOWN"
@@ -60,9 +65,11 @@ def run(config_path: Path) -> Path:
 
     outdir_root = run_dir / "outputs" / "raw_canonical" / "flowtracker"
 
+    tables = TABLES_BY_INSTRUMENT["flowtracker"]
+
     group_dirs = {
         group: outdir_root / group
-        for group in ["Summary", "Points", "Sections", "Gates"]
+        for group in tables
     }
 
     for group_dir in group_dirs.values():
@@ -90,7 +97,9 @@ def run(config_path: Path) -> Path:
             start_dt = summary.get("start_date_time")
 
             if not start_dt:
-                raise ValueError(f"Missing start_date_time in FlowTracker summary: {dis_path}")
+                raise ValueError(
+                    f"Missing start_date_time in FlowTracker summary: {dis_path}"
+                )
 
             dt = datetime.strptime(start_dt, "%Y/%m/%d %H:%M:%S")
 
@@ -118,7 +127,7 @@ def run(config_path: Path) -> Path:
             print(f"Saved: {summary_outpath}")
 
             # --------------------------------------------------
-            # POINTS (FIX CLAVE)
+            # POINTS
             # --------------------------------------------------
             if isinstance(points, pd.DataFrame):
                 points_df = points.copy()
@@ -140,17 +149,6 @@ def run(config_path: Path) -> Path:
 
                 points_df.to_csv(points_outpath, index=False)
                 print(f"Saved: {points_outpath}")
-
-            # --------------------------------------------------
-            # SECTIONS / GATES (vacíos)
-            # --------------------------------------------------
-            for group in ["Sections", "Gates"]:
-                outpath = (
-                    group_dirs[group]
-                    / f"{station_id}_{group}_{measurement_date}_{measurement_time}.csv"
-                )
-
-                pd.DataFrame().to_csv(outpath, index=False)
 
             processed += 1
 
