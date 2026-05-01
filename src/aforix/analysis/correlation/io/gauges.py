@@ -80,8 +80,14 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
 def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
     if df.empty:
         return {}
-    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
+
     out = df.copy()
+    out["point"] = out["point"].astype(str).str.strip()
+    out = out[out["point"].str.fullmatch(r"\d+")]
+    if out.empty:
+        return {}
+
+    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
     out["rank"] = out["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
     out = out.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
     out = out.drop(columns=["rank"])
@@ -139,7 +145,7 @@ def load_gauges_daily(
 
     The loader combines all available Summary tables instead of trusting only the
     global Summary.csv. This protects correlations when the consolidated table is
-    stale or incomplete.
+    stale or incomplete. Only strictly numeric point identifiers are kept.
     """
 
     instruments_list = list(instruments)
