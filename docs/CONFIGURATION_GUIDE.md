@@ -200,7 +200,7 @@ Si el archivo es Excel, la hoja esperada por defecto puede definirse en la confi
 ```yaml
 molinete:
   raw_subdir: ML
-  sheet_name: Datos
+  sheet_name: CALCULO
 ```
 
 En Molinete, cargar el ID del punto en `ESTACION Nº:` y el nombre del punto en `NOMBRE:`.
