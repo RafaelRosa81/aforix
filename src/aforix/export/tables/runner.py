@@ -264,6 +264,8 @@ def _build_pivot(
     if complete_index is not None:
         pivot = pivot.reindex(complete_index)
     return pivot.reset_index()
+
+
 def _build_flat(df: pd.DataFrame, parameters: Sequence[str]) -> pd.DataFrame:
     base_cols = []
     for col in ["instrument", get_point_column(df), "station_name", get_date_column(df), "measurement_time"]:
@@ -271,6 +273,84 @@ def _build_flat(df: pd.DataFrame, parameters: Sequence[str]) -> pd.DataFrame:
             base_cols.append(col)
     cols = base_cols + [p for p in parameters if p in df.columns and p not in base_cols]
     return df[cols].copy()
+
+
+def _slug(value: str | None) -> str:
+    text = str(value or "").strip().lower()
+    keep = []
+    for ch in text:
+        if ch.isalnum():
+            keep.append(ch)
+        elif ch in {"_", "-"}:
+            keep.append("_")
+        elif ch.isspace():
+            keep.append("_")
+    slug = "".join(keep).strip("_")
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug or "export"
+
+
+def _table_short_name(table: str) -> str:
+    mapping = {
+        "summary": "summary",
+        "points": "points",
+        "sections": "sections",
+        "gates": "gates",
+    }
+    return mapping.get(str(table).strip().lower(), _slug(table))
+
+
+def _grouping_short_name(grouping: str, is_pivot: bool) -> str:
+    grouping = (grouping or "none").lower()
+    if grouping == "monthly":
+        return "monthly"
+    if grouping == "daily":
+        return "daily"
+    return "flat" if not is_pivot else "pivot"
+
+
+def _instrument_short_name(instrument: str | None) -> str:
+    tag = (instrument or "all").strip().lower()
+    if tag in {"", "all"}:
+        return "allinst"
+    mapping = {
+        "flowtracker": "ft",
+        "molinete": "mol",
+        "nivus": "nivus",
+        "m9": "m9",
+    }
+    return mapping.get(tag, _slug(tag))
+
+
+def _aggregation_short_name(aggregation: str | None) -> str:
+    mapping = {
+        "mean": "avg",
+        "sum": "sum",
+        "median": "med",
+        "min": "min",
+        "max": "max",
+        "first": "first",
+    }
+    return mapping.get((aggregation or "mean").lower(), _slug(aggregation))
+
+
+def _build_output_stem(request: ExportRequest, grouping: str, is_pivot: bool) -> str:
+    """Build compact, descriptive export file stems.
+
+    Examples:
+    - summary_monthly_avg_allinst
+    - summary_monthly_avg_ft
+    - points_daily_sum_nivus
+    - summary_flat_allinst
+    """
+    table = _table_short_name(request.table)
+    period = _grouping_short_name(grouping, is_pivot)
+    instrument = _instrument_short_name(request.instrument)
+    if grouping in {"monthly", "daily"}:
+        aggregation = _aggregation_short_name(request.aggregation)
+        return f"{table}_{period}_{aggregation}_{instrument}"
+    return f"{table}_{period}_{instrument}"
 
 
 def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
@@ -308,13 +388,12 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     export_root = get_export_root(config) / ts
     export_root.mkdir(parents=True, exist_ok=True)
-    tag = request.instrument.lower() if request.instrument else "all"
-    shape = "pivot" if pivot or grouping in {"monthly", "daily"} else "flat"
     fmt = request.fmt.lower()
     if fmt not in {"xlsx", "csv"}:
         raise ValueError("Output format must be xlsx or csv.")
-    output_file = export_root / f"{request.table}_{tag}_{shape}.{fmt}"
-    metadata_file = export_root / f"{request.table}_{tag}_{shape}_metadata.txt"
+    stem = _build_output_stem(request, grouping, bool(pivot or grouping in {"monthly", "daily"}))
+    output_file = export_root / f"{stem}.{fmt}"
+    metadata_file = export_root / f"{stem}_metadata.txt"
 
     metadata = {
         "table": request.table,
@@ -328,6 +407,8 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
         "grouping": grouping,
         "pivot": bool(pivot or grouping in {"monthly", "daily"}),
         "aggregation": request.aggregation,
+        "output_stem": stem,
+        "filename_pattern": "{table}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{shape}_{instrument}.{fmt}",
         "column_order": "period_major" if grouping in {"monthly", "daily"} else "flat",
         "point_selection_rule": "numeric point tokens are treated as station codes; use idx:N or [N] to force index selection",
         "row_count": int(len(out_df)),
