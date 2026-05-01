@@ -335,22 +335,39 @@ def _aggregation_short_name(aggregation: str | None) -> str:
     return mapping.get((aggregation or "mean").lower(), _slug(aggregation))
 
 
-def _build_output_stem(request: ExportRequest, grouping: str, is_pivot: bool) -> str:
+def _date_range_short_name(early: str | None, late: str | None) -> str:
+    if early and late:
+        return f"{early}-{late}"
+    if early:
+        return f"from_{early}"
+    if late:
+        return f"to_{late}"
+    return "all_dates"
+
+
+def _build_output_stem(
+    request: ExportRequest,
+    grouping: str,
+    is_pivot: bool,
+    early: str | None,
+    late: str | None,
+) -> str:
     """Build compact, descriptive export file stems.
 
     Examples:
-    - summary_monthly_avg_allinst
-    - summary_monthly_avg_ft
-    - points_daily_sum_nivus
-    - summary_flat_allinst
+    - summary_20250801-20260131_monthly_avg_allinst
+    - summary_20250801-20260131_monthly_avg_ft
+    - points_20251201-20251231_daily_sum_nivus
+    - summary_all_dates_flat_allinst
     """
     table = _table_short_name(request.table)
+    date_range = _date_range_short_name(early, late)
     period = _grouping_short_name(grouping, is_pivot)
     instrument = _instrument_short_name(request.instrument)
     if grouping in {"monthly", "daily"}:
         aggregation = _aggregation_short_name(request.aggregation)
-        return f"{table}_{period}_{aggregation}_{instrument}"
-    return f"{table}_{period}_{instrument}"
+        return f"{table}_{date_range}_{period}_{aggregation}_{instrument}"
+    return f"{table}_{date_range}_{period}_{instrument}"
 
 
 def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
@@ -391,7 +408,7 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     fmt = request.fmt.lower()
     if fmt not in {"xlsx", "csv"}:
         raise ValueError("Output format must be xlsx or csv.")
-    stem = _build_output_stem(request, grouping, bool(pivot or grouping in {"monthly", "daily"}))
+    stem = _build_output_stem(request, grouping, bool(pivot or grouping in {"monthly", "daily"}), early_eff, late_eff)
     output_file = export_root / f"{stem}.{fmt}"
     metadata_file = export_root / f"{stem}_metadata.txt"
 
@@ -408,7 +425,7 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
         "pivot": bool(pivot or grouping in {"monthly", "daily"}),
         "aggregation": request.aggregation,
         "output_stem": stem,
-        "filename_pattern": "{table}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{shape}_{instrument}.{fmt}",
+        "filename_pattern": "{table}_{date_range}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{date_range}_{shape}_{instrument}.{fmt}",
         "column_order": "period_major" if grouping in {"monthly", "daily"} else "flat",
         "point_selection_rule": "numeric point tokens are treated as station codes; use idx:N or [N] to force index selection",
         "row_count": int(len(out_df)),
