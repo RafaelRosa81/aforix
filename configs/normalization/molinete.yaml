@@ -2,145 +2,90 @@ instrument: molinete
 
 tables:
 
-  Points:
-    canonical_name: points
+  Summary:
+    canonical_name: summary
 
     columns:
-
-      point_id:
+      station_id:
         source: station_id
         dtype: string
 
-      date:
+      station_name:
+        sources:
+          - station_name
+          - nombre
+        dtype: string
+
+      measurement_date:
         source: measurement_date
-        dtype: date
+        dtype: string
 
       measurement_time:
         source: measurement_time
         dtype: string
-
-      vertical_label:
-        source: vert_label
-        dtype: string
-
-      point_index:
-        source: point_index
-        dtype: int
-
-      distance_m:
-        source: progr_m
-        dtype: float
-
-      depth_m:
-        source: prof_m
-        dtype: float
-
-      angle_hor_deg:
-        source: angle_hor_deg
-        dtype: float
-
-      n_velocity_points:
-        source: n_points
-        dtype: int
-
-      rev_1_s:
-        source: rev_1_s
-        dtype: float
-
-      rev_2_s:
-        source: rev_2_s
-        dtype: float
-
-      rev_3_s:
-        source: rev_3_s
-        dtype: float
-
-      velocity_point_1_ms:
-        source: vel_point_1_ms
-        dtype: float
-
-      velocity_point_2_ms:
-        source: vel_point_2_ms
-        dtype: float
-
-      velocity_point_3_ms:
-        source: vel_point_3_ms
-        dtype: float
-
-      velocity_vertical_mean_ms:
-        source: vel_media_vert_ms
-        dtype: float
-
-      velocity_section_mean_ms:
-        source: vel_media_secc_ms
-        dtype: float
-
-      area_m2:
-        source: area_m2
-        dtype: float
-
-      q_m3s:
-        source: q_m3s
-        dtype: float
-
-      q_percent:
-        source: q_percent
-        dtype: float
 
       instrument:
         source: instrument
         dtype: string
 
-      input_file:
-        source: raw_source_file
+      source_file:
+        sources:
+          - source_file
+          - raw_source_file
+          - source_csv
         dtype: string
 
-      source_sheet:
-        source: raw_sheet_name
+      source_run_dir:
+        source: source_run_dir
         dtype: string
 
-    required:
-      - point_id
-      - distance_m
-      - depth_m
-      - q_m3s
-
-    transforms:
-      - name: strip_strings
-      - name: numeric_commas_to_dots
-      - name: enforce_dtypes
-
-    qc:
-      non_negative:
-        - depth_m
-        - area_m2
-
-      allow_negative:
-        - q_m3s
-        - velocity_vertical_mean_ms
-        - velocity_section_mean_ms
-
-
-  Summary:
-    canonical_name: summary
-
-    columns:
-
-      point_id:
-        source: station_id
+      run_id:
+        source: run_id
         dtype: string
 
-      date:
-        source: measurement_date
-        dtype: date
+      q_total_m3s:
+        sources:
+          - q_total_m3s
+          - q_m3s
+          - total_discharge_m3s
+          - total_discharge_m3_s
+        dtype: float
 
-      measurement_time:
-        source: measurement_time
-        dtype: string
+      q_total_ls:
+        source: __derived__
+        dtype: float
 
-      station_name:
-        source: nombre
-        dtype: string
+      area_total_m2:
+        sources:
+          - area_total_m2
+          - area_m2
+          - total_area_m2
+        dtype: float
+
+      width_total_m:
+        sources:
+          - width_total_m
+          - ancho_m
+          - width_m
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - vel_media_ms
+          - mean_velocity_ms
+        dtype: float
+
+      depth_mean_m:
+        sources:
+          - depth_mean_m
+          - prof_media_m
+          - mean_depth_m
+        dtype: float
+
+      temperature_c:
+        source: temperature_c
+        dtype: float
 
       watercourse:
         source: curso
@@ -154,73 +99,9 @@ tables:
         source: end_time
         dtype: string
 
-      staff_gauge_initial_m:
-        source: esc_ini_m
-        dtype: float
-
-      staff_gauge_final_m:
-        source: esc_fin_m
-        dtype: float
-
-      current_meter:
-        source: molinete
-        dtype: string
-
-      propeller:
-        source: helice
-        dtype: string
-
-      operator:
-        source: realizado
-        dtype: string
-
-      calculated_by:
-        source: calculado
-        dtype: string
-
-      gauging_method:
-        source: tipo_metodo_aforo
-        dtype: string
-
-      total_cases:
-        source: todos_los_casos
-        dtype: int
-
-      correction_c:
-        source: correccion_c
-        dtype: float
-
-      total_discharge_m3s:
-        source: q_m3s
-        dtype: float
-
-      total_area_m2:
-        source: area_m2
-        dtype: float
-
-      mean_velocity_ms:
-        source: vel_media_ms
-        dtype: float
-
       max_depth_m:
         source: prof_max_m
         dtype: float
-
-      mean_depth_m:
-        source: prof_media_m
-        dtype: float
-
-      hydraulic_radius_m:
-        source: radio_hidraulico_m
-        dtype: float
-
-      width_m:
-        source: ancho_m
-        dtype: float
-
-      n_points:
-        source: n_points
-        dtype: int
 
       coordinate_y:
         source: coord_y
@@ -234,18 +115,18 @@ tables:
         source: observaciones
         dtype: string
 
-      input_file:
-        source: raw_source_file
-        dtype: string
-
-      source_sheet:
-        source: raw_sheet_name
-        dtype: string
+    derived:
+      q_total_ls:
+        from: q_total_m3s
+        operation: multiply
+        value: 1000
 
     required:
-      - point_id
-      - total_discharge_m3s
-      - total_area_m2
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - q_total_m3s
 
     transforms:
       - name: strip_strings
@@ -254,7 +135,133 @@ tables:
 
     qc:
       non_negative:
-        - total_area_m2
-        - max_depth_m
-        - mean_depth_m
-        - width_m
+        - q_total_m3s
+        - q_total_ls
+        - area_total_m2
+        - width_total_m
+        - depth_mean_m
+
+
+  Points:
+    canonical_name: points
+
+    columns:
+      station_id:
+        source: station_id
+        dtype: string
+
+      station_name:
+        sources:
+          - station_name
+          - nombre
+        dtype: string
+
+      measurement_date:
+        source: measurement_date
+        dtype: string
+
+      measurement_time:
+        source: measurement_time
+        dtype: string
+
+      instrument:
+        source: instrument
+        dtype: string
+
+      source_file:
+        sources:
+          - source_file
+          - raw_source_file
+          - source_csv
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+      point_index:
+        source: point_index
+        dtype: int
+
+      point_label:
+        sources:
+          - point_label
+          - vert_label
+        dtype: string
+
+      distance_m:
+        sources:
+          - distance_m
+          - progr_m
+        dtype: float
+
+      depth_m:
+        sources:
+          - depth_m
+          - prof_m
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - vel_media_vert_ms
+          - vel_media_secc_ms
+        dtype: float
+
+      area_m2:
+        source: area_m2
+        dtype: float
+
+      q_m3s:
+        source: q_m3s
+        dtype: float
+
+      q_ls:
+        source: __derived__
+        dtype: float
+
+      percent_q:
+        sources:
+          - percent_q
+          - q_percent
+        dtype: float
+
+      temperature_c:
+        source: temperature_c
+        dtype: float
+
+      angle_hor_deg:
+        source: angle_hor_deg
+        dtype: float
+
+      n_velocity_points:
+        source: n_points
+        dtype: int
+
+    derived:
+      q_ls:
+        from: q_m3s
+        operation: multiply
+        value: 1000
+
+    required:
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - distance_m
+      - depth_m
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - depth_m
+        - area_m2

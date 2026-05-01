@@ -108,11 +108,20 @@ def _get_concat_groups(cfg: dict[str, Any]) -> set[str]:
     if not isinstance(concat_groups, list):
         raise ValueError("'build_groups.concat_groups' must be a list.")
 
-    return {
-        str(group).strip()
-        for group in concat_groups
-        if str(group).strip()
-    }
+    return {str(group).strip() for group in concat_groups if str(group).strip()}
+
+
+def _get_column_aliases(cfg: dict[str, Any]) -> dict[str, Any]:
+    build_cfg = cfg.get("build_groups", {})
+    aliases = build_cfg.get("column_aliases", {})
+
+    if aliases is None:
+        return {}
+
+    if not isinstance(aliases, dict):
+        raise ValueError("'build_groups.column_aliases' must be a mapping/dictionary.")
+
+    return aliases
 
 
 def _get_runs_root(cfg: dict[str, Any], *, config_path: Path) -> Path:
@@ -179,13 +188,7 @@ def _find_group_csvs(
     csvs: list[Path] = []
 
     for run_dir in run_dirs:
-        group_dir = (
-            run_dir
-            / "outputs"
-            / "raw_canonical"
-            / instrument
-            / group
-        )
+        group_dir = run_dir / "outputs" / "raw_canonical" / instrument / group
 
         if not group_dir.exists():
             continue
@@ -277,6 +280,124 @@ def _first_existing_value(
     return str(default)
 
 
+def _normalize_alias_mapping(raw_mapping: Any) -> dict[str, str]:
+    """
+    Normalize one alias mapping into {old_column: canonical_column}.
+
+    Supports:
+      old_col: new_col
+
+    Example:
+      caudal_total_m3_s: total_discharge_m3_s
+    """
+
+    if raw_mapping is None:
+        return {}
+
+    if not isinstance(raw_mapping, dict):
+        raise ValueError("Column alias mapping must be a dictionary.")
+
+    normalized: dict[str, str] = {}
+
+    for old_col, new_col in raw_mapping.items():
+        old = str(old_col).strip()
+        new = str(new_col).strip()
+
+        if not old or not new:
+            raise ValueError("Column aliases must map non-empty strings.")
+
+        normalized[old] = new
+
+    return normalized
+
+
+def _get_alias_mapping_for(
+    column_aliases: dict[str, Any],
+    *,
+    instrument: str,
+    group: str,
+) -> dict[str, str]:
+    """
+    Get aliases for a specific instrument/group.
+
+    Supported YAML shape:
+      build_groups:
+        column_aliases:
+          flowtracker:
+            Summary:
+              old_col: new_col
+            Points:
+              old_col: new_col
+
+    Optional generic aliases:
+      build_groups:
+        column_aliases:
+          "*":
+            Summary:
+              old_col: new_col
+    """
+
+    combined: dict[str, str] = {}
+
+    for instrument_key in ("*", instrument):
+        instrument_aliases = column_aliases.get(instrument_key, {})
+
+        if instrument_aliases is None:
+            continue
+
+        if not isinstance(instrument_aliases, dict):
+            raise ValueError(
+                f"'build_groups.column_aliases.{instrument_key}' must be a dictionary."
+            )
+
+        generic_group_aliases = _normalize_alias_mapping(
+            instrument_aliases.get("*", {})
+        )
+        group_aliases = _normalize_alias_mapping(
+            instrument_aliases.get(group, {})
+        )
+
+        combined.update(generic_group_aliases)
+        combined.update(group_aliases)
+
+    return combined
+
+
+def _apply_column_aliases(
+    df: pd.DataFrame,
+    *,
+    instrument: str,
+    group: str,
+    column_aliases: dict[str, Any],
+) -> pd.DataFrame:
+    aliases = _get_alias_mapping_for(
+        column_aliases,
+        instrument=instrument,
+        group=group,
+    )
+
+    if not aliases:
+        return df.copy()
+
+    df = df.copy()
+
+    for old_col, new_col in aliases.items():
+        if old_col not in df.columns:
+            continue
+
+        if new_col not in df.columns:
+            df[new_col] = df[old_col]
+        else:
+            current = df[new_col].replace("", pd.NA)
+            incoming = df[old_col].replace("", pd.NA)
+            df[new_col] = current.combine_first(incoming)
+
+        if old_col != new_col:
+            df = df.drop(columns=[old_col])
+
+    return df
+
+
 def _ensure_traceability_columns(
     df: pd.DataFrame,
     *,
@@ -338,11 +459,7 @@ def _ensure_traceability_columns(
             empty_mask = df[col].str.strip() == ""
             df.loc[empty_mask, col] = value
 
-    remaining_columns = [
-        col for col in df.columns
-        if col not in TRACEABILITY_COLUMNS
-    ]
-
+    remaining_columns = [col for col in df.columns if col not in TRACEABILITY_COLUMNS]
     return df[TRACEABILITY_COLUMNS + remaining_columns]
 
 
@@ -351,11 +468,19 @@ def _read_csv_with_traceability(
     *,
     instrument: str,
     group: str,
+    column_aliases: dict[str, Any],
 ) -> pd.DataFrame:
     df = pd.read_csv(csv_path, dtype=str)
 
     if df.empty:
         return df
+
+    df = _apply_column_aliases(
+        df,
+        instrument=instrument,
+        group=group,
+        column_aliases=column_aliases,
+    )
 
     return _ensure_traceability_columns(
         df,
@@ -371,6 +496,7 @@ def _build_concat_group(
     instrument: str,
     group: str,
     output_root: Path,
+    column_aliases: dict[str, Any],
 ) -> None:
     frames: list[pd.DataFrame] = []
 
@@ -380,6 +506,7 @@ def _build_concat_group(
                 csv_path,
                 instrument=instrument,
                 group=group,
+                column_aliases=column_aliases,
             )
 
             if not df.empty:
@@ -399,10 +526,7 @@ def _build_concat_group(
 
     merged = pd.concat(frames, ignore_index=True, sort=False)
 
-    remaining_columns = [
-        col for col in merged.columns
-        if col not in TRACEABILITY_COLUMNS
-    ]
+    remaining_columns = [col for col in merged.columns if col not in TRACEABILITY_COLUMNS]
     merged = merged[TRACEABILITY_COLUMNS + remaining_columns]
 
     merged.to_csv(outpath, index=False)
@@ -416,6 +540,7 @@ def _build_file_group(
     instrument: str,
     group: str,
     output_root: Path,
+    column_aliases: dict[str, Any],
 ) -> None:
     outdir = output_root / instrument / group
     outdir.mkdir(parents=True, exist_ok=True)
@@ -428,6 +553,7 @@ def _build_file_group(
                 csv_path,
                 instrument=instrument,
                 group=group,
+                column_aliases=column_aliases,
             )
 
             if df.empty:
@@ -462,6 +588,7 @@ def run(config_path: Path) -> Path:
     instruments = _get_build_sources(cfg)
     groups = _get_build_groups(cfg)
     concat_groups = _get_concat_groups(cfg)
+    column_aliases = _get_column_aliases(cfg)
 
     output_root.mkdir(parents=True, exist_ok=True)
 
@@ -471,6 +598,7 @@ def run(config_path: Path) -> Path:
     print(f"Instruments: {instruments}")
     print(f"Groups: {groups}")
     print(f"Concat groups: {sorted(concat_groups)}")
+    print(f"Column aliases configured: {bool(column_aliases)}")
 
     ingest_run_dirs = _find_ingest_run_dirs(runs_root)
 
@@ -499,6 +627,7 @@ def run(config_path: Path) -> Path:
                     instrument=instrument,
                     group=group,
                     output_root=output_root,
+                    column_aliases=column_aliases,
                 )
             else:
                 _build_file_group(
@@ -506,6 +635,7 @@ def run(config_path: Path) -> Path:
                     instrument=instrument,
                     group=group,
                     output_root=output_root,
+                    column_aliases=column_aliases,
                 )
 
     print(f"Run created: {run_dir}")

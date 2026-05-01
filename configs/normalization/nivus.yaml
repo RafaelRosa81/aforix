@@ -6,57 +6,88 @@ tables:
     canonical_name: summary
 
     columns:
-
-      point_id:
+      station_id:
         source: station_id
         dtype: string
 
-      date:
+      station_name:
+        sources:
+          - station_name
+          - name
+        dtype: string
+
+      measurement_date:
         source: measurement_date
-        dtype: date
+        dtype: string
 
       measurement_time:
         source: measurement_time
-        dtype: time_hhmmss
-
-      timezone:
-        source: timezone
         dtype: string
 
-      station_name:
-        source: name
+      instrument:
+        sources:
+          - instrument
+          - source
         dtype: string
 
-      reference:
-        source: ref
+      source_file:
+        sources:
+          - source_file
+          - input_file
+          - input_path
         dtype: string
 
-      notes:
-        source: notes
+      source_run_dir:
+        source: source_run_dir
         dtype: string
 
-      sensor_serial_number:
-        source: sens_sn
+      run_id:
+        source: run_id
         dtype: string
 
-      sensor_article_number:
-        source: sens_an
-        dtype: string
-
-      material:
-        source: material
-        dtype: string
-
-      width_m:
-        source: w [m]
+      q_total_m3s:
+        source: __derived__
         dtype: float
 
-      total_discharge_ls:
-        source: q [l/s]
+      q_total_ls:
+        sources:
+          - q_total_ls
+          - total_discharge_ls
+          - q [l/s]
         dtype: float
 
-      mean_depth_m:
-        source: h_mean [m]
+      area_total_m2:
+        sources:
+          - area_total_m2
+          - total_area_m2
+          - a [m²]
+        dtype: float
+
+      width_total_m:
+        sources:
+          - width_total_m
+          - width_m
+          - w [m]
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - mean_velocity_ms
+          - v_mean [m/s]
+        dtype: float
+
+      depth_mean_m:
+        sources:
+          - depth_mean_m
+          - mean_depth_m
+          - h_mean [m]
+        dtype: float
+
+      temperature_c:
+        sources:
+          - temperature_c
+          - t [°C]
         dtype: float
 
       min_depth_m:
@@ -67,24 +98,12 @@ tables:
         source: h_max [m]
         dtype: float
 
-      mean_velocity_ms:
-        source: v_mean [m/s]
-        dtype: float
-
-      min_velocity_ms:
+      min_velocity_m_s:
         source: v_min [m/s]
         dtype: float
 
-      max_velocity_ms:
+      max_velocity_m_s:
         source: v_max [m/s]
-        dtype: float
-
-      temperature_c:
-        source: t [°C]
-        dtype: float
-
-      total_area_m2:
-        source: a [m²]
         dtype: float
 
       wetted_perimeter_m:
@@ -95,26 +114,6 @@ tables:
         source: rh [m]
         dtype: float
 
-      offset_bank:
-        source: offset_bank
-        dtype: string
-
-      offset_m:
-        source: offset [m]
-        dtype: float
-
-      calibration_depth_m:
-        source: h_calib [m]
-        dtype: float
-
-      tq_min_percent:
-        source: tq_min [%]
-        dtype: float
-
-      atq_min_percent:
-        source: atq_min [%]
-        dtype: float
-
       n_points:
         source: points
         dtype: int
@@ -123,63 +122,18 @@ tables:
         source: sections
         dtype: int
 
-      start_bank:
-        source: start_bank
-        dtype: string
-
-      end_bank:
-        source: end_bank
-        dtype: string
-
-      start_depth_m:
-        source: start_h [m]
-        dtype: float
-
-      end_depth_m:
-        source: end_h [m]
-        dtype: float
-
-      start_k_percent:
-        source: start_k [%]
-        dtype: float
-
-      end_k_percent:
-        source: end_k [%]
-        dtype: float
-
-      calc_mode:
-        source: calc_mode
-        dtype: string
-
-      start_time:
-        source: stime
-        dtype: datetime
-
-      end_time:
-        source: etime
-        dtype: datetime
-
-      instrument:
-        source: source
-        dtype: string
-
-      input_file:
-        source: input_file
-        dtype: string
-
-      input_path:
-        source: input_path
-        dtype: string
-
-      run_id:
-        source: run_id
-        dtype: string
+    derived:
+      q_total_m3s:
+        from: q_total_ls
+        operation: divide
+        value: 1000
 
     required:
-      - point_id
-      - total_discharge_ls
-      - total_area_m2
-      - mean_depth_m
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - q_total_ls
 
     transforms:
       - name: strip_strings
@@ -188,119 +142,128 @@ tables:
 
     qc:
       non_negative:
-        - width_m
-        - total_area_m2
-        - mean_depth_m
-        - max_depth_m
+        #- q_total_m3s
+        #- q_total_ls
+        - area_total_m2
+        - width_total_m
+        - depth_mean_m
 
 
   Points:
     canonical_name: points
 
     columns:
-
-      point_id:
+      station_id:
         source: station_id
         dtype: string
 
-      date:
+      station_name:
+        sources:
+          - station_name
+          - name
+        dtype: string
+
+      measurement_date:
         source: measurement_date
-        dtype: date
+        dtype: string
 
       measurement_time:
         source: measurement_time
-        dtype: time_hhmmss
-
-      timezone:
-        source: timezone
         dtype: string
-
-      point_index:
-        source: index
-        dtype: int
-
-      distance_m:
-        source: pos [m]
-        dtype: float
-
-      depth_m:
-        source: h [m]
-        dtype: float
-
-      measured_depth_m:
-        source: h_meas [m]
-        dtype: float
-
-      user_depth_m:
-        source: h_user [m]
-        dtype: string
-
-      velocity_ms:
-        source: v [m/s]
-        dtype: float
-
-      temperature_c:
-        source: t [°C]
-        dtype: float
-
-      tq_percent:
-        source: tq [%]
-        dtype: float
-
-      atq_percent:
-        source: atq [%]
-        dtype: float
-
-      hq_percent:
-        source: hq [%]
-        dtype: float
-
-      tq_valid:
-        source: tq_valid
-        dtype: int
-
-      noise_typical_db:
-        source: ntyp [dBµ]
-        dtype: float
-
-      noise_max_db:
-        source: nmax [dBµ]
-        dtype: float
-
-      start_time:
-        source: stime
-        dtype: datetime
-
-      end_time:
-        source: etime
-        dtype: datetime
-
-      measurement_duration_s:
-        source: mtime [s]
-        dtype: float
 
       instrument:
-        source: source
+        sources:
+          - instrument
+          - source
         dtype: string
 
-      input_file:
-        source: input_file
+      source_file:
+        sources:
+          - source_file
+          - input_file
+          - input_path
         dtype: string
 
-      input_path:
-        source: input_path
+      source_run_dir:
+        source: source_run_dir
         dtype: string
 
       run_id:
         source: run_id
         dtype: string
 
+      point_index:
+        sources:
+          - point_index
+          - index
+        dtype: int
+
+      point_label:
+        sources:
+          - point_label
+          - index
+        dtype: string
+
+      distance_m:
+        sources:
+          - distance_m
+          - pos [m]
+        dtype: float
+
+      depth_m:
+        sources:
+          - depth_m
+          - h [m]
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - v [m/s]
+        dtype: float
+
+      area_m2:
+        source: area_m2
+        dtype: float
+
+      q_m3s:
+        source: q_m3s
+        dtype: float
+
+      q_ls:
+        source: q_ls
+        dtype: float
+
+      percent_q:
+        sources:
+          - percent_q
+          - tq [%]
+          - atq [%]
+          - hq [%]
+        dtype: float
+
+      temperature_c:
+        sources:
+          - temperature_c
+          - t [°C]
+        dtype: float
+
+      measured_depth_m:
+        source: h_meas [m]
+        dtype: float
+
+      measurement_duration_s:
+        source: mtime [s]
+        dtype: float
+
     required:
-      - point_id
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
       - point_index
       - distance_m
       - depth_m
-      - velocity_ms
 
     transforms:
       - name: strip_strings
@@ -318,69 +281,100 @@ tables:
     canonical_name: sections
 
     columns:
-
-      point_id:
+      station_id:
         source: station_id
         dtype: string
 
-      date:
+      station_name:
+        source: station_name
+        dtype: string
+
+      measurement_date:
         source: measurement_date
-        dtype: date
+        dtype: string
 
       measurement_time:
         source: measurement_time
-        dtype: time_hhmmss
-
-      timezone:
-        source: timezone
         dtype: string
-
-      section_index:
-        source: index
-        dtype: int
-
-      distance_m:
-        source: pos [m]
-        dtype: float
-
-      q_ls:
-        source: q [l/s]
-        dtype: float
-
-      q_percent:
-        source: factor [%]
-        dtype: float
-
-      width_m:
-        source: w [m]
-        dtype: float
-
-      depth_m:
-        source: h [m]
-        dtype: float
-
-      velocity_ms:
-        source: v [m/s]
-        dtype: float
 
       instrument:
-        source: source
+        sources:
+          - instrument
+          - source
         dtype: string
 
-      input_file:
-        source: input_file
+      source_file:
+        sources:
+          - source_file
+          - input_file
+          - input_path
         dtype: string
 
-      input_path:
-        source: input_path
+      source_run_dir:
+        source: source_run_dir
         dtype: string
 
       run_id:
         source: run_id
         dtype: string
 
+      section_index:
+        sources:
+          - section_index
+          - index
+        dtype: int
+
+      distance_m:
+        sources:
+          - distance_m
+          - pos [m]
+        dtype: float
+
+      q_ls:
+        sources:
+          - q_ls
+          - q [l/s]
+        dtype: float
+
+      q_m3s:
+        source: __derived__
+        dtype: float
+
+      percent_q:
+        sources:
+          - percent_q
+          - factor [%]
+        dtype: float
+
+      width_m:
+        sources:
+          - width_m
+          - w [m]
+        dtype: float
+
+      depth_m:
+        sources:
+          - depth_m
+          - h [m]
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - v [m/s]
+        dtype: float
+
+    derived:
+      q_m3s:
+        from: q_ls
+        operation: divide
+        value: 1000
+
     required:
-      - point_id
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
       - section_index
       - distance_m
       - q_ls
@@ -395,27 +389,49 @@ tables:
         - distance_m
         - width_m
         - depth_m
+        #- q_ls
+        #- q_m3s
 
 
   Gates:
     canonical_name: gates
 
     columns:
-
-      point_id:
+      station_id:
         source: station_id
         dtype: string
 
-      date:
+      station_name:
+        source: station_name
+        dtype: string
+
+      measurement_date:
         source: measurement_date
-        dtype: date
+        dtype: string
 
       measurement_time:
         source: measurement_time
-        dtype: time_hhmmss
+        dtype: string
 
-      timezone:
-        source: timezone
+      instrument:
+        sources:
+          - instrument
+          - source
+        dtype: string
+
+      source_file:
+        sources:
+          - source_file
+          - input_file
+          - input_path
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+      run_id:
+        source: run_id
         dtype: string
 
       point_index:
@@ -423,43 +439,35 @@ tables:
         dtype: int
 
       gate_index:
-        source: index
+        sources:
+          - gate_index
+          - index
         dtype: int
 
       gate_position_m:
-        source: pos [m]
+        sources:
+          - gate_position_m
+          - pos [m]
         dtype: float
 
-      velocity_ms:
-        source: v [m/s]
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - v [m/s]
         dtype: float
 
-      original_velocity_ms:
+      original_velocity_m_s:
         source: orig [m/s]
         dtype: string
 
-      instrument:
-        source: source
-        dtype: string
-
-      input_file:
-        source: input_file
-        dtype: string
-
-      input_path:
-        source: input_path
-        dtype: string
-
-      run_id:
-        source: run_id
-        dtype: string
-
     required:
-      - point_id
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
       - point_index
       - gate_index
       - gate_position_m
-      - velocity_ms
 
     transforms:
       - name: strip_strings

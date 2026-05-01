@@ -43,6 +43,7 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "groups",
         "concat_groups",
         "sources",
+        "column_aliases",
     },
     "normalize": {
         "enabled",
@@ -50,6 +51,9 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "input_dir",
         "output_dir",
         "normalize_summary",
+        "groups",
+        "concat_groups",
+        "sources",
     },
     "validation": {
         "enabled",
@@ -106,6 +110,7 @@ PATH_KEYS_CAN_BE_CREATED = {
     "runs_root",
     "database_root",
     "output_dir",
+    "input_dir",
 }
 
 
@@ -144,13 +149,11 @@ def _validate_root_type(cfg: Any) -> list[str]:
 
 
 def _validate_required_top_level_keys(cfg: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-
-    for key in sorted(REQUIRED_TOP_LEVEL_KEYS):
-        if key not in cfg:
-            errors.append(f"Missing required top-level key: '{key}'.")
-
-    return errors
+    return [
+        f"Missing required top-level key: '{key}'."
+        for key in sorted(REQUIRED_TOP_LEVEL_KEYS)
+        if key not in cfg
+    ]
 
 
 def _validate_unknown_top_level_keys(cfg: dict[str, Any]) -> list[str]:
@@ -182,10 +185,7 @@ def _validate_unknown_section_keys(cfg: dict[str, Any]) -> list[str]:
     for section, allowed_keys in SECTION_ALLOWED_KEYS.items():
         value = cfg.get(section)
 
-        if value is None:
-            continue
-
-        if not isinstance(value, dict):
+        if value is None or not isinstance(value, dict):
             continue
 
         for key in sorted(value.keys()):
@@ -202,10 +202,7 @@ def _validate_ingest_sections(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
     ingest = cfg.get("ingest")
-    if ingest is None:
-        return errors
-
-    if not isinstance(ingest, dict):
+    if ingest is None or not isinstance(ingest, dict):
         return errors
 
     for instrument, settings in ingest.items():
@@ -270,10 +267,7 @@ def _validate_export_sections(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
     export = cfg.get("export")
-    if export is None:
-        return errors
-
-    if not isinstance(export, dict):
+    if export is None or not isinstance(export, dict):
         return errors
 
     for export_name, settings in export.items():
@@ -362,108 +356,31 @@ def _validate_paths_section(cfg: dict[str, Any]) -> list[str]:
 
 
 def _validate_build_groups_section(cfg: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-
     section = cfg.get("build_groups")
-    if section is None:
-        return errors
+    if section is None or not isinstance(section, dict):
+        return []
 
-    if not isinstance(section, dict):
-        return errors
-
-    errors.extend(
-        _validate_optional_bool(
-            section,
-            key="enabled",
-            full_key="build_groups.enabled",
-        )
+    return _validate_pipeline_section(
+        section,
+        section_name="build_groups",
+        source_allowed_values=set(INGEST_ALLOWED_KEYS),
+        require_sources_non_empty=True,
     )
-
-    errors.extend(
-        _validate_optional_non_empty_string(
-            section,
-            key="input_runs_root",
-            full_key="build_groups.input_runs_root",
-        )
-    )
-
-    errors.extend(
-        _validate_optional_non_empty_string(
-            section,
-            key="output_dir",
-            full_key="build_groups.output_dir",
-        )
-    )
-
-    errors.extend(
-        _validate_optional_string_list(
-            section,
-            key="groups",
-            full_key="build_groups.groups",
-            allow_empty=False,
-        )
-    )
-
-    errors.extend(
-        _validate_optional_string_list(
-            section,
-            key="concat_groups",
-            full_key="build_groups.concat_groups",
-            allow_empty=True,
-        )
-    )
-
-    sources = section.get("sources")
-    if sources is not None:
-        if not isinstance(sources, list):
-            errors.append("'build_groups.sources' must be a list.")
-        elif not sources:
-            errors.append("'build_groups.sources' cannot be empty.")
-        else:
-            allowed_sources = set(INGEST_ALLOWED_KEYS)
-            for source in sources:
-                if not isinstance(source, str) or not source.strip():
-                    errors.append("'build_groups.sources' must contain non-empty strings.")
-                    continue
-
-                if source not in allowed_sources:
-                    errors.append(
-                        f"Unknown source in 'build_groups.sources': '{source}'. "
-                        f"Allowed sources are: {sorted(allowed_sources)}."
-                    )
-
-    groups = section.get("groups")
-    concat_groups = section.get("concat_groups")
-
-    if isinstance(groups, list) and isinstance(concat_groups, list):
-        group_set = {str(g).strip() for g in groups if str(g).strip()}
-        concat_set = {str(g).strip() for g in concat_groups if str(g).strip()}
-        unknown_concat = sorted(concat_set - group_set)
-
-        if unknown_concat:
-            errors.append(
-                "'build_groups.concat_groups' contains groups not listed in "
-                f"'build_groups.groups': {unknown_concat}."
-            )
-
-    return errors
 
 
 def _validate_normalize_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
     section = cfg.get("normalize")
-    if section is None:
-        return errors
-
-    if not isinstance(section, dict):
+    if section is None or not isinstance(section, dict):
         return errors
 
     errors.extend(
-        _validate_optional_bool(
+        _validate_pipeline_section(
             section,
-            key="enabled",
-            full_key="normalize.enabled",
+            section_name="normalize",
+            source_allowed_values=set(INGEST_ALLOWED_KEYS),
+            require_sources_non_empty=True,
         )
     )
 
@@ -487,14 +404,98 @@ def _validate_normalize_section(cfg: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _validate_pipeline_section(
+    section: dict[str, Any],
+    *,
+    section_name: str,
+    source_allowed_values: set[str],
+    require_sources_non_empty: bool,
+) -> list[str]:
+    errors: list[str] = []
+
+    errors.extend(
+        _validate_optional_bool(
+            section,
+            key="enabled",
+            full_key=f"{section_name}.enabled",
+        )
+    )
+
+    if section_name == "build_groups":
+        errors.extend(
+            _validate_optional_non_empty_string(
+                section,
+                key="input_runs_root",
+                full_key="build_groups.input_runs_root",
+            )
+        )
+
+    errors.extend(
+        _validate_optional_non_empty_string(
+            section,
+            key="output_dir",
+            full_key=f"{section_name}.output_dir",
+        )
+    )
+
+    errors.extend(
+        _validate_optional_string_list(
+            section,
+            key="groups",
+            full_key=f"{section_name}.groups",
+            allow_empty=False,
+        )
+    )
+
+    errors.extend(
+        _validate_optional_string_list(
+            section,
+            key="concat_groups",
+            full_key=f"{section_name}.concat_groups",
+            allow_empty=True,
+        )
+    )
+
+    sources = section.get("sources")
+    if sources is not None:
+        if not isinstance(sources, list):
+            errors.append(f"'{section_name}.sources' must be a list.")
+        elif not sources and require_sources_non_empty:
+            errors.append(f"'{section_name}.sources' cannot be empty.")
+        else:
+            for source in sources:
+                if not isinstance(source, str) or not source.strip():
+                    errors.append(f"'{section_name}.sources' must contain non-empty strings.")
+                    continue
+
+                if source not in source_allowed_values:
+                    errors.append(
+                        f"Unknown source in '{section_name}.sources': '{source}'. "
+                        f"Allowed sources are: {sorted(source_allowed_values)}."
+                    )
+
+    groups = section.get("groups")
+    concat_groups = section.get("concat_groups")
+
+    if isinstance(groups, list) and isinstance(concat_groups, list):
+        group_set = {str(g).strip() for g in groups if str(g).strip()}
+        concat_set = {str(g).strip() for g in concat_groups if str(g).strip()}
+        unknown_concat = sorted(concat_set - group_set)
+
+        if unknown_concat:
+            errors.append(
+                f"'{section_name}.concat_groups' contains groups not listed in "
+                f"'{section_name}.groups': {unknown_concat}."
+            )
+
+    return errors
+
+
 def _validate_validation_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
     section = cfg.get("validation")
-    if section is None:
-        return errors
-
-    if not isinstance(section, dict):
+    if section is None or not isinstance(section, dict):
         return errors
 
     errors.extend(
@@ -521,12 +522,8 @@ def _validate_path_values(
     *,
     config_path: Path | None,
 ) -> list[str]:
-    errors: list[str] = []
     base_dir = _get_base_dir(config_path)
-
-    errors.extend(_collect_path_errors(cfg, base_dir=base_dir, prefix=""))
-
-    return errors
+    return _collect_path_errors(cfg, base_dir=base_dir, prefix="")
 
 
 def _collect_path_errors(

@@ -1,2 +1,227 @@
-name: flowtracker
-version: 1
+instrument: flowtracker
+
+tables:
+
+  Summary:
+    canonical_name: summary
+
+    columns:
+      station_id:
+        source: station_id
+        dtype: string
+
+      station_name:
+        sources:
+          - station_name
+          - site_name
+        dtype: string
+
+      measurement_date:
+        source: measurement_date
+        dtype: string
+
+      measurement_time:
+        source: measurement_time
+        dtype: string
+
+      instrument:
+        source: instrument
+        dtype: string
+
+      source_file:
+        sources:
+          - source_file
+          - source_csv
+          - input_path
+          - input_file
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+      q_total_m3s:
+        sources:
+          - total_discharge_m3_s
+          - caudal_total_m3_s
+        dtype: float
+
+      area_total_m2:
+        sources:
+          - total_area_m2
+          - area_total_m2
+        dtype: float
+
+      width_total_m:
+        sources:
+          - total_width_m
+          - ancho_total_m
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - mean_velocity_m_s
+          - velocidad_media_m_s
+        dtype: float
+
+      depth_mean_m:
+        sources:
+          - mean_depth_m
+          - calado_medido_m
+        dtype: float
+
+      temperature_c:
+        sources:
+          - mean_temp_degc
+          - temp_promedio_degc
+        dtype: float
+
+    derived:
+      q_total_ls:
+        from: q_total_m3s
+        operation: multiply
+        value: 1000
+
+    required:
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - q_total_m3s
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - q_total_m3s
+        - q_total_ls
+        - area_total_m2
+        - width_total_m
+        - depth_mean_m
+
+
+  Points:
+    canonical_name: points
+
+    columns:
+      station_id:
+        source: station_id
+        dtype: string
+
+      station_name:
+        sources:
+          - station_name
+          - site_name
+        dtype: string
+
+      measurement_date:
+        source: measurement_date
+        dtype: string
+
+      measurement_time:
+        source: measurement_time
+        dtype: string
+
+      instrument:
+        source: instrument
+        dtype: string
+
+      source_file:
+        sources:
+          - source_file
+          - source_csv
+          - input_path
+          - input_file
+        dtype: string
+
+      source_run_dir:
+        source: source_run_dir
+        dtype: string
+
+      run_id:
+        source: run_id
+        dtype: string
+
+      point_index:
+        sources:
+          - point_index
+          - station
+        dtype: int
+
+      point_label:
+        sources:
+          - point_label
+          - station
+        dtype: string
+
+      distance_m:
+        sources:
+          - distance_m
+          - location_m
+        dtype: float
+
+      depth_m:
+        source: depth_m
+        dtype: float
+
+      velocity_mean_m_s:
+        sources:
+          - velocity_mean_m_s
+          - velocity_m_s
+          - mean_velocity_m_s
+        dtype: float
+
+      area_m2:
+        source: area_m2
+        dtype: float
+
+      q_m3s:
+        sources:
+          - q_m3s
+          - discharge_m3_s
+        dtype: float
+
+      q_ls:
+        source: __derived__
+        dtype: float
+
+      percent_q:
+        sources:
+          - percent_q
+          - percent_discharge
+        dtype: float
+
+      temperature_c:
+        source: temperature_c
+        dtype: float
+
+    derived:
+      q_ls:
+        from: q_m3s
+        operation: multiply
+        value: 1000
+
+    required:
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - distance_m
+      - depth_m
+
+    transforms:
+      - name: strip_strings
+      - name: numeric_commas_to_dots
+      - name: enforce_dtypes
+
+    qc:
+      non_negative:
+        - depth_m
+        - area_m2

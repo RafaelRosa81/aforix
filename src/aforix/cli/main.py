@@ -13,7 +13,7 @@ from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
 from aforix.export.tables.cli import main as export_tables_main
-from aforix.normalize.run import normalize_run
+from aforix.normalize.run import normalize_database
 
 
 app = typer.Typer(
@@ -210,29 +210,14 @@ def consolidate_flowtracker(
 
 @normalize_app.command("run")
 def normalize_run_cmd(
-    run_dir: Path = typer.Option(
-        ...,
-        "--run-dir",
-        "-r",
-        help="Run directory to normalize",
-    ),
-    registry_dir: Path = typer.Option(
-        Path("configs/normalization"),
-        "--registry-dir",
-        help="Normalization registry directory",
-    ),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    """Normalize raw_canonical outputs using the registry."""
+    """Normalize raw_canonical database using the registry."""
 
-    typer.echo(f"Normalizing run: {run_dir}")
-    typer.echo(f"Using registry: {registry_dir}")
+    config_path = _load_validated_config(config)
+    run_dir = normalize_database(config_path)
 
-    normalized_root = normalize_run(
-        run_dir=run_dir,
-        registry_dir=registry_dir,
-    )
-
-    typer.echo(f"Normalized output: {normalized_root}")
+    typer.echo(f"Normalize completed: {run_dir}")
 
 
 if __name__ == "__main__":
