@@ -29,12 +29,22 @@ ingest:
 
 build_groups:
   enabled: true
+  input_runs_root: runs
+  output_dir: database/raw_canonical
+
+  groups: #define qué grupos procesa build-groups.
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups: #define cuáles grupos se concatenan en un único CSV.
+    - Summary
+
   sources:
     - flowtracker
     - molinete
     - nivus
-    - m9
-  output_dir: database/raw_canonical
 
 normalize:
   enabled: true

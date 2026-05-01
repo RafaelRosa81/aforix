@@ -38,8 +38,11 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
     },
     "build_groups": {
         "enabled",
-        "sources",
+        "input_runs_root",
         "output_dir",
+        "groups",
+        "concat_groups",
+        "sources",
     },
     "normalize": {
         "enabled",
@@ -94,7 +97,7 @@ EXPORT_ALLOWED_KEYS: dict[str, set[str]] = {
 
 PATH_KEYS_MUST_EXIST = {
     "raw_data_dir",
-    "input_dir",
+    "input_runs_root",
     "registry_dir",
     "spec_path",
 }
@@ -111,15 +114,6 @@ def validate_config(
     *,
     config_path: Path | None = None,
 ) -> None:
-    """
-    Validate an Aforix YAML configuration.
-
-    Raises
-    ------
-    ValueError
-        If the configuration is invalid.
-    """
-
     errors: list[str] = []
 
     errors.extend(_validate_root_type(cfg))
@@ -385,6 +379,40 @@ def _validate_build_groups_section(cfg: dict[str, Any]) -> list[str]:
         )
     )
 
+    errors.extend(
+        _validate_optional_non_empty_string(
+            section,
+            key="input_runs_root",
+            full_key="build_groups.input_runs_root",
+        )
+    )
+
+    errors.extend(
+        _validate_optional_non_empty_string(
+            section,
+            key="output_dir",
+            full_key="build_groups.output_dir",
+        )
+    )
+
+    errors.extend(
+        _validate_optional_string_list(
+            section,
+            key="groups",
+            full_key="build_groups.groups",
+            allow_empty=False,
+        )
+    )
+
+    errors.extend(
+        _validate_optional_string_list(
+            section,
+            key="concat_groups",
+            full_key="build_groups.concat_groups",
+            allow_empty=True,
+        )
+    )
+
     sources = section.get("sources")
     if sources is not None:
         if not isinstance(sources, list):
@@ -404,13 +432,19 @@ def _validate_build_groups_section(cfg: dict[str, Any]) -> list[str]:
                         f"Allowed sources are: {sorted(allowed_sources)}."
                     )
 
-    errors.extend(
-        _validate_optional_non_empty_string(
-            section,
-            key="output_dir",
-            full_key="build_groups.output_dir",
-        )
-    )
+    groups = section.get("groups")
+    concat_groups = section.get("concat_groups")
+
+    if isinstance(groups, list) and isinstance(concat_groups, list):
+        group_set = {str(g).strip() for g in groups if str(g).strip()}
+        concat_set = {str(g).strip() for g in concat_groups if str(g).strip()}
+        unknown_concat = sorted(concat_set - group_set)
+
+        if unknown_concat:
+            errors.append(
+                "'build_groups.concat_groups' contains groups not listed in "
+                f"'build_groups.groups': {unknown_concat}."
+            )
 
     return errors
 
@@ -561,12 +595,6 @@ def _get_base_dir(config_path: Path | None) -> Path:
 
     resolved = config_path.resolve()
 
-    # Expected layout:
-    # project_root/configs/examples/main.yaml
-    #
-    # parents[0] -> configs/examples
-    # parents[1] -> configs
-    # parents[2] -> project_root
     if len(resolved.parents) >= 3:
         return resolved.parents[2]
 
@@ -624,6 +652,33 @@ def _validate_optional_bool(
         return [f"'{full_key}' must be true or false."]
 
     return []
+
+
+def _validate_optional_string_list(
+    section: dict[str, Any],
+    *,
+    key: str,
+    full_key: str,
+    allow_empty: bool,
+) -> list[str]:
+    if key not in section:
+        return []
+
+    value = section[key]
+
+    if not isinstance(value, list):
+        return [f"'{full_key}' must be a list."]
+
+    if not value and not allow_empty:
+        return [f"'{full_key}' cannot be empty."]
+
+    errors: list[str] = []
+
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append(f"All items in '{full_key}' must be non-empty strings.")
+
+    return errors
 
 
 def _format_errors(errors: list[str]) -> str:
