@@ -27,17 +27,25 @@ class MolineteExcelAdapter:
     MAX_REV_VALUES = 3
     MAX_VEL_POINT_VALUES = 3
 
-    def parse_file_strict(self, file_path: str, sheet_name: Optional[str] = None) -> ParseResult:
+    def parse_file_strict(
+        self,
+        file_path: str,
+        sheet_name: Optional[str] = None,
+    ) -> ParseResult:
         ext = os.path.splitext(file_path)[1].lower()
 
-        if ext not in [".xlsx", ".xls"]:
+        if ext not in [".xlsx", ".xls", ".xlsm"]:
             raise MolineteExcelFormatMismatch(f"Unsupported file extension: {ext}")
 
         df, chosen_sheet = self._read_sheet_auto(file_path, sheet_name=sheet_name)
 
         station_id = (
-            self._clean_station_id(self._value_right_of_label(df, "NOMBRE"))
+            self._clean_station_id(self._value_right_of_label(df, "ESTACION"))
             or self._infer_station_id(file_path)
+        )
+
+        station_name = self._clean_scalar(
+            self._value_right_of_label(df, "NOMBRE")
         )
 
         measurement_date = self._to_date(self._value_right_of_label(df, "FECHA"))
@@ -54,6 +62,7 @@ class MolineteExcelAdapter:
         points_df = self._parse_points(
             df=df,
             station_id=station_id,
+            station_name=station_name,
             measurement_date=measurement_date.strftime("%Y-%m-%d"),
             measurement_time=measurement_time.strftime("%H:%M:%S"),
             raw_source_file=os.path.basename(file_path),
@@ -64,6 +73,7 @@ class MolineteExcelAdapter:
             df=df,
             file_path=file_path,
             station_id=station_id,
+            station_name=station_name,
             measurement_date=measurement_date,
             measurement_time=measurement_time,
             start_time=start_time,
@@ -75,6 +85,7 @@ class MolineteExcelAdapter:
 
         extracted_meta = {
             "station_id": station_id,
+            "station_name": station_name,
             "measurement_date": measurement_date.strftime("%Y-%m-%d"),
             "measurement_time": measurement_time.strftime("%H:%M:%S"),
         }
@@ -90,7 +101,11 @@ class MolineteExcelAdapter:
     # ------------------------------------------------------------------
     # Excel reading
     # ------------------------------------------------------------------
-    def _read_sheet_auto(self, file_path: str, sheet_name: Optional[str] = None) -> Tuple[pd.DataFrame, str]:
+    def _read_sheet_auto(
+        self,
+        file_path: str,
+        sheet_name: Optional[str] = None,
+    ) -> Tuple[pd.DataFrame, str]:
         ext = os.path.splitext(file_path)[1].lower()
         engine = "xlrd" if ext == ".xls" else "openpyxl"
 
@@ -105,14 +120,14 @@ class MolineteExcelAdapter:
         if self.DEFAULT_SHEET_NAME in sheet_names and self.DEFAULT_SHEET_NAME not in candidate_sheets:
             candidate_sheets.append(self.DEFAULT_SHEET_NAME)
 
-        for s in sheet_names:
-            if s not in candidate_sheets:
-                candidate_sheets.append(s)
+        for sheet in sheet_names:
+            if sheet not in candidate_sheets:
+                candidate_sheets.append(sheet)
 
-        for s in candidate_sheets:
-            df = pd.read_excel(file_path, sheet_name=s, header=None, engine=engine)
+        for sheet in candidate_sheets:
+            df = pd.read_excel(file_path, sheet_name=sheet, header=None, engine=engine)
             if self._looks_like_molinete_sheet(df):
-                return df, s
+                return df, sheet
 
         fallback = candidate_sheets[0]
         df = pd.read_excel(file_path, sheet_name=fallback, header=None, engine=engine)
@@ -132,6 +147,7 @@ class MolineteExcelAdapter:
         df: pd.DataFrame,
         file_path: str,
         station_id: str,
+        station_name: Optional[str],
         measurement_date: dt.date,
         measurement_time: dt.time,
         start_time: Optional[dt.time],
@@ -140,7 +156,6 @@ class MolineteExcelAdapter:
         raw_sheet_name: str,
         points_df: pd.DataFrame,
     ) -> pd.DataFrame:
-
         estacion_num = self._value_right_of_label(df, "ESTACION")
         nombre = self._value_right_of_label(df, "NOMBRE")
         curso = self._value_right_of_label(df, "CURSO")
@@ -184,8 +199,6 @@ class MolineteExcelAdapter:
         totals = self._read_totals_row(df)
         if totals:
             area_tot, vel_media_tot, q_tot = totals
-
-            # Los totales de la fila TOTALES son la fuente más confiable.
             area_m2 = area_tot
             vel_media_ms = vel_media_tot
             q_m3s = q_tot
@@ -209,6 +222,8 @@ class MolineteExcelAdapter:
 
         summary_payload = {
             "source_file_path": file_path,
+            "station_id": station_id,
+            "station_name": station_name,
             "estacion_num": self._clean_scalar(estacion_num),
             "nombre": self._clean_scalar(nombre),
             "curso": self._clean_scalar(curso),
@@ -253,6 +268,7 @@ class MolineteExcelAdapter:
 
         return pd.DataFrame([{
             "station_id": station_id,
+            "station_name": station_name,
             "measurement_date": measurement_date.strftime("%Y-%m-%d"),
             "measurement_time": measurement_time.strftime("%H:%M:%S"),
             "raw_source_file": raw_source_file,
@@ -313,12 +329,12 @@ class MolineteExcelAdapter:
         self,
         df: pd.DataFrame,
         station_id: str,
+        station_name: Optional[str],
         measurement_date: str,
         measurement_time: str,
         raw_source_file: str,
         raw_sheet_name: str,
     ) -> pd.DataFrame:
-
         header_pos = self._find_points_header(df)
         if header_pos is None:
             raise MolineteExcelFormatMismatch("Could not find Points header row.")
@@ -357,7 +373,6 @@ class MolineteExcelAdapter:
             vel_media_secc_ms = self._to_float(self._cell(df, r, 10))
             area_m2 = self._to_float(self._cell(df, r, 11))
             q_m3s = self._to_float(self._cell(df, r, 12))
-            #q_percent = self._to_float(self._cell(df, r, 13))
             q_percent_raw = self._to_float(self._cell(df, r + 2, 13))
             q_percent = q_percent_raw * 100 if q_percent_raw is not None else None
 
@@ -380,6 +395,7 @@ class MolineteExcelAdapter:
 
             rows.append({
                 "station_id": station_id,
+                "station_name": station_name,
                 "measurement_date": measurement_date,
                 "measurement_time": measurement_time,
                 "raw_source_file": raw_source_file,
@@ -445,30 +461,23 @@ class MolineteExcelAdapter:
     # ------------------------------------------------------------------
     # Summary helpers
     # ------------------------------------------------------------------
-    def _read_totals_row(self, df: pd.DataFrame) -> Optional[Tuple[Optional[float], Optional[float], Optional[float]]]:
-        """
-        En la fila TOTALES:
-        K = Vel. Media
-        L = Área
-        M = Caudal
-        """
+    def _read_totals_row(
+        self,
+        df: pd.DataFrame,
+    ) -> Optional[Tuple[Optional[float], Optional[float], Optional[float]]]:
         pos = self._find_label(df, "TOTALES")
         if pos is None:
             return None
 
         r, _ = pos
 
-        vel_media_ms = self._to_float(self._cell(df, r, 10))  # K
-        area_m2 = self._to_float(self._cell(df, r, 11))        # L
-        q_m3s = self._to_float(self._cell(df, r, 12))          # M
+        vel_media_ms = self._to_float(self._cell(df, r, 10))
+        area_m2 = self._to_float(self._cell(df, r, 11))
+        q_m3s = self._to_float(self._cell(df, r, 12))
 
         return area_m2, vel_media_ms, q_m3s
 
     def _value_for_helice(self, df: pd.DataFrame) -> Any:
-        """
-        Busca el valor de Hélice evitando capturar la tabla de calibración
-        donde aparecen K(lim), A y B.
-        """
         pos = self._find_label_exactish(df, "Hélice")
         if pos is None:
             return None
@@ -539,7 +548,6 @@ class MolineteExcelAdapter:
                 if any(word in norm for word in stop_words):
                     return " ".join(parts).strip() if parts else None
 
-                # Saltar números, códigos y valores de calibración.
                 if not re.search(r"[A-Za-zÁÉÍÓÚáéíóúÑñ]", text):
                     continue
 
@@ -596,35 +604,42 @@ class MolineteExcelAdapter:
         ]
 
         for value in candidates:
-            f = self._to_float(value)
-            if f is not None:
-                return f
+            parsed = self._to_float(value)
+            if parsed is not None:
+                return parsed
 
         return None
 
-    def _parse_coordinates(self, text: Any) -> Tuple[Optional[float], Optional[float]]:
+    def _parse_coordinates(
+        self,
+        text: Any,
+    ) -> Tuple[Optional[float], Optional[float]]:
         if text is None or pd.isna(text):
             return None, None
 
-        s = str(text).replace(",", ".")
+        value = str(text).replace(",", ".")
 
         y = None
         x = None
 
-        my = re.search(r"Y\s*=\s*(-?\d+(?:\.\d+)?)", s, flags=re.IGNORECASE)
-        mx = re.search(r"X\s*=\s*(-?\d+(?:\.\d+)?)", s, flags=re.IGNORECASE)
+        match_y = re.search(r"Y\s*=\s*(-?\d+(?:\.\d+)?)", value, flags=re.IGNORECASE)
+        match_x = re.search(r"X\s*=\s*(-?\d+(?:\.\d+)?)", value, flags=re.IGNORECASE)
 
-        if my:
-            y = self._to_float(my.group(1))
-        if mx:
-            x = self._to_float(mx.group(1))
+        if match_y:
+            y = self._to_float(match_y.group(1))
+        if match_x:
+            x = self._to_float(match_x.group(1))
 
         return y, x
 
     # ------------------------------------------------------------------
     # Label search
     # ------------------------------------------------------------------
-    def _find_label(self, df: pd.DataFrame, label: str) -> Optional[Tuple[int, int]]:
+    def _find_label(
+        self,
+        df: pd.DataFrame,
+        label: str,
+    ) -> Optional[Tuple[int, int]]:
         target = self._norm_text(label)
 
         for r in range(len(df)):
@@ -635,7 +650,11 @@ class MolineteExcelAdapter:
 
         return None
 
-    def _find_label_exactish(self, df: pd.DataFrame, label: str) -> Optional[Tuple[int, int]]:
+    def _find_label_exactish(
+        self,
+        df: pd.DataFrame,
+        label: str,
+    ) -> Optional[Tuple[int, int]]:
         target = self._norm_text(label)
 
         for r in range(len(df)):
@@ -650,7 +669,12 @@ class MolineteExcelAdapter:
 
         return None
 
-    def _value_right_of_label(self, df: pd.DataFrame, label: str, max_scan: int = 8) -> Any:
+    def _value_right_of_label(
+        self,
+        df: pd.DataFrame,
+        label: str,
+        max_scan: int = 8,
+    ) -> Any:
         pos = self._find_label(df, label)
         if pos is None:
             return None
@@ -683,7 +707,11 @@ class MolineteExcelAdapter:
 
         return None
 
-    def _value_below_or_right_of_label(self, df: pd.DataFrame, label: str) -> Any:
+    def _value_below_or_right_of_label(
+        self,
+        df: pd.DataFrame,
+        label: str,
+    ) -> Any:
         pos = self._find_label(df, label)
         if pos is None:
             return None
@@ -701,7 +729,12 @@ class MolineteExcelAdapter:
 
         return None
 
-    def _numeric_values_right_of_label(self, df: pd.DataFrame, label: str, max_values: int = 3) -> List[float]:
+    def _numeric_values_right_of_label(
+        self,
+        df: pd.DataFrame,
+        label: str,
+        max_values: int = 3,
+    ) -> List[float]:
         pos = self._find_label(df, label)
         if pos is None:
             return []
@@ -725,6 +758,7 @@ class MolineteExcelAdapter:
     def _cell(df: pd.DataFrame, r: int, c: int) -> Any:
         if r < 0 or r >= len(df):
             return None
+
         if c < 0 or c >= df.shape[1]:
             return None
 
@@ -739,10 +773,13 @@ class MolineteExcelAdapter:
     def _is_meaningful(value: Any) -> bool:
         if value is None:
             return False
+
         if pd.isna(value):
             return False
+
         if isinstance(value, str) and value.strip() == "":
             return False
+
         return True
 
     @staticmethod
@@ -753,7 +790,7 @@ class MolineteExcelAdapter:
         if pd.isna(value):
             return ""
 
-        s = str(value).strip().lower()
+        text = str(value).strip().lower()
 
         replacements = {
             "á": "a",
@@ -768,11 +805,11 @@ class MolineteExcelAdapter:
             ":": "",
         }
 
-        for a, b in replacements.items():
-            s = s.replace(a, b)
+        for old, new in replacements.items():
+            text = text.replace(old, new)
 
-        s = re.sub(r"\s+", " ", s)
-        return s
+        text = re.sub(r"\s+", " ", text)
+        return text
 
     @staticmethod
     def _clean_scalar(value: Any) -> Optional[Any]:
@@ -793,13 +830,21 @@ class MolineteExcelAdapter:
         if value is None or pd.isna(value):
             return None
 
-        s = str(value).strip()
+        text = str(value).strip()
 
-        m = re.search(r"\bP\s*([0-9]{1,4})\b", s, flags=re.IGNORECASE)
-        if m:
-            return f"P{int(m.group(1))}"
+        if not text:
+            return None
 
-        return None
+        match_p = re.search(r"\bP\s*([0-9]{1,4})\b", text, flags=re.IGNORECASE)
+        if match_p:
+            return f"P{int(match_p.group(1))}"
+
+        match_num = re.search(r"\b([0-9]{1,4})\b", text)
+        if match_num:
+            return f"P{int(match_num.group(1))}"
+
+        cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_")
+        return cleaned.upper() if cleaned else None
 
     @staticmethod
     def _clean_vert_label(value: Any) -> Optional[str]:
@@ -822,25 +867,25 @@ class MolineteExcelAdapter:
         if isinstance(value, (int, float)):
             return float(value)
 
-        s = str(value).strip()
+        text = str(value).strip()
 
-        if s == "" or s == "-":
+        if text == "" or text == "-":
             return None
 
-        s = s.replace(",", ".")
+        text = text.replace(",", ".")
 
         try:
-            return float(s)
+            return float(text)
         except Exception:
             return None
 
     @staticmethod
     def _to_int(value: Any) -> Optional[int]:
-        f = MolineteExcelAdapter._to_float(value)
-        if f is None:
+        parsed = MolineteExcelAdapter._to_float(value)
+        if parsed is None:
             return None
 
-        return int(round(f))
+        return int(round(parsed))
 
     @staticmethod
     def _to_date(value: Any) -> Optional[dt.date]:
@@ -863,11 +908,11 @@ class MolineteExcelAdapter:
             except Exception:
                 return None
 
-        s = str(value).strip()
+        text = str(value).strip()
 
         for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
             try:
-                return dt.datetime.strptime(s, fmt).date()
+                return dt.datetime.strptime(text, fmt).date()
             except Exception:
                 pass
 
@@ -897,11 +942,11 @@ class MolineteExcelAdapter:
 
             return dt.time(hh, mm, ss)
 
-        s = str(value).strip()
+        text = str(value).strip()
 
         for fmt in ("%H:%M:%S", "%H:%M"):
             try:
-                return dt.datetime.strptime(s, fmt).time().replace(microsecond=0)
+                return dt.datetime.strptime(text, fmt).time().replace(microsecond=0)
             except Exception:
                 pass
 
@@ -911,13 +956,13 @@ class MolineteExcelAdapter:
     def _infer_station_id(file_path: str) -> str:
         base = os.path.basename(file_path)
 
-        m = re.search(r"\bP(\d{1,4})\b", base, flags=re.IGNORECASE)
-        if m:
-            return f"P{int(m.group(1))}"
+        match = re.search(r"\bP(\d{1,4})\b", base, flags=re.IGNORECASE)
+        if match:
+            return f"P{int(match.group(1))}"
 
-        m = re.search(r"[\\/](P\d{1,4})[\\/]", file_path, flags=re.IGNORECASE)
-        if m:
-            return m.group(1).upper()
+        match = re.search(r"[\\/](P\d{1,4})[\\/]", file_path, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
 
         return "PUNK"
 
@@ -925,17 +970,17 @@ class MolineteExcelAdapter:
     def _infer_date_from_path_or_filename(file_path: str) -> Optional[dt.date]:
         matches = re.findall(r"(20\d{2})(\d{2})(\d{2})", file_path)
 
-        for y, mo, d in matches:
+        for y, mo, day in matches:
             try:
-                return dt.date(int(y), int(mo), int(d))
+                return dt.date(int(y), int(mo), int(day))
             except Exception:
                 continue
 
         matches = re.findall(r"\b(\d{2})(\d{2})(20\d{2})\b", file_path)
 
-        for d, mo, y in matches:
+        for day, mo, y in matches:
             try:
-                return dt.date(int(y), int(mo), int(d))
+                return dt.date(int(y), int(mo), int(day))
             except Exception:
                 continue
 

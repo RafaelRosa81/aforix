@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 from typing import Any
 
 import pandas as pd
@@ -9,9 +8,15 @@ import pandas as pd
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
 from aforix.ingest.adapters.nivus_xml import (
+    parse_nivus_metadata,
     parse_nivus_xml,
     parse_datetime_from_filename,
 )
+from aforix.ingest.discovery import (
+    fallback_station_id_from_parents,
+    find_files_recursive,
+)
+from aforix.ingest.metadata import clean_station_id, clean_station_name
 
 
 INSTRUMENT_NAME = "nivus"
@@ -30,8 +35,6 @@ def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
 def _get_project_root(config_path: Path) -> Path:
     resolved = config_path.resolve()
 
-    # Expected layout:
-    # project_root/configs/examples/main.yaml
     if len(resolved.parents) >= 3:
         return resolved.parents[2]
 
@@ -88,19 +91,6 @@ def _get_timezone(cfg: dict[str, Any]) -> str:
     return str(cfg.get("project", {}).get("timezone", "America/Montevideo"))
 
 
-def _iter_point_dirs(nivus_root: Path) -> list[Path]:
-    point_dirs: list[Path] = []
-
-    for path in sorted(nivus_root.rglob("*")):
-        if not path.is_dir():
-            continue
-
-        if re.match(r"^P\d{1,3}$", path.name, flags=re.IGNORECASE):
-            point_dirs.append(path)
-
-    return point_dirs
-
-
 def _find_nivus_xml_files(
     cfg: dict[str, Any],
     *,
@@ -110,24 +100,12 @@ def _find_nivus_xml_files(
 
     candidates: list[dict[str, str]] = []
 
-    for point_path in _iter_point_dirs(nivus_root):
-        xml_files = sorted(point_path.glob("*.xml"))
-
-        if len(xml_files) != 1:
-            print(
-                f"WARNING: {point_path}: expected 1 XML file, "
-                f"found {len(xml_files)}. Skipping."
-            )
-            continue
-
-        xml_path = xml_files[0]
-
+    for xml_path in find_files_recursive(nivus_root, {".xml"}):
         candidates.append(
             {
-                "point_folder": point_path.name,
-                "point_path": str(point_path),
                 "xml_file": xml_path.name,
                 "xml_path": str(xml_path),
+                "fallback_station_id": fallback_station_id_from_parents(xml_path) or "",
             }
         )
 
@@ -157,6 +135,7 @@ def _add_ingest_metadata(
     *,
     source: str,
     station_id: str,
+    station_name: str | None,
     measurement_date: str,
     measurement_time: str,
     timezone: str,
@@ -171,6 +150,7 @@ def _add_ingest_metadata(
     metadata = {
         "source": source,
         "station_id": station_id,
+        "station_name": station_name,
         "measurement_date": measurement_date,
         "measurement_time": measurement_time,
         "timezone": timezone,
@@ -205,6 +185,7 @@ def _write_group_csv(
     group: str,
     output_dir: Path,
     station_id: str,
+    station_name: str | None,
     measurement_date: str,
     measurement_time: str,
     timezone: str,
@@ -218,6 +199,7 @@ def _write_group_csv(
         df,
         source=INSTRUMENT_NAME,
         station_id=station_id,
+        station_name=station_name,
         measurement_date=measurement_date,
         measurement_time=measurement_time,
         timezone=timezone,
@@ -240,10 +222,24 @@ def _process_xml_file(
     run_dir: Path,
 ) -> None:
     xml_path = Path(item["xml_path"])
-    station_id = item["point_folder"].upper()
 
     raw_groups = parse_nivus_xml(xml_path)
-    measurement_date, measurement_time = parse_datetime_from_filename(xml_path.name)
+    meta = parse_nivus_metadata(xml_path)
+
+    station_id = clean_station_id(
+        meta.get("station_id"),
+        fallback=item.get("fallback_station_id"),
+    )
+
+    station_name = clean_station_name(
+        meta.get("station_name")
+    )
+
+    measurement_date = meta.get("measurement_date")
+    measurement_time = meta.get("measurement_time")
+
+    if not measurement_date or measurement_date == "unknown_date":
+        measurement_date, measurement_time = parse_datetime_from_filename(xml_path.name)
 
     for group in GROUPS:
         rows = raw_groups.get(group, [])
@@ -253,6 +249,7 @@ def _process_xml_file(
             group=group,
             output_dir=group_dirs[group],
             station_id=station_id,
+            station_name=station_name,
             measurement_date=measurement_date,
             measurement_time=measurement_time,
             timezone=timezone,
@@ -288,7 +285,10 @@ def run(config_path: Path) -> Path:
 
     if not candidates:
         print("No Nivus XML files found with current config search settings.")
-        print(f"Expected Nivus raw directory: {_get_nivus_raw_root(cfg, config_path=config_path)}")
+        print(
+            "Expected Nivus raw directory: "
+            f"{_get_nivus_raw_root(cfg, config_path=config_path)}"
+        )
         print(f"Run created: {run_dir}")
         return run_dir
 

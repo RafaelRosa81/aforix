@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 from typing import Any
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
 from aforix.ingest.adapters.molinete_excel import MolineteExcelAdapter
+from aforix.ingest.discovery import (
+    fallback_station_id_from_parents,
+    find_files_recursive,
+)
+from aforix.ingest.metadata import clean_station_id, clean_station_name
 
 
 INSTRUMENT_NAME = "molinete"
@@ -25,8 +29,6 @@ def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
 def _get_project_root(config_path: Path) -> Path:
     resolved = config_path.resolve()
 
-    # Expected layout:
-    # project_root/configs/examples/main.yaml
     if len(resolved.parents) >= 3:
         return resolved.parents[2]
 
@@ -38,8 +40,7 @@ def _get_molinete_config(cfg: dict[str, Any]) -> dict[str, Any]:
         return cfg["ingest"][INSTRUMENT_NAME]
     except KeyError as exc:
         raise ValueError(
-            "Missing Molinete configuration section: "
-            "'ingest.molinete'."
+            "Missing Molinete configuration section: 'ingest.molinete'."
         ) from exc
 
 
@@ -53,9 +54,7 @@ def _get_raw_data_root(
     try:
         raw_data_dir = cfg["paths"]["raw_data_dir"]
     except KeyError as exc:
-        raise ValueError(
-            "Missing required config key: 'paths.raw_data_dir'."
-        ) from exc
+        raise ValueError("Missing required config key: 'paths.raw_data_dir'.") from exc
 
     return _resolve_config_path(raw_data_dir, project_root=project_root)
 
@@ -71,38 +70,17 @@ def _get_molinete_raw_root(
     raw_subdir = molinete_cfg.get("raw_subdir")
 
     if not raw_subdir:
-        raise ValueError(
-            "Missing required config key: 'ingest.molinete.raw_subdir'."
-        )
+        raise ValueError("Missing required config key: 'ingest.molinete.raw_subdir'.")
 
     molinete_root = raw_data_root / str(raw_subdir)
 
     if not molinete_root.exists():
-        raise ValueError(
-            "Molinete raw data directory does not exist: "
-            f"{molinete_root}"
-        )
+        raise ValueError(f"Molinete raw data directory does not exist: {molinete_root}")
 
     if not molinete_root.is_dir():
-        raise ValueError(
-            "Molinete raw data path is not a directory: "
-            f"{molinete_root}"
-        )
+        raise ValueError(f"Molinete raw data path is not a directory: {molinete_root}")
 
     return molinete_root.resolve()
-
-
-def _iter_point_dirs(molinete_root: Path) -> list[Path]:
-    point_dirs: list[Path] = []
-
-    for path in sorted(molinete_root.rglob("*")):
-        if not path.is_dir():
-            continue
-
-        if re.match(r"^P\d{1,3}$", path.name, flags=re.IGNORECASE):
-            point_dirs.append(path)
-
-    return point_dirs
 
 
 def _find_molinete_excels(
@@ -114,22 +92,14 @@ def _find_molinete_excels(
 
     candidates: list[dict[str, str]] = []
 
-    for point_path in _iter_point_dirs(molinete_root):
-        for file_path in sorted(point_path.iterdir()):
-            if not file_path.is_file():
-                continue
-
-            if file_path.suffix.lower() not in EXCEL_EXTENSIONS:
-                continue
-
-            candidates.append(
-                {
-                    "point_folder": point_path.name,
-                    "point_path": str(point_path),
-                    "xls_file": file_path.name,
-                    "xls_path": str(file_path),
-                }
-            )
+    for file_path in find_files_recursive(molinete_root, EXCEL_EXTENSIONS):
+        candidates.append(
+            {
+                "xls_file": file_path.name,
+                "xls_path": str(file_path),
+                "fallback_station_id": fallback_station_id_from_parents(file_path) or "",
+            }
+        )
 
     return candidates
 
@@ -167,11 +137,28 @@ def _get_sheet_name(cfg: dict[str, Any]) -> str:
     sheet_name = molinete_cfg.get("sheet_name", "CALCULO")
 
     if not isinstance(sheet_name, str) or not sheet_name.strip():
-        raise ValueError(
-            "'ingest.molinete.sheet_name' must be a non-empty string."
-        )
+        raise ValueError("'ingest.molinete.sheet_name' must be a non-empty string.")
 
     return sheet_name.strip()
+
+
+def _add_ingest_metadata(
+    df,
+    *,
+    station_id: str,
+    station_name: str | None,
+    source_path: Path,
+    run_dir: Path,
+):
+    df = df.copy()
+
+    df["station_id"] = station_id
+    df["station_name"] = station_name
+    df["instrument"] = INSTRUMENT_NAME
+    df["source_file"] = str(source_path)
+    df["source_run_dir"] = str(run_dir)
+
+    return df
 
 
 def _write_group_csv(
@@ -180,8 +167,11 @@ def _write_group_csv(
     group_name: str,
     output_dir: Path,
     station_id: str,
+    station_name: str | None,
     measurement_date: str,
     measurement_time: str,
+    source_path: Path,
+    run_dir: Path,
 ) -> Path | None:
     if df is None:
         return None
@@ -190,6 +180,14 @@ def _write_group_csv(
 
     if df.empty:
         return None
+
+    df = _add_ingest_metadata(
+        df,
+        station_id=station_id,
+        station_name=station_name,
+        source_path=source_path,
+        run_dir=run_dir,
+    )
 
     output_path = (
         output_dir
@@ -206,15 +204,23 @@ def _process_excel_file(
     adapter: MolineteExcelAdapter,
     sheet_name: str,
     group_dirs: dict[str, Path],
+    run_dir: Path,
 ) -> None:
-    xls_path = item["xls_path"]
+    xls_path = Path(item["xls_path"])
 
     res = adapter.parse_file_strict(
-        xls_path,
+        str(xls_path),
         sheet_name=sheet_name,
     )
 
-    station_id = res.extracted_meta["station_id"]
+    station_id = clean_station_id(
+        res.extracted_meta.get("station_id"),
+        fallback=item.get("fallback_station_id"),
+    )
+
+    station_name = clean_station_name(
+        res.extracted_meta.get("station_name")
+    )
 
     measurement_date = _format_date_yyyymmdd(
         res.extracted_meta.get("measurement_date", "")
@@ -228,8 +234,11 @@ def _process_excel_file(
         group_name="Summary",
         output_dir=group_dirs["Summary"],
         station_id=station_id,
+        station_name=station_name,
         measurement_date=measurement_date,
         measurement_time=measurement_time,
+        source_path=xls_path,
+        run_dir=run_dir,
     )
 
     if summary_outpath is not None:
@@ -240,8 +249,11 @@ def _process_excel_file(
         group_name="Points",
         output_dir=group_dirs["Points"],
         station_id=station_id,
+        station_name=station_name,
         measurement_date=measurement_date,
         measurement_time=measurement_time,
+        source_path=xls_path,
+        run_dir=run_dir,
     )
 
     if points_outpath is not None:
@@ -275,7 +287,10 @@ def run(config_path: Path) -> Path:
 
     if not candidates:
         print("No Molinete Excel files found.")
-        print(f"Expected Molinete raw directory: {_get_molinete_raw_root(cfg, config_path=config_path)}")
+        print(
+            "Expected Molinete raw directory: "
+            f"{_get_molinete_raw_root(cfg, config_path=config_path)}"
+        )
         print(f"Run created: {run_dir}")
         return run_dir
 
@@ -291,6 +306,7 @@ def run(config_path: Path) -> Path:
                 adapter=adapter,
                 sheet_name=sheet_name,
                 group_dirs=group_dirs,
+                run_dir=run_dir,
             )
             processed += 1
 
