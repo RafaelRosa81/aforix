@@ -107,8 +107,6 @@ tables:
 
     qc:
       non_negative:
-        - q_total_m3s
-        - q_total_ls
         - area_total_m2
         - width_total_m
         - depth_mean_m
