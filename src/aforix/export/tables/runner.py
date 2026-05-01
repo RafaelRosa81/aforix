@@ -45,10 +45,39 @@ class ExportResult:
     source_files: tuple[Path, ...]
 
 
+def _has_csv_files(path: Path) -> bool:
+    return path.is_dir() and any(path.glob("*.csv"))
+
+
+def _normalized_instrument_dirs(config: dict) -> list[Path]:
+    root = get_normalized_root(config)
+    enabled = enabled_instruments(config)
+    if not root.exists():
+        return []
+    dirs = []
+    for p in root.iterdir():
+        if not p.is_dir():
+            continue
+        if enabled is not None and p.name.lower() not in enabled:
+            continue
+        if any(child.is_dir() and _has_csv_files(child) for child in p.iterdir()):
+            dirs.append(p)
+    return sorted(dirs, key=lambda p: p.name.lower())
+
+
+def _instrument_layout_exists(config: dict) -> bool:
+    return bool(_normalized_instrument_dirs(config))
+
+
 def discover_normalized_tables(config: dict) -> list[str]:
     root = get_normalized_root(config)
     if not root.exists():
         return []
+    if _instrument_layout_exists(config):
+        names: set[str] = set()
+        for inst_dir in _normalized_instrument_dirs(config):
+            names.update({p.name for p in inst_dir.iterdir() if _has_csv_files(p)})
+        return sorted(names, key=str.lower)
     return sorted([p.name for p in root.iterdir() if p.is_dir() and list(p.glob("*.csv"))], key=str.lower)
 
 
@@ -60,7 +89,36 @@ def table_dir(config: dict, table: str) -> Path:
     return candidates[0]
 
 
-def load_normalized_table(config: dict, table: str) -> tuple[pd.DataFrame, list[Path]]:
+def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "all") -> list[Path]:
+    selected = (instrument or "all").lower()
+    dirs: list[Path] = []
+    for inst_dir in _normalized_instrument_dirs(config):
+        if selected != "all" and inst_dir.name.lower() != selected:
+            continue
+        for child in inst_dir.iterdir():
+            if child.is_dir() and child.name.lower() == table.lower() and _has_csv_files(child):
+                dirs.append(child)
+    return sorted(dirs, key=lambda p: (p.parent.name.lower(), p.name.lower()))
+
+
+def load_normalized_table(config: dict, table: str, instrument: str = "all") -> tuple[pd.DataFrame, list[Path]]:
+    if _instrument_layout_exists(config):
+        table_dirs = _instrument_scoped_table_dirs(config, table, instrument)
+        if not table_dirs:
+            root = get_normalized_root(config)
+            raise FileNotFoundError(f"Normalized table not found for instrument='{instrument}': {root}/<instrument>/{table}")
+        frames = []
+        files: list[Path] = []
+        for tdir in table_dirs:
+            inst_name = tdir.parent.name
+            for f in sorted(tdir.glob("*.csv")):
+                df = pd.read_csv(f)
+                if "instrument" not in df.columns:
+                    df.insert(0, "instrument", inst_name)
+                frames.append(df)
+                files.append(f)
+        return (pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]), files
+
     tdir = table_dir(config, table)
     files = sorted(tdir.glob("*.csv"))
     if not files:
@@ -371,7 +429,7 @@ def _build_output_stem(
 
 
 def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
-    df, source_files = load_normalized_table(config, request.table)
+    df, source_files = load_normalized_table(config, request.table, request.instrument)
 
     if request.instrument and request.instrument.lower() != "all":
         if "instrument" not in df.columns:
