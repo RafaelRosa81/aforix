@@ -1,275 +1,77 @@
 # Aforix
 
-Aforix es una biblioteca en Python para procesar datos de aforos (mediciones de caudal) provenientes de distintos instrumentos (FlowTracker, Molinete, Nivus, M9).
+Aforix es una biblioteca y CLI en Python para procesar datos de aforos hidráulicos provenientes de instrumentos como FlowTracker, Molinete y Nivus.
 
-El objetivo es construir un **pipeline consistente, trazable e independiente del instrumento** para el procesamiento de datos hidrológicos.
+El objetivo es transformar archivos originales de campo en datasets consistentes, trazables, normalizados y listos para validación, exportación y análisis.
 
----
+## Instrumentos contemplados
 
-## 🚀 Estado actual
+- FlowTracker
+- Molinete
+- Nivus
+- M9 / ADCP, previsto para una etapa posterior
 
-✔ Ingesta FlowTracker
-✔ Ingesta Molinete
-✔ Ingesta Nivus
-✔ Construcción de grupos de datos
-✔ Normalización (Summary + Points)
-✔ Validación hidráulica
+## Quickstart
 
----
-
-## 🧠 Descripción del pipeline
-
-El flujo actual es:
-
-```text
-DATOS RAW
-   ↓
-INGESTA (por instrumento)
-   ↓
-RAW CANONICAL (por instrumento)
-   ↓
-BUILD GROUPS (unificación)
-   ↓
-NORMALIZACIÓN (schema común)
-   ↓
-VALIDACIÓN (consistencia hidráulica)
-```
-
----
-
-## 📂 Estructura del proyecto
-
-```text
-src/aforix/
-├── ingest/            # Lectura de datos por instrumento
-├── normalize/         # Normalización a esquema canónico
-├── groups/            # Construcción de datasets unificados
-├── analysis/          # (futuro)
-├── export/            # (futuro)
-├── cli/               # Interfaz de línea de comandos
-```
-
-Datos generados (NO versionados):
-
-```text
-runs/                  # Ejecuciones del pipeline
-database/
-├── raw_canonical/     # Datos por instrumento
-├── data_groups/       # Datos combinados
-├── normalized/        # Datos normalizados
-├── validation/        # Resultados de validación
-```
-
----
-
-## ⚙️ Instalación
+Instalar desde la raíz del repositorio:
 
 ```bash
 pip install -e .
 ```
 
-Activar entorno:
+Verificar el CLI:
 
 ```bash
-conda activate aforix
+aforix --help
 ```
 
----
-
-## 📥 Ingesta de datos
-
-### FlowTracker
+Ejecutar un flujo básico:
 
 ```bash
-aforix ingest flowtracker --config configs/examples/main.yaml
+aforix config-check -c configs/examples/main.yaml
+aforix ingest flowtracker -c configs/examples/main.yaml
+aforix build-groups -c configs/examples/main.yaml
+aforix normalize run -c configs/examples/main.yaml
+aforix validate run -c configs/examples/main.yaml
 ```
 
-### Molinete
-
-```bash
-aforix ingest molinete --config configs/examples/main.yaml
-```
-
-### Nivus
-
-```bash
-aforix ingest nivus --config configs/examples/main.yaml
-```
-
----
-
-## 🔗 Construcción de grupos
-
-Unifica todos los instrumentos en datasets comunes:
-
-```bash
-aforix build-groups --config configs/examples/main.yaml
-```
-
-Salida:
+## Pipeline
 
 ```text
-database/data_groups/
-├── Summary/summary_all.csv
-├── Points/points_all.csv
-├── Sections/sections_all.csv
-├── Gates/gates_all.csv
+raw -> ingest -> runs -> build-groups -> database/raw_canonical -> normalize -> database/normalized -> validate/export/analysis
 ```
 
----
+La explicación completa del flujo está en `docs/02_pipeline.md`.
 
-## 🔄 Normalización
+## Salidas principales
 
-### Summary
+- `runs/`: ejecuciones trazables del pipeline.
+- `database/raw_canonical/`: datos estructurados por instrumento.
+- `database/normalized/`: datos normalizados bajo esquema común.
+- `database/validation/`: reportes de validación.
+- `outputs/`: exportaciones para usuario.
 
-```bash
-aforix normalize summary --config configs/examples/main.yaml
-```
+Estas carpetas son locales o generadas por el pipeline y no deberían versionarse en Git.
 
-Salida:
+## Documentación
 
-```text
-database/normalized/Summary/summary_normalized.csv
-```
+- Pipeline de procesamiento: `docs/02_pipeline.md`
+- Guía de configuración: `docs/CONFIGURATION_GUIDE.md`
+- Arquitectura del proyecto: `docs/ARCHITECTURE.md`
+- Reglas para agentes y desarrollo asistido: `AGENTS.md`
 
----
+## Estado del proyecto
 
-### Points
+Aforix está en desarrollo activo. El trabajo se organiza mediante ramas y Pull Requests.
 
-```bash
-aforix normalize points --config configs/examples/main.yaml
-```
+Componentes disponibles actualmente:
 
-Salida:
+- ingesta de FlowTracker, Molinete y Nivus;
+- construcción de `database/raw_canonical`;
+- normalización mediante registry YAML;
+- validación de datasets normalizados;
+- exportación de tablas.
 
-```text
-database/normalized/Points/points_normalized.csv
-```
-
----
-
-## 📊 Validación hidráulica
-
-Verifica la consistencia entre Summary y Points:
-
-```bash
-python scripts/validate_hydraulic_consistency.py
-```
-
-Chequeos realizados:
-
-```text
-SUM(points.q_m3s) ≈ summary.q_total_m3s
-SUM(points.area_m2) ≈ summary.area_total_m2
-```
-
-Tolerancia:
-
-```text
-±1% → aceptable
-```
-
----
-
-## 🧩 Esquema canónico
-
-### Summary
-
-```text
-instrument
-station_id
-measurement_date
-measurement_time
-q_total_m3s
-area_total_m2
-width_total_m
-velocity_mean_m_s
-depth_mean_m
-temperature_c
-```
-
----
-
-### Points
-
-```text
-instrument
-station_id
-measurement_date
-measurement_time
-point_index
-distance_m
-depth_m
-velocity_mean_m_s
-area_m2
-q_m3s
-percent_q
-```
-
----
-
-## ⚠️ Notas importantes
-
-* Las carpetas `database/` y `runs/` no se versionan.
-* FlowTracker no provee Sections ni Gates (actualmente vacíos).
-* En Nivus, los Points se enriquecen usando información de Sections.
-* La normalización permite comparar instrumentos bajo un mismo esquema.
-
----
-
-## 🔜 Próximos pasos
-
-* Ingesta M9
-* Módulo de control de calidad (QC)
-* Registry (comparación entre instrumentos)
-* Migración de funciones existentes de qSL
-
----
-
-## 👤 Autor
+## Autor
 
 Rafael Rosa
-
-## Export tables
-
-Aforix can export normalized data tables from the stable normalized database.
-
-### Input
-
-The exporter reads from:
-
-```text
-database/normalized/
-Expected normalized tables include, for example:
-
-database/normalized/Summary/
-database/normalized/Points/
-
-Each normalized CSV should include standard columns such as:
-
-instrument
-station_id
-measurement_date
-Interactive use
-aforix export tables -c configs/examples/main.yaml --interactive
-The interactive exporter allows selecting:
-
-normalized table, for example Summary or Points;
-instrument, for example flowtracker, molinete, nivus, or all;
-stations/points;
-parameters;
-date range;
-grouping mode: none, monthly, or daily;
-output format: xlsx or csv.
-Output
-
-Exported tables are saved in:
-
-runs/export_tables/<timestamp>/
-
-For example:
-
-runs/export_tables/20260429_153000/Summary_all_pivot.xlsx
-Notes
-
-When using monthly or daily grouping, the exporter creates a pivot table with periods as the main column groups and selected parameters inside each period.
