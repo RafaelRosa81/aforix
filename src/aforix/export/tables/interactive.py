@@ -98,6 +98,12 @@ def _has_csv_files(path: Path) -> bool:
     return path.is_dir() and any(path.glob("*.csv"))
 
 
+def _root_table_csvs(root: Path) -> list[str]:
+    if not root.exists():
+        return []
+    return sorted([p.stem for p in root.glob("*.csv") if p.is_file()], key=str.lower)
+
+
 def _looks_like_instrument_layout(root: Path, config: dict) -> bool:
     enabled = enabled_instruments(config)
     dirs = [p for p in root.iterdir() if p.is_dir()] if root.exists() else []
@@ -125,34 +131,19 @@ def _tables_for_instrument(root: Path, instrument: str) -> list[str]:
     base = root / instrument
     if not base.exists():
         return []
-    return sorted([p.name for p in base.iterdir() if _has_csv_files(p)], key=str.lower)
+    names = [p.name for p in base.iterdir() if _has_csv_files(p)]
+    names.extend(_root_table_csvs(root))
+    return sorted(set(names), key=str.lower)
 
 
-def _table_dirs_for_instrument_selection(root: Path, instrument: str, table: str) -> tuple[list[Path], str]:
+def _available_tables_for_selection(root: Path, instrument: str, instruments: list[str]) -> list[str]:
+    root_tables = _root_table_csvs(root)
     if instrument.lower() == "all":
-        dirs = [root / inst / table for inst in _instrument_dirs(root, {}) if _has_csv_files(root / inst / table)]
-        return dirs, "all"
-    tdir = root / instrument / table
-    return ([tdir] if _has_csv_files(tdir) else []), instrument
-
-
-def _load_table_dirs(dirs: list[Path], selected_instrument: str):
-    import pandas as pd
-
-    frames = []
-    source_files = []
-    for d in dirs:
-        inst = d.parent.name
-        for f in sorted(d.glob("*.csv")):
-            df = pd.read_csv(f)
-            if "instrument" not in df.columns:
-                df.insert(0, "instrument", inst)
-            frames.append(df)
-            source_files.append(f)
-    if not frames:
-        raise FileNotFoundError("No CSV files found for selected instrument/table.")
-    out = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
-    return out, source_files
+        names = set(root_tables)
+        for inst in instruments:
+            names.update(_tables_for_instrument(root, inst))
+        return sorted(names, key=str.lower)
+    return _tables_for_instrument(root, instrument)
 
 
 def run_interactive_export_tables(config: dict):
@@ -169,17 +160,14 @@ def run_interactive_export_tables(config: dict):
             raise FileNotFoundError(f"No instrument folders with normalized tables found in {root}")
         instrument = _choose_one("Available instruments", ["all"] + instruments, default_idx=0)
 
-        if instrument.lower() == "all":
-            table_sets = [set(_tables_for_instrument(root, inst)) for inst in instruments]
-            tables = sorted(set.union(*table_sets), key=str.lower) if table_sets else []
-        else:
-            tables = _tables_for_instrument(root, instrument)
+        tables = _available_tables_for_selection(root, instrument, instruments)
         if not tables:
             raise FileNotFoundError(f"No normalized tables found for instrument selection: {instrument}")
         default_table_idx = next((i for i, t in enumerate(tables) if t.lower() == "summary"), 0)
         table = _choose_one("Available normalized tables", tables, default_idx=default_table_idx)
-        dirs, instrument_tag = _table_dirs_for_instrument_selection(root, instrument, table)
-        df, _ = _load_table_dirs(dirs, instrument_tag)
+        df, _ = load_normalized_table(config, table, instrument)
+        if instrument.lower() != "all":
+            df = _filter_by_instrument(df, instrument)
     else:
         tables = discover_normalized_tables(config)
         if not tables:
