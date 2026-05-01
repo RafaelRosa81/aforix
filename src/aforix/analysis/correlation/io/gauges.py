@@ -45,73 +45,51 @@ def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     return None
 
 
-def _load_summary_table(path: Path, ranking_codes: list[str], default_source: str | None = None) -> Dict[str, pd.DataFrame]:
+def _load_summary_table(path: Path, default_source: str | None = None) -> pd.DataFrame:
     if not path.exists():
-        return {}
+        return pd.DataFrame()
 
     df = pd.read_csv(path)
     if df.empty:
-        return {}
+        return pd.DataFrame()
 
     point_col = _find_col(df, ["point", "point_id", "measurement_point", "punto", "site", "station", "p"])
     date_col = _find_col(df, ["date", "datetime", "fecha", "time"])
     source_col = _find_col(df, ["source", "instrument", "instrument_code", "instrument_used", "source_code"])
-
     q_col = _find_col(df, ["q_l/s", "q_ls", "q_total_ls", "q_mean_ls", "q_meas_ls", "caudal_ls", "flow_ls"])
-    q_m3s_col = _find_col(df, ["q_m3s", "q(m3/s)", "caudal_m3s", "caudal", "q"])
+    q_m3s_col = _find_col(df, ["q_m3s", "q_total_m3s", "q(m3/s)", "caudal_m3s", "caudal", "q"])
 
     if not point_col or not date_col or (not q_col and not q_m3s_col):
         print(f"Summary table found but required columns were not detected: {path}. Columns={list(df.columns)}")
-        return {}
+        return pd.DataFrame()
 
     out = pd.DataFrame()
     out["point"] = df[point_col].astype(str).str.replace("P", "", regex=False).str.strip()
     out["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
-
-    if source_col:
-        out["source"] = df[source_col].astype(str).str.upper()
-    else:
-        out["source"] = (default_source or "UNK").upper()
+    out["source"] = df[source_col].astype(str).str.upper() if source_col else (default_source or "UNK").upper()
+    out["source_table"] = str(path)
 
     if q_col:
         out["q_gauge_l/s"] = pd.to_numeric(df[q_col], errors="coerce")
     else:
         out["q_gauge_l/s"] = pd.to_numeric(df[q_m3s_col], errors="coerce") * 1000.0
 
-    out = out.dropna(subset=["point", "date", "q_gauge_l/s"])
-    if out.empty:
-        return {}
+    return out.dropna(subset=["point", "date", "q_gauge_l/s"])
 
+
+def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
+    if df.empty:
+        return {}
     rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
+    out = df.copy()
     out["rank"] = out["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
     out = out.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
     out = out.drop(columns=["rank"])
 
     result: Dict[str, pd.DataFrame] = {}
     for point, group in out.groupby("point"):
-        result[str(point)] = group[["date", "q_gauge_l/s", "source"]].sort_values("date").reset_index(drop=True)
-    return result
-
-
-def _merge_gauge_dicts(dicts: list[Dict[str, pd.DataFrame]], ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
-    rows = []
-    for item in dicts:
-        for point, df in item.items():
-            d = df.copy()
-            d["point"] = point
-            rows.append(d)
-    if not rows:
-        return {}
-
-    all_rows = pd.concat(rows, ignore_index=True)
-    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
-    all_rows["rank"] = all_rows["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
-    all_rows = all_rows.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
-    all_rows = all_rows.drop(columns=["rank"])
-
-    result: Dict[str, pd.DataFrame] = {}
-    for point, group in all_rows.groupby("point"):
-        result[str(point)] = group[["date", "q_gauge_l/s", "source"]].sort_values("date").reset_index(drop=True)
+        cols = ["date", "q_gauge_l/s", "source"]
+        result[str(point)] = group[cols].sort_values("date").reset_index(drop=True)
     return result
 
 
@@ -157,32 +135,27 @@ def load_gauges_daily(
     instruments: Iterable[MeasuringInstrument],
     ranking_codes: List[str],
 ) -> Dict[str, pd.DataFrame]:
-    """Load daily gauge series from normalized Aforix outputs.
+    """Load daily gauge series from every available normalized Summary source.
 
-    Loading order:
-    1. database/normalized/Summary.csv
-    2. database/normalized/<instrument>/Summary.csv
-    3. legacy database/normalized/<instrument>/Summary/P*_Summary_*.csv
+    The loader combines all available Summary tables instead of trusting only the
+    global Summary.csv. This protects correlations when the consolidated table is
+    stale or incomplete.
     """
 
-    consolidated = _load_summary_table(normalized_root / "Summary.csv", ranking_codes)
-    if consolidated:
-        return consolidated
-
-    per_instrument = []
     instruments_list = list(instruments)
+    frames: list[pd.DataFrame] = []
+
+    global_summary = _load_summary_table(normalized_root / "Summary.csv")
+    if not global_summary.empty:
+        frames.append(global_summary)
+
     for instrument in instruments_list:
         table = _load_summary_table(
             normalized_root / instrument.subdir / "Summary.csv",
-            ranking_codes,
             default_source=instrument.code,
         )
-        if table:
-            per_instrument.append(table)
-
-    merged_per_instrument = _merge_gauge_dicts(per_instrument, ranking_codes)
-    if merged_per_instrument:
-        return merged_per_instrument
+        if not table.empty:
+            frames.append(table)
 
     rows: list[dict[str, object]] = []
     for instrument in instruments_list:
@@ -202,16 +175,11 @@ def load_gauges_daily(
                 for date, q in _load_wide_summary(file, instrument):
                     rows.append({"point": point, "date": date.normalize(), "q_gauge_l/s": q, "source": code})
 
-    if not rows:
+    if rows:
+        frames.append(pd.DataFrame(rows))
+
+    if not frames:
         return {}
 
-    df = pd.DataFrame(rows)
-    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
-    df["rank"] = df["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
-    df = df.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
-    df = df.drop(columns=["rank"])
-
-    result: Dict[str, pd.DataFrame] = {}
-    for point, group in df.groupby("point"):
-        result[str(point)] = group[["date", "q_gauge_l/s", "source"]].sort_values("date").reset_index(drop=True)
-    return result
+    all_rows = pd.concat(frames, ignore_index=True, sort=False)
+    return _finalize_rows(all_rows, ranking_codes)
