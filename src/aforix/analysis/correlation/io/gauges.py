@@ -45,34 +45,33 @@ def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     return None
 
 
-def _load_consolidated_summary(normalized_root: Path, ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
-    summary_path = normalized_root / "Summary.csv"
-    if not summary_path.exists():
+def _load_summary_table(path: Path, ranking_codes: list[str], default_source: str | None = None) -> Dict[str, pd.DataFrame]:
+    if not path.exists():
         return {}
 
-    df = pd.read_csv(summary_path)
+    df = pd.read_csv(path)
     if df.empty:
         return {}
 
-    point_col = _find_col(df, ["point", "point_id", "measurement_point", "punto", "site"])
-    date_col = _find_col(df, ["date", "datetime", "fecha"])
-    source_col = _find_col(df, ["source", "instrument", "instrument_code", "instrument_used"])
+    point_col = _find_col(df, ["point", "point_id", "measurement_point", "punto", "site", "station", "p"])
+    date_col = _find_col(df, ["date", "datetime", "fecha", "time"])
+    source_col = _find_col(df, ["source", "instrument", "instrument_code", "instrument_used", "source_code"])
 
-    # Prefer already-normalized l/s columns. Keep broader candidates for backward compatibility.
     q_col = _find_col(df, ["q_l/s", "q_ls", "q_total_ls", "q_mean_ls", "q_meas_ls", "caudal_ls", "flow_ls"])
-    q_m3s_col = _find_col(df, ["q_m3s", "q(m3/s)", "caudal_m3s", "caudal"])
+    q_m3s_col = _find_col(df, ["q_m3s", "q(m3/s)", "caudal_m3s", "caudal", "q"])
 
     if not point_col or not date_col or (not q_col and not q_m3s_col):
-        print(
-            "Consolidated Summary.csv found but required columns were not detected. "
-            f"Columns={list(df.columns)}"
-        )
+        print(f"Summary table found but required columns were not detected: {path}. Columns={list(df.columns)}")
         return {}
 
     out = pd.DataFrame()
     out["point"] = df[point_col].astype(str).str.replace("P", "", regex=False).str.strip()
     out["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
-    out["source"] = df[source_col].astype(str).str.upper() if source_col else "UNK"
+
+    if source_col:
+        out["source"] = df[source_col].astype(str).str.upper()
+    else:
+        out["source"] = (default_source or "UNK").upper()
 
     if q_col:
         out["q_gauge_l/s"] = pd.to_numeric(df[q_col], errors="coerce")
@@ -90,6 +89,28 @@ def _load_consolidated_summary(normalized_root: Path, ranking_codes: list[str]) 
 
     result: Dict[str, pd.DataFrame] = {}
     for point, group in out.groupby("point"):
+        result[str(point)] = group[["date", "q_gauge_l/s", "source"]].sort_values("date").reset_index(drop=True)
+    return result
+
+
+def _merge_gauge_dicts(dicts: list[Dict[str, pd.DataFrame]], ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
+    rows = []
+    for item in dicts:
+        for point, df in item.items():
+            d = df.copy()
+            d["point"] = point
+            rows.append(d)
+    if not rows:
+        return {}
+
+    all_rows = pd.concat(rows, ignore_index=True)
+    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
+    all_rows["rank"] = all_rows["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
+    all_rows = all_rows.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
+    all_rows = all_rows.drop(columns=["rank"])
+
+    result: Dict[str, pd.DataFrame] = {}
+    for point, group in all_rows.groupby("point"):
         result[str(point)] = group[["date", "q_gauge_l/s", "source"]].sort_values("date").reset_index(drop=True)
     return result
 
@@ -138,19 +159,33 @@ def load_gauges_daily(
 ) -> Dict[str, pd.DataFrame]:
     """Load daily gauge series from normalized Aforix outputs.
 
-    Preferred source is the consolidated normalized Summary.csv produced by the
-    current Aforix normalizer. Legacy qSL-style per-instrument Summary folders
-    are used as fallback.
+    Loading order:
+    1. database/normalized/Summary.csv
+    2. database/normalized/<instrument>/Summary.csv
+    3. legacy database/normalized/<instrument>/Summary/P*_Summary_*.csv
     """
 
-    consolidated = _load_consolidated_summary(normalized_root, ranking_codes)
+    consolidated = _load_summary_table(normalized_root / "Summary.csv", ranking_codes)
     if consolidated:
         return consolidated
 
-    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
-    rows: list[dict[str, object]] = []
+    per_instrument = []
+    instruments_list = list(instruments)
+    for instrument in instruments_list:
+        table = _load_summary_table(
+            normalized_root / instrument.subdir / "Summary.csv",
+            ranking_codes,
+            default_source=instrument.code,
+        )
+        if table:
+            per_instrument.append(table)
 
-    for instrument in instruments:
+    merged_per_instrument = _merge_gauge_dicts(per_instrument, ranking_codes)
+    if merged_per_instrument:
+        return merged_per_instrument
+
+    rows: list[dict[str, object]] = []
+    for instrument in instruments_list:
         code = instrument.code.upper()
         summary_dir = normalized_root / instrument.subdir / "Summary"
         if not summary_dir.exists():
@@ -171,6 +206,7 @@ def load_gauges_daily(
         return {}
 
     df = pd.DataFrame(rows)
+    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
     df["rank"] = df["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
     df = df.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
     df = df.drop(columns=["rank"])
