@@ -22,11 +22,26 @@ def _get_nested(cfg: dict[str, Any], keys: list[str], default: Any = None) -> An
     return cur
 
 
+def _project_root_from_config(config_path: Path) -> Path:
+    """Resolve project root from a config path.
+
+    For configs/examples/main.yaml, the project root is two levels above the
+    config file directory: <repo>/configs/examples/main.yaml -> <repo>.
+    """
+
+    resolved = config_path.resolve()
+    if resolved.parent.name == "examples" and resolved.parent.parent.name == "configs":
+        return resolved.parent.parent.parent
+    if resolved.parent.name == "configs":
+        return resolved.parent.parent
+    return Path.cwd().resolve()
+
+
 def resolve_correlation_paths(config_path: Path) -> CorrelationPaths:
     """Resolve correlation input/output paths with backward-compatible fallbacks."""
 
     cfg = load_config(config_path)
-    root = config_path.parent.parent if config_path.parent.name == "examples" else Path.cwd()
+    root = _project_root_from_config(config_path)
 
     normalized_root = Path(
         _get_nested(cfg, ["database", "normalized_dir"], "database/normalized")
