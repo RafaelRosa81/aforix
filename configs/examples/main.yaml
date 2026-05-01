@@ -109,7 +109,100 @@ normalize:
 
 validation:
   enabled: true
-  strict: true
+  strict: false
+  input_dir: database/normalized
+  output_dir: database/validation
+
+  traceability_columns:
+    - station_id
+    - station_name
+    - measurement_date
+    - measurement_time
+    - instrument
+    - source_file
+    - source_run_dir
+    - run_id
+
+  keys:
+    - instrument
+    - station_id
+    - measurement_date
+    - measurement_time
+
+  checks:
+    required_columns: true
+    duplicates: true
+    completeness: true
+    ranges: true
+    hydraulic_consistency: true
+
+  required_columns:
+    Summary:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - q_total_m3s
+      - q_total_ls
+      - area_total_m2
+    Points:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - point_index
+      - distance_m
+      - depth_m
+      - area_m2
+      - q_m3s
+      - q_ls
+
+  completeness:
+    critical_columns:
+      Summary:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_total_m3s
+      Points:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_m3s
+
+  hydraulic_consistency:
+    q_tolerance_pct: 1.0
+    area_tolerance_pct: 1.0
+
+  ranges:
+    Summary:
+      area_total_m2:
+        min: 0
+      width_total_m:
+        min: 0
+      depth_mean_m:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
+    Points:
+      depth_m:
+        min: 0
+      area_m2:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
 
 export:
   tables:

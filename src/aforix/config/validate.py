@@ -58,10 +58,38 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
     "validation": {
         "enabled",
         "strict",
+        "input_dir",
+        "output_dir",
+        "traceability_columns",
+        "keys",
+        "checks",
+        "required_columns",
+        "completeness",
+        "hydraulic_consistency",
+        "ranges",    "enabled",
+        "strict",
+        "input_dir",
+        "output_dir",
+        "traceability_columns",
+        "keys",
+        "checks",
+        "required_columns",
+        "completeness",
+        "hydraulic_consistency",
+        "ranges",
     },
     "export": {
         "tables",
         "excel",
+        "input_dir",
+        "output_dir",
+        "traceability_columns",
+        "keys",
+        "checks",
+        "required_columns",
+        "completeness",
+        "hydraulic_consistency",
+        "ranges",
     },
 }
 
@@ -498,6 +526,7 @@ def _validate_validation_section(cfg: dict[str, Any]) -> list[str]:
     if section is None or not isinstance(section, dict):
         return errors
 
+    # básicos
     errors.extend(
         _validate_optional_bool(
             section,
@@ -513,6 +542,52 @@ def _validate_validation_section(cfg: dict[str, Any]) -> list[str]:
             full_key="validation.strict",
         )
     )
+
+    # paths
+    for key in ("input_dir", "output_dir"):
+        errors.extend(
+            _validate_optional_non_empty_string(
+                section,
+                key=key,
+                full_key=f"validation.{key}",
+            )
+        )
+
+    # listas clave
+    for key in ("traceability_columns", "keys"):
+        errors.extend(
+            _validate_optional_string_list(
+                section,
+                key=key,
+                full_key=f"validation.{key}",
+                allow_empty=False,
+            )
+        )
+
+    # checks (dict libre, no validamos contenido aún)
+    checks = section.get("checks")
+    if checks is not None and not isinstance(checks, dict):
+        errors.append("'validation.checks' must be a mapping/dictionary.")
+
+    # required_columns
+    required = section.get("required_columns")
+    if required is not None and not isinstance(required, dict):
+        errors.append("'validation.required_columns' must be a mapping/dictionary.")
+
+    # completeness
+    completeness = section.get("completeness")
+    if completeness is not None and not isinstance(completeness, dict):
+        errors.append("'validation.completeness' must be a mapping/dictionary.")
+
+    # hydraulic_consistency
+    hc = section.get("hydraulic_consistency")
+    if hc is not None and not isinstance(hc, dict):
+        errors.append("'validation.hydraulic_consistency' must be a mapping/dictionary.")
+
+    # ranges
+    ranges = section.get("ranges")
+    if ranges is not None and not isinstance(ranges, dict):
+        errors.append("'validation.ranges' must be a mapping/dictionary.")
 
     return errors
 
