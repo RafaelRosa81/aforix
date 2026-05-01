@@ -1,4 +1,4 @@
-instrument: molinete
+instrument: flowtracker
 
 tables:
 
@@ -13,7 +13,7 @@ tables:
       station_name:
         sources:
           - station_name
-          - nombre
+          - site_name
         dtype: string
 
       measurement_date:
@@ -31,8 +31,9 @@ tables:
       source_file:
         sources:
           - source_file
-          - raw_source_file
           - source_csv
+          - input_path
+          - input_file
         dtype: string
 
       source_run_dir:
@@ -45,75 +46,39 @@ tables:
 
       q_total_m3s:
         sources:
-          - q_total_m3s
-          - q_m3s
-          - total_discharge_m3s
           - total_discharge_m3_s
-        dtype: float
-
-      q_total_ls:
-        source: __derived__
+          - caudal_total_m3_s
         dtype: float
 
       area_total_m2:
         sources:
-          - area_total_m2
-          - area_m2
           - total_area_m2
+          - area_total_m2
         dtype: float
 
       width_total_m:
         sources:
-          - width_total_m
-          - ancho_m
-          - width_m
+          - total_width_m
+          - ancho_total_m
         dtype: float
 
       velocity_mean_m_s:
         sources:
-          - velocity_mean_m_s
-          - vel_media_ms
-          - mean_velocity_ms
+          - mean_velocity_m_s
+          - velocidad_media_m_s
         dtype: float
 
       depth_mean_m:
         sources:
-          - depth_mean_m
-          - prof_media_m
           - mean_depth_m
+          - calado_medido_m
         dtype: float
 
       temperature_c:
-        source: temperature_c
+        sources:
+          - mean_temp_degc
+          - temp_promedio_degc
         dtype: float
-
-      watercourse:
-        source: curso
-        dtype: string
-
-      start_time:
-        source: start_time
-        dtype: string
-
-      end_time:
-        source: end_time
-        dtype: string
-
-      max_depth_m:
-        source: prof_max_m
-        dtype: float
-
-      coordinate_y:
-        source: coord_y
-        dtype: float
-
-      coordinate_x:
-        source: coord_x
-        dtype: float
-
-      observations:
-        source: observaciones
-        dtype: string
 
     derived:
       q_total_ls:
@@ -153,7 +118,7 @@ tables:
       station_name:
         sources:
           - station_name
-          - nombre
+          - site_name
         dtype: string
 
       measurement_date:
@@ -171,8 +136,9 @@ tables:
       source_file:
         sources:
           - source_file
-          - raw_source_file
           - source_csv
+          - input_path
+          - input_file
         dtype: string
 
       source_run_dir:
@@ -184,32 +150,32 @@ tables:
         dtype: string
 
       point_index:
-        source: point_index
+        sources:
+          - point_index
+          - station
         dtype: int
 
       point_label:
         sources:
           - point_label
-          - vert_label
+          - station
         dtype: string
 
       distance_m:
         sources:
           - distance_m
-          - progr_m
+          - location_m
         dtype: float
 
       depth_m:
-        sources:
-          - depth_m
-          - prof_m
+        source: depth_m
         dtype: float
 
       velocity_mean_m_s:
         sources:
           - velocity_mean_m_s
-          - vel_media_vert_ms
-          - vel_media_secc_ms
+          - velocity_m_s
+          - mean_velocity_m_s
         dtype: float
 
       area_m2:
@@ -217,7 +183,9 @@ tables:
         dtype: float
 
       q_m3s:
-        source: q_m3s
+        sources:
+          - q_m3s
+          - discharge_m3_s
         dtype: float
 
       q_ls:
@@ -227,20 +195,12 @@ tables:
       percent_q:
         sources:
           - percent_q
-          - q_percent
+          - percent_discharge
         dtype: float
 
       temperature_c:
         source: temperature_c
         dtype: float
-
-      angle_hor_deg:
-        source: angle_hor_deg
-        dtype: float
-
-      n_velocity_points:
-        source: n_points
-        dtype: int
 
     derived:
       q_ls:

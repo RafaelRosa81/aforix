@@ -1,167 +1,366 @@
-from pathlib import Path
-import re
-import pandas as pd
+from __future__ import annotations
+
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
 from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
+from aforix.ingest.discovery import (
+    fallback_station_id_from_parents,
+    find_files_recursive,
+)
+from aforix.ingest.metadata import clean_station_id, clean_station_name
 
+
+INSTRUMENT_NAME = "flowtracker"
 
 TABLES_BY_INSTRUMENT = {
-    "flowtracker": ["Summary", "Points"],
+    INSTRUMENT_NAME: ["Summary", "Points"],
 }
 
 
-def _station_id_from_point_folder(point_folder: str) -> str:
-    m = re.match(r"^(P\d{1,3})$", point_folder.strip(), flags=re.IGNORECASE)
-    return m.group(1).upper() if m else "UNKNOWN"
+def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
+    path = Path(path_value)
+
+    if not path.is_absolute():
+        path = project_root / path
+
+    return path.resolve()
 
 
-def _find_dis_files_flowtracker(config: dict) -> list[dict]:
-    raw_data_root = Path(config["raw_data_path_dir"])
-    stage1_keyword = config["subfolder_raw_data_word_dir"]
-    stage2_foldername = config["subsubfolder_raw_data_word_dir_FT"]
+def _get_project_root(config_path: Path) -> Path:
+    resolved = config_path.resolve()
 
-    candidates = []
+    # Expected layout:
+    # project_root/configs/examples/main.yaml
+    if len(resolved.parents) >= 3:
+        return resolved.parents[2]
 
-    for folder in raw_data_root.iterdir():
-        if not folder.is_dir():
-            continue
-
-        if not re.match(rf"\d{{8}}_{re.escape(stage1_keyword)}_\d+", folder.name):
-            continue
-
-        stage1_path = folder / stage2_foldername
-        if not stage1_path.is_dir():
-            continue
-
-        for point_path in stage1_path.iterdir():
-            if not point_path.is_dir():
-                continue
-
-            if not re.match(r"P\d+", point_path.name, flags=re.IGNORECASE):
-                continue
-
-            for dis_path in point_path.glob("*.dis"):
-                candidates.append(
-                    {
-                        "campaign_folder": folder.name,
-                        "point_folder": point_path.name,
-                        "point_path": str(point_path),
-                        "dis_file": dis_path.name,
-                        "dis_path": str(dis_path),
-                    }
-                )
-
-    return candidates
+    return Path.cwd().resolve()
 
 
-def run(config_path: Path) -> Path:
-    """Run FlowTracker ingest pipeline."""
+def _get_flowtracker_config(cfg: dict[str, Any]) -> dict[str, Any]:
+    try:
+        return cfg["ingest"][INSTRUMENT_NAME]
+    except KeyError as exc:
+        raise ValueError(
+            "Missing FlowTracker configuration section: "
+            "'ingest.flowtracker'."
+        ) from exc
 
-    cfg = load_config(config_path)
-    run_dir = create_run("ingest_flowtracker", config_path)
 
-    outdir_root = run_dir / "outputs" / "raw_canonical" / "flowtracker"
+def _get_raw_data_root(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> Path:
+    project_root = _get_project_root(config_path)
 
-    tables = TABLES_BY_INSTRUMENT["flowtracker"]
+    try:
+        raw_data_dir = cfg["paths"]["raw_data_dir"]
+    except KeyError as exc:
+        raise ValueError(
+            "Missing required config key: 'paths.raw_data_dir'."
+        ) from exc
+
+    return _resolve_config_path(raw_data_dir, project_root=project_root)
+
+
+def _get_flowtracker_raw_root(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> Path:
+    raw_data_root = _get_raw_data_root(cfg, config_path=config_path)
+    flowtracker_cfg = _get_flowtracker_config(cfg)
+
+    raw_subdir = flowtracker_cfg.get("raw_subdir")
+
+    if not raw_subdir:
+        raise ValueError(
+            "Missing required config key: 'ingest.flowtracker.raw_subdir'."
+        )
+
+    flowtracker_root = raw_data_root / str(raw_subdir)
+
+    if not flowtracker_root.exists():
+        raise ValueError(
+            "FlowTracker raw data directory does not exist: "
+            f"{flowtracker_root}"
+        )
+
+    if not flowtracker_root.is_dir():
+        raise ValueError(
+            "FlowTracker raw data path is not a directory: "
+            f"{flowtracker_root}"
+        )
+
+    return flowtracker_root.resolve()
+
+
+def _find_dis_files_flowtracker(
+    cfg: dict[str, Any],
+    *,
+    config_path: Path,
+) -> list[Path]:
+    flowtracker_root = _get_flowtracker_raw_root(cfg, config_path=config_path)
+    return find_files_recursive(flowtracker_root, {".dis"})
+
+
+def _prepare_output_dirs(run_dir: Path) -> dict[str, Path]:
+    outdir_root = run_dir / "outputs" / "raw_canonical" / INSTRUMENT_NAME
 
     group_dirs = {
         group: outdir_root / group
-        for group in tables
+        for group in TABLES_BY_INSTRUMENT[INSTRUMENT_NAME]
     }
 
     for group_dir in group_dirs.values():
         group_dir.mkdir(parents=True, exist_ok=True)
 
-    candidates = _find_dis_files_flowtracker(cfg)
+    return group_dirs
+
+
+def _parse_measurement_datetime(summary: dict[str, Any], *, dis_path: Path) -> datetime:
+    start_dt = (
+        summary.get("start_date_time")
+        or summary.get("start_date_and_time")
+        or summary.get("fecha_y_hora_de_inicio")
+    )
+
+    if not start_dt:
+        raise ValueError(
+            f"Missing start_date_time in FlowTracker summary: {dis_path}"
+        )
+
+    text = str(start_dt).strip()
+
+    for fmt in ("%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+
+    raise ValueError(
+        "Invalid FlowTracker start_date_time format. "
+        f"Expected 'YYYY/MM/DD HH:MM:SS' or 'YYYY-MM-DD HH:MM:SS', got: {text}"
+    )
+
+
+def _extract_station_id(summary: dict[str, Any], *, dis_path: Path) -> str:
+    raw_station_id = (
+        summary.get("file_name")
+        or summary.get("nombre_del_fichero")
+        or summary.get("input_file")
+    )
+
+    return clean_station_id(
+        raw_station_id,
+        fallback=fallback_station_id_from_parents(dis_path),
+    )
+
+
+def _extract_station_name(summary: dict[str, Any]) -> str | None:
+    return clean_station_name(
+        summary.get("site_name")
+        or summary.get("station_name")
+        or summary.get("nom_del_punto_de_aforo")
+    )
+
+
+def _add_common_metadata(
+    df: pd.DataFrame,
+    *,
+    station_id: str,
+    station_name: str | None,
+    measurement_date: str,
+    measurement_time: str,
+    source_path: Path,
+    run_dir: Path,
+) -> pd.DataFrame:
+    df = df.copy()
+
+    df["station_id"] = station_id
+    df["station_name"] = station_name
+    df["measurement_date"] = measurement_date
+    df["measurement_time"] = measurement_time
+    df["instrument"] = INSTRUMENT_NAME
+    df["source_csv"] = str(source_path)
+    df["source_run_dir"] = str(run_dir)
+
+    return df
+
+
+def _write_summary(
+    summary: dict[str, Any],
+    *,
+    output_dir: Path,
+    station_id: str,
+    station_name: str | None,
+    measurement_date: str,
+    measurement_time: str,
+    source_path: Path,
+    run_dir: Path,
+) -> Path:
+    summary_df = pd.DataFrame([summary])
+
+    summary_df = _add_common_metadata(
+        summary_df,
+        station_id=station_id,
+        station_name=station_name,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+        source_path=source_path,
+        run_dir=run_dir,
+    )
+
+    output_path = (
+        output_dir
+        / f"{station_id}_Summary_{measurement_date}_{measurement_time}.csv"
+    )
+
+    summary_df.to_csv(output_path, index=False)
+    return output_path
+
+
+def _write_points(
+    points: pd.DataFrame | list[dict[str, Any]] | dict[str, Any],
+    *,
+    output_dir: Path,
+    station_id: str,
+    station_name: str | None,
+    measurement_date: str,
+    measurement_time: str,
+    source_path: Path,
+    run_dir: Path,
+) -> Path | None:
+    if isinstance(points, pd.DataFrame):
+        points_df = points.copy()
+    else:
+        points_df = pd.DataFrame(points)
+
+    if points_df.empty:
+        return None
+
+    points_df = _add_common_metadata(
+        points_df,
+        station_id=station_id,
+        station_name=station_name,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+        source_path=source_path,
+        run_dir=run_dir,
+    )
+
+    output_path = (
+        output_dir
+        / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
+    )
+
+    points_df.to_csv(output_path, index=False)
+    return output_path
+
+
+def _process_dis_file(
+    dis_path: Path,
+    *,
+    group_dirs: dict[str, Path],
+    run_dir: Path,
+) -> None:
+    summary, points = parse_flowtracker_dis(dis_path)
+
+    station_id = _extract_station_id(summary, dis_path=dis_path)
+    station_name = _extract_station_name(summary)
+
+    measurement_dt = _parse_measurement_datetime(summary, dis_path=dis_path)
+    measurement_date = measurement_dt.strftime("%Y%m%d")
+    measurement_time = measurement_dt.strftime("%H%M%S")
+
+    summary_outpath = _write_summary(
+        summary,
+        output_dir=group_dirs["Summary"],
+        station_id=station_id,
+        station_name=station_name,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+        source_path=dis_path,
+        run_dir=run_dir,
+    )
+
+    print(f"Saved: {summary_outpath}")
+
+    points_outpath = _write_points(
+        points,
+        output_dir=group_dirs["Points"],
+        station_id=station_id,
+        station_name=station_name,
+        measurement_date=measurement_date,
+        measurement_time=measurement_time,
+        source_path=dis_path,
+        run_dir=run_dir,
+    )
+
+    if points_outpath is not None:
+        print(f"Saved: {points_outpath}")
+
+
+def run(config_path: Path) -> Path:
+    """Run FlowTracker ingest pipeline."""
+
+    config_path = Path(config_path).resolve()
+    cfg = load_config(config_path)
+
+    flowtracker_cfg = _get_flowtracker_config(cfg)
+
+    if flowtracker_cfg.get("enabled") is False:
+        print("FlowTracker ingest is disabled in config.")
+        return create_run("ingest_flowtracker", config_path)
+
+    run_dir = create_run("ingest_flowtracker", config_path)
+    group_dirs = _prepare_output_dirs(run_dir)
+
+    candidates = _find_dis_files_flowtracker(
+        cfg,
+        config_path=config_path,
+    )
 
     print(f"Found .dis files: {len(candidates)}")
 
     if not candidates:
         print("No .dis files found with current config search settings.")
+        print(
+            "Expected FlowTracker raw directory: "
+            f"{_get_flowtracker_raw_root(cfg, config_path=config_path)}"
+        )
         print(f"Run created: {run_dir}")
         return run_dir
 
     processed = 0
-    failed = []
+    failed: list[tuple[str, str]] = []
 
-    for item in candidates:
-        dis_path = item["dis_path"]
-        station_id = _station_id_from_point_folder(item["point_folder"])
-
+    for dis_path in candidates:
         try:
-            summary, points = parse_flowtracker_dis(dis_path)
-
-            start_dt = summary.get("start_date_time")
-
-            if not start_dt:
-                raise ValueError(
-                    f"Missing start_date_time in FlowTracker summary: {dis_path}"
-                )
-
-            dt = datetime.strptime(start_dt, "%Y/%m/%d %H:%M:%S")
-
-            measurement_date = dt.strftime("%Y%m%d")
-            measurement_time = dt.strftime("%H%M%S")
-
-            # --------------------------------------------------
-            # SUMMARY
-            # --------------------------------------------------
-            summary["station_id"] = station_id
-            summary["measurement_date"] = measurement_date
-            summary["measurement_time"] = measurement_time
-            summary["instrument"] = "flowtracker"
-            summary["source_csv"] = str(dis_path)
-            summary["source_run_dir"] = str(run_dir)
-
-            summary_df = pd.DataFrame([summary])
-
-            summary_outpath = (
-                group_dirs["Summary"]
-                / f"{station_id}_Summary_{measurement_date}_{measurement_time}.csv"
+            _process_dis_file(
+                dis_path,
+                group_dirs=group_dirs,
+                run_dir=run_dir,
             )
-
-            summary_df.to_csv(summary_outpath, index=False)
-            print(f"Saved: {summary_outpath}")
-
-            # --------------------------------------------------
-            # POINTS
-            # --------------------------------------------------
-            if isinstance(points, pd.DataFrame):
-                points_df = points.copy()
-            else:
-                points_df = pd.DataFrame(points)
-
-            if not points_df.empty:
-                points_df["station_id"] = station_id
-                points_df["measurement_date"] = measurement_date
-                points_df["measurement_time"] = measurement_time
-                points_df["instrument"] = "flowtracker"
-                points_df["source_csv"] = str(dis_path)
-                points_df["source_run_dir"] = str(run_dir)
-
-                points_outpath = (
-                    group_dirs["Points"]
-                    / f"{station_id}_Points_{measurement_date}_{measurement_time}.csv"
-                )
-
-                points_df.to_csv(points_outpath, index=False)
-                print(f"Saved: {points_outpath}")
-
             processed += 1
 
-        except Exception as e:
-            print(f"ERROR processing {dis_path}: {e}")
-            failed.append(dis_path)
+        except Exception as exc:
+            print(f"ERROR processing {dis_path}: {exc}")
+            failed.append((str(dis_path), str(exc)))
 
     print(f"Processed OK: {processed}/{len(candidates)}")
 
     if failed:
         print("Failed .dis files:")
-        for f in failed:
-            print(f" - {f}")
+        for path, error in failed:
+            print(f" - {path}: {error}")
 
     print(f"Run created: {run_dir}")
 

@@ -1,47 +1,123 @@
 project:
   name: aforix
+  description: Pipeline para procesamiento de datos de aforos
+  timezone: America/Montevideo
 
-timezone: America/Montevideo
-
-raw_data_path_dir: "D:\\Dropbox\\MADI\\DINAGUA_SL\\03-Proces_Info_DIN\\01-Salidas_campo"
-subfolder_raw_data_word_dir: "Salida"
-subsubfolder_raw_data_word_dir_FT: "flowtracker_S13"
-
-flowtracker_spec_path: "configs/specs/flowtracker_spec_v1.yml"
-registry_path: "configs/registries/registry.yml"
-
-subsubfolder_raw_data_word_dir_ML: "molinete_S14"
-molinete_sheet_name: "CALCULO"
-
-subsubfolder_raw_data_word_dir_NIV: "Output_NIVUS_S13"
-
-build_groups:
-  output_dir: "database/data_groups"
-
-  sources:
-    flowtracker: "runs/ingest_flowtracker/20260428_194305"
-    molinete: "runs/ingest_molinete/20260428_005839"
-    nivus: "runs/ingest_nivus/20260428_164739"
-
-normalize_summary:
-  input_file: "database/data_groups/Summary/summary_all.csv"
-  output_file: "database/normalized/Summary/summary_normalized.csv"
-
-project:
+paths:
+  raw_data_dir: data/raw
   runs_root: runs
   database_root: database
 
-instruments:
+ingest:
   flowtracker:
     enabled: true
+    raw_subdir: FT
+    spec_path: configs/specs/flowtracker.yaml
+
   molinete:
     enabled: true
+    raw_subdir: ML
+    sheet_name: Datos
+
   nivus:
     enabled: true
-  m9:
-    enabled: false
+    raw_subdir: NV
 
-normalized_data:
-  root: database/normalized
-  summary: database/normalized/summary/summary_normalized.csv
-  points: database/normalized/points/points_normalized.csv
+  m9:
+    enabled: true
+    raw_subdir: M9
+
+build_groups:
+  enabled: true
+  input_runs_root: runs
+  output_dir: database/raw_canonical
+
+  groups: #define qué grupos procesa build-groups.
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups: #define cuáles grupos se concatenan en un único CSV.
+    - Summary
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+
+  column_aliases:
+    flowtracker:
+      Summary:
+        nombre_del_fichero: file_name
+        fecha_y_hora_de_inicio: start_date_and_time
+        nom_del_punto_de_aforo: site_name
+        operadores: operators
+        tipo_de_sensor: sensor_type
+        numero_de_serie_number: serial_number
+        version_de_software: software_ver
+        version_de_cpu: cpu_firmware_version
+        factor_de_correccion_montaje_percent: mounting_correction_percent
+        int_de_promediado_sec: averaging_interval_sec
+        sistema_de_unidades: unit_system
+        ecuacion_de_calculo_del_caudal: discharge_equation
+        margen_de_inicio: start_edge
+        number_estaciones: number_stations
+        ancho_total_m: total_width_m
+        area_total_m2: total_area_m2
+        caudal_total_m3_s: total_discharge_m3_s
+        calado_medido_m: mean_depth_m
+        velocidad_media_m_s: mean_velocity_m_s
+        snr_promedio_db: mean_snr_db
+        verr_promedio_m_s: mean_verr_m_s
+        temp_promedio_degc: mean_temp_degc
+        bnd_promedio: mean_bnd
+        condiciones_de_contorno_bnd: boundary_condition_bnd
+        discharge_uncertainty_iso_total_percent: discharge_uncertainty_iso_overall_percent
+        discharge_uncertainty_iso_precision_percent: discharge_uncertainty_iso_accuracy_percent
+        discharge_uncertainty_iso_calado_percent: discharge_uncertainty_iso_depth_percent
+        discharge_uncertainty_iso_velocidad_percent: discharge_uncertainty_iso_velocity_percent
+        discharge_uncertainty_iso_ancho_percent: discharge_uncertainty_iso_width_percent
+        discharge_uncertainty_iso_metodo_percent: discharge_uncertainty_iso_method_percent
+        discharge_uncertainty_iso_number_estaciones_percent: discharge_uncertainty_iso_number_stations_percent
+        discharge_uncertainty_statistical_total_percent: discharge_uncertainty_statistical_overall_percent
+        discharge_uncertainty_statistical_precision_percent: discharge_uncertainty_statistical_accuracy_percent
+        discharge_uncertainty_statistical_calado_percent: discharge_uncertainty_statistical_depth_percent
+        discharge_uncertainty_statistical_velocidad_percent: discharge_uncertainty_statistical_velocity_percent
+        discharge_uncertainty_statistical_ancho_percent: discharge_uncertainty_statistical_width_percent
+
+normalize:
+  enabled: true
+  registry_dir: configs/normalization
+  input_dir: database/raw_canonical
+  output_dir: database/normalized
+
+  groups:
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups:
+    - Summary
+    - Points
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+
+validation:
+  enabled: true
+  strict: true
+
+export:
+  tables:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/tables
+
+  excel:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/excel

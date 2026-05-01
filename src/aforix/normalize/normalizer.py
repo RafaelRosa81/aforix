@@ -1,33 +1,168 @@
+from __future__ import annotations
+
+from typing import Any
+
 import pandas as pd
 
 from aforix.normalize.transforms import apply_transforms
 from aforix.normalize.validators import validate_required_columns, validate_qc_rules
 
 
-def normalize_table(
-    df_raw: pd.DataFrame,
-    spec: dict,
+TRACEABILITY_COLUMNS = [
+    "station_id",
+    "station_name",
+    "measurement_date",
+    "measurement_time",
+    "instrument",
+    "source_file",
+    "source_run_dir",
+    "run_id",
+]
+
+
+def _empty_series(df: pd.DataFrame) -> pd.Series:
+    return pd.Series([pd.NA] * len(df), index=df.index)
+
+
+def _coalesce_sources(df: pd.DataFrame, sources: list[str]) -> pd.Series:
+    valid = [col for col in sources if col in df.columns]
+
+    if not valid:
+        return _empty_series(df)
+
+    out = df[valid[0]].copy()
+
+    for col in valid[1:]:
+        out = out.combine_first(df[col])
+
+    return out
+
+
+def _get_sources(col_spec: dict[str, Any]) -> list[str]:
+    if "sources" in col_spec:
+        sources = col_spec["sources"]
+
+        if not isinstance(sources, list):
+            raise ValueError("'sources' must be a list.")
+
+        return [str(source) for source in sources]
+
+    if "source" in col_spec:
+        return [str(col_spec["source"])]
+
+    raise ValueError("Column spec must define 'source' or 'sources'.")
+
+
+def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    for col in TRACEABILITY_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
+
+        df[col] = df[col].astype("string")
+
+    remaining = [col for col in df.columns if col not in TRACEABILITY_COLUMNS]
+
+    return df[TRACEABILITY_COLUMNS + remaining]
+
+
+def _to_numeric(series: pd.Series) -> pd.Series:
+    return pd.to_numeric(series, errors="coerce")
+
+
+def _apply_derived_columns(
+    df: pd.DataFrame,
+    derived_spec: dict[str, Any],
 ) -> pd.DataFrame:
-    columns_spec = spec["columns"]
+    df = df.copy()
 
-    rename_map = {}
-    output_columns = []
+    if not derived_spec:
+        return df
 
-    for canonical_col, col_spec in columns_spec.items():
-        source_col = col_spec["source"]
+    if not isinstance(derived_spec, dict):
+        raise ValueError("'derived' must be a mapping/dictionary.")
 
-        if source_col in df_raw.columns:
-            rename_map[source_col] = canonical_col
-            output_columns.append(canonical_col)
+    for target_col, rule in derived_spec.items():
+        if not isinstance(rule, dict):
+            raise ValueError(f"Invalid derived rule for '{target_col}'.")
 
-    df = df_raw.rename(columns=rename_map)
+        source_col = rule.get("from")
+        operation = rule.get("operation")
+        value = rule.get("value")
 
-    df = df[output_columns].copy()
+        if not source_col:
+            raise ValueError(f"Derived column '{target_col}' must define 'from'.")
 
-    validate_required_columns(df, spec.get("required", []))
+        if source_col not in df.columns:
+            df[target_col] = pd.NA
+            continue
 
-    df = apply_transforms(df, spec.get("transforms", []), columns_spec)
+        if operation == "copy":
+            df[target_col] = df[source_col]
+            continue
 
-    validate_qc_rules(df, spec.get("qc", {}))
+        source = _to_numeric(df[source_col])
+
+        if operation == "divide":
+            df[target_col] = source / float(value)
+
+        elif operation == "multiply":
+            df[target_col] = source * float(value)
+
+        elif operation == "add":
+            df[target_col] = source + float(value)
+
+        elif operation == "subtract":
+            df[target_col] = source - float(value)
+
+        else:
+            raise ValueError(
+                f"Unsupported derived operation for '{target_col}': {operation}"
+            )
 
     return df
+
+
+def normalize_table(
+    df_raw: pd.DataFrame,
+    spec: dict[str, Any],
+) -> pd.DataFrame:
+    columns_spec = spec.get("columns", {})
+
+    if not isinstance(columns_spec, dict):
+        raise ValueError("Normalization spec must contain a 'columns' mapping.")
+
+    out = pd.DataFrame(index=df_raw.index)
+
+    for canonical_col, col_spec in columns_spec.items():
+        if not isinstance(col_spec, dict):
+            raise ValueError(f"Invalid spec for column '{canonical_col}'.")
+
+        sources = _get_sources(col_spec)
+        out[canonical_col] = _coalesce_sources(df_raw, sources)
+
+    for col in TRACEABILITY_COLUMNS:
+        if col not in out.columns and col in df_raw.columns:
+            out[col] = df_raw[col]
+
+    out = _ensure_traceability_columns(out)
+
+    out = _apply_derived_columns(
+        out,
+        spec.get("derived", {}),
+    )
+
+    validate_required_columns(out, spec.get("required", []))
+
+    out = apply_transforms(
+        out,
+        spec.get("transforms", []),
+        columns_spec,
+    )
+
+    validate_qc_rules(out, spec.get("qc", {}))
+
+    out = _ensure_traceability_columns(out)
+
+    return out

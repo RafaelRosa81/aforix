@@ -1,5 +1,7 @@
-import typer
 from pathlib import Path
+
+import typer
+
 from aforix.config.loader import load_config
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.nivus import run as run_nivus
@@ -11,7 +13,7 @@ from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
 from aforix.export.tables.cli import main as export_tables_main
-from aforix.normalize.run import normalize_run
+from aforix.normalize.run import normalize_database
 
 
 app = typer.Typer(
@@ -32,6 +34,20 @@ app.add_typer(export_app, name="export")
 app.add_typer(consolidate_app, name="consolidate")
 app.add_typer(normalize_app, name="normalize")
 
+
+def _load_validated_config(config: str | Path) -> Path:
+    """
+    Load and validate an Aforix config file.
+
+    The current pipeline modules still expect a config path, not the loaded dict.
+    Therefore this helper validates early and then returns the normalized path.
+    """
+
+    config_path = Path(config).resolve()
+    load_config(config_path)
+    return config_path
+
+
 @app.callback()
 def main():
     """Aforix command-line interface."""
@@ -43,20 +59,24 @@ def config_check(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Check configuration file."""
-    
-    config_path = Path(config)
+
+    config_path = _load_validated_config(config)
     cfg = load_config(config_path)
 
     typer.echo("Config loaded successfully")
+    typer.echo(f"Config path: {config_path}")
     typer.echo(f"Keys: {list(cfg.keys())}")
 
 
 @ingest_app.command("flowtracker")
 def ingest_flowtracker(
-    config: str = typer.Option(..., "--config", "-c"),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Import FlowTracker files."""
-    run_dir = run_flowtracker(Path(config))
+
+    config_path = _load_validated_config(config)
+    run_dir = run_flowtracker(config_path)
+
     typer.echo(f"FlowTracker ingest completed: {run_dir}")
 
 
@@ -65,7 +85,10 @@ def ingest_molinete(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Import Molinete files."""
-    run_dir = run_molinete(Path(config))
+
+    config_path = _load_validated_config(config)
+    run_dir = run_molinete(config_path)
+
     typer.echo(f"Molinete ingest completed: {run_dir}")
 
 
@@ -74,7 +97,10 @@ def ingest_nivus(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Import Nivus XML files."""
-    run_dir = run_nivus(Path(config))
+
+    config_path = _load_validated_config(config)
+    run_dir = run_nivus(config_path)
+
     typer.echo(f"Nivus ingest completed: {run_dir}")
 
 
@@ -83,7 +109,10 @@ def ingest_m9(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Import M9 files."""
-    run_dir = run_m9(Path(config))
+
+    config_path = _load_validated_config(config)
+    run_dir = run_m9(config_path)
+
     typer.echo(f"M9 ingest completed: {run_dir}")
 
 
@@ -92,41 +121,63 @@ def analyze_statistics(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
     """Run statistical analysis."""
-    run_dir = run_statistics(Path(config))
+
+    config_path = _load_validated_config(config)
+    run_dir = run_statistics(config_path)
+
     typer.echo(f"Statistical analysis completed: {run_dir}")
 
 
 @app.command("build-groups")
 def build_groups(
-    config: str = typer.Option(..., "--config", "-c"),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    run_dir = run_build_groups(Path(config))
+    """Build grouped datasets."""
+
+    config_path = _load_validated_config(config)
+    run_dir = run_build_groups(config_path)
+
     typer.echo(f"Groups built: {run_dir}")
 
 
 @app.command("filter-groups")
 def filter_groups(
-    config: str = typer.Option(..., "--config", "-c"),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    run_dir = run_filter_groups(Path(config))
+    """Filter grouped datasets."""
+
+    config_path = _load_validated_config(config)
+    run_dir = run_filter_groups(config_path)
+
     typer.echo(f"Groups filtered: {run_dir}")
 
 
 @export_app.command("excel")
 def export_excel(
-    config: str = typer.Option(..., "--config", "-c"),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    run_dir = run_export_excel(Path(config))
+    """Export results to Excel."""
+
+    config_path = _load_validated_config(config)
+    run_dir = run_export_excel(config_path)
+
     typer.echo(f"Excel export completed: {run_dir}")
 
 
 @export_app.command("tables")
 def export_tables(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
-    interactive: bool = typer.Option(False, "--interactive", help="Run interactive export tables menu"),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Run interactive export tables menu",
+    ),
 ):
     """Export normalized tables from database/normalized."""
-    argv = ["-c", config]
+
+    config_path = _load_validated_config(config)
+
+    argv = ["-c", str(config_path)]
 
     if interactive:
         argv.append("--interactive")
@@ -136,44 +187,37 @@ def export_tables(
 
 @consolidate_app.command("flowtracker")
 def consolidate_flowtracker(
-    run_dir: str = typer.Option(..., "--run-dir", help="Path to FlowTracker ingest run directory."),
-    database_root: str = typer.Option("database", "--database-root", help="Root database directory."),
+    run_dir: str = typer.Option(
+        ...,
+        "--run-dir",
+        help="Path to FlowTracker ingest run directory.",
+    ),
+    database_root: str = typer.Option(
+        "database",
+        "--database-root",
+        help="Root database directory.",
+    ),
 ):
     """Consolidate FlowTracker ingest outputs into unified CSV files."""
+
     target_root = consolidate_flowtracker_run(
         run_dir=Path(run_dir),
         database_root=Path(database_root),
     )
+
     typer.echo(f"FlowTracker database updated: {target_root}")
 
 
 @normalize_app.command("run")
 def normalize_run_cmd(
-    run_dir: Path = typer.Option(
-        ...,
-        "--run-dir",
-        "-r",
-        help="Run directory to normalize",
-    ),
-    registry_dir: Path = typer.Option(
-        Path("configs/normalization"),
-        "--registry-dir",
-        help="Normalization registry directory",
-    ),
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    """
-    Normalize raw_canonical outputs using the registry.
-    """
+    """Normalize raw_canonical database using the registry."""
 
-    print(f"Normalizing run: {run_dir}")
-    print(f"Using registry: {registry_dir}")
+    config_path = _load_validated_config(config)
+    run_dir = normalize_database(config_path)
 
-    normalized_root = normalize_run(
-        run_dir=run_dir,
-        registry_dir=registry_dir,
-    )
-
-    print(f"Normalized output: {normalized_root}")
+    typer.echo(f"Normalize completed: {run_dir}")
 
 
 if __name__ == "__main__":
