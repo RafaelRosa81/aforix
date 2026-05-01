@@ -9,6 +9,7 @@ from aforix.ingest.molinete import run as run_molinete
 from aforix.ingest.m9 import run as run_m9
 from aforix.analysis.statistics import run as run_statistics
 from aforix.analysis.correlation.cli import app as correlation_app
+from aforix.external.cli import app as external_app
 from aforix.groups.build import run as run_build_groups
 from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
@@ -38,6 +39,7 @@ app.add_typer(export_app, name="export")
 app.add_typer(consolidate_app, name="consolidate")
 app.add_typer(normalize_app, name="normalize")
 app.add_typer(validate_app, name="validate")
+app.add_typer(external_app, name="external")
 analyze_app.add_typer(correlation_app, name="correlation")
 
 
