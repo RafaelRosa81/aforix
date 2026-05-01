@@ -73,12 +73,13 @@ def discover_normalized_tables(config: dict) -> list[str]:
     root = get_normalized_root(config)
     if not root.exists():
         return []
+    names = {p.stem for p in root.glob("*.csv") if p.is_file()}
     if _instrument_layout_exists(config):
-        names: set[str] = set()
         for inst_dir in _normalized_instrument_dirs(config):
             names.update({p.name for p in inst_dir.iterdir() if _has_csv_files(p)})
         return sorted(names, key=str.lower)
-    return sorted([p.name for p in root.iterdir() if p.is_dir() and list(p.glob("*.csv"))], key=str.lower)
+    names.update({p.name for p in root.iterdir() if p.is_dir() and list(p.glob("*.csv"))})
+    return sorted(names, key=str.lower)
 
 
 def table_dir(config: dict, table: str) -> Path:
@@ -87,6 +88,16 @@ def table_dir(config: dict, table: str) -> Path:
     if not candidates:
         raise FileNotFoundError(f"Normalized table not found: {root / table}")
     return candidates[0]
+
+
+def _root_table_csv(config: dict, table: str) -> Path | None:
+    root = get_normalized_root(config)
+    if not root.exists():
+        return None
+    for path in root.glob("*.csv"):
+        if path.is_file() and path.stem.lower() == table.lower():
+            return path
+    return None
 
 
 def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "all") -> list[Path]:
@@ -102,6 +113,13 @@ def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "a
 
 
 def load_normalized_table(config: dict, table: str, instrument: str = "all") -> tuple[pd.DataFrame, list[Path]]:
+    root_csv = _root_table_csv(config, table)
+    if root_csv is not None:
+        df = pd.read_csv(root_csv)
+        if instrument and instrument.lower() != "all" and "instrument" in df.columns:
+            df = df[df["instrument"].astype(str).str.lower() == instrument.lower()]
+        return df, [root_csv]
+
     if _instrument_layout_exists(config):
         table_dirs = _instrument_scoped_table_dirs(config, table, instrument)
         if not table_dirs:
