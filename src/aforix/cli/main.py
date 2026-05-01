@@ -14,6 +14,7 @@ from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
 from aforix.export.tables.cli import main as export_tables_main
 from aforix.normalize.run import normalize_database
+from aforix.validation.run import run_validation
 
 
 app = typer.Typer(
@@ -27,12 +28,15 @@ analyze_app = typer.Typer(help="Run hydrological and statistical analyses.")
 export_app = typer.Typer(help="Export processed results.")
 consolidate_app = typer.Typer(help="Consolidate runs into stable databases.")
 normalize_app = typer.Typer(help="Normalize raw grouped datasets.")
+validate_app = typer.Typer(help="Validate normalized datasets.")
+
 
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(analyze_app, name="analyze")
 app.add_typer(export_app, name="export")
 app.add_typer(consolidate_app, name="consolidate")
 app.add_typer(normalize_app, name="normalize")
+app.add_typer(validate_app, name="validate")
 
 
 def _load_validated_config(config: str | Path) -> Path:
@@ -218,6 +222,18 @@ def normalize_run_cmd(
     run_dir = normalize_database(config_path)
 
     typer.echo(f"Normalize completed: {run_dir}")
+
+
+@validate_app.command("run")
+def validate_run_cmd(
+    config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
+):
+    """Validate normalized database tables."""
+
+    config_path = _load_validated_config(config)
+    output_dir = run_validation(config_path)
+
+    typer.echo(f"Validation completed: {output_dir}")
 
 
 if __name__ == "__main__":
