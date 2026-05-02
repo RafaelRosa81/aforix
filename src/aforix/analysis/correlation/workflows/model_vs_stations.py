@@ -14,6 +14,15 @@ from aforix.analysis.correlation.io.stations import load_station_series
 from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, r2, rmse
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 
+DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "model"}
+
+
+def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
+    roles = DEFAULT_VARIABLE_ROLES.copy()
+    if variable_roles:
+        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
+    return roles
+
 
 def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
     if len(x) < 2 or np.nanstd(x) == 0:
@@ -43,7 +52,9 @@ def run_model_vs_stations(
     pairs: Iterable[tuple[str, str]] | None,
     timestep: str = "daily",
     all_pairs: bool = False,
+    variable_roles: dict[str, str] | None = None,
 ) -> Path:
+    roles = _roles(variable_roles)
     out_dir = output_dir / "model_vs_stations" / timestep
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -53,6 +64,8 @@ def run_model_vs_stations(
 
     write_run_config_sheet(wb, {
         "analysis_type": "model_vs_stations",
+        "x_role": roles["x"],
+        "y_role": roles["y"],
         "pairs": list(pairs or []),
         "all_pairs": all_pairs,
         "timestep": timestep,
@@ -105,6 +118,8 @@ def run_model_vs_stations(
         row = {
             "Station": f"S{station_id}",
             "Model point": f"Pm{point_id}",
+            "X role": roles["x"],
+            "Y role": roles["y"],
             "X variable": "station [l/s]",
             "Y variable": "model [l/s]",
             "Linear equation": f"model = {slope:.6f} * station + {intercept:.6f}",
