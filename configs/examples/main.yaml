@@ -8,6 +8,20 @@ paths:
   runs_root: runs
   database_root: database
 
+analysis:
+  correlation:
+    output_root: runs/analysis_correlation
+    variable_roles:
+      gauges_vs_model:
+        x: gauge
+        y: model
+      gauges_vs_stations:
+        x: station
+        y: gauge
+      model_vs_stations:
+        x: station
+        y: model
+
 ingest:
   flowtracker:
     enabled: true
@@ -32,13 +46,13 @@ build_groups:
   input_runs_root: runs
   output_dir: database/raw_canonical
 
-  groups: #define qué grupos procesa build-groups.
+  groups:
     - Summary
     - Points
     - Sections
     - Gates
 
-  concat_groups: #define cuáles grupos se concatenan en un único CSV.
+  concat_groups:
     - Summary
 
   sources:
