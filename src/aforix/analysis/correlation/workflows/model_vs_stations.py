@@ -4,15 +4,25 @@ from itertools import product
 from pathlib import Path
 from typing import Iterable
 
+import numpy as np
 import pandas as pd
 from openpyxl import Workbook
-from sklearn.linear_model import LinearRegression
 
-from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet
+from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet, write_run_config_sheet
 from aforix.analysis.correlation.io.model import load_model_data
 from aforix.analysis.correlation.io.stations import load_station_series
 from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, r2, rmse
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
+
+
+def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
+    if len(x) < 2 or np.nanstd(x) == 0:
+        slope = 0.0
+        intercept = float(np.nanmean(y)) if len(y) else float("nan")
+        return slope, intercept, np.full_like(y, intercept, dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+    y_pred = slope * x + intercept
+    return float(slope), float(intercept), y_pred
 
 
 def _available_station_ids(stations_dir: Path, timestep: str) -> list[str]:
@@ -41,6 +51,16 @@ def run_model_vs_stations(
     wb = Workbook()
     wb.remove(wb.active)
 
+    write_run_config_sheet(wb, {
+        "analysis_type": "model_vs_stations",
+        "pairs": list(pairs or []),
+        "all_pairs": all_pairs,
+        "timestep": timestep,
+        "stations_dir": str(stations_dir),
+        "model_dir": str(model_dir),
+        "output_dir": str(out_dir),
+    })
+
     model_data = load_model_data(model_dir)
     selected_pairs = list(pairs or [])
     if all_pairs:
@@ -67,11 +87,10 @@ def run_model_vs_stations(
         if merged.empty:
             continue
 
-        x = merged["q_station_l/s"].to_numpy().reshape(-1, 1)
-        y = merged["q_model_l/s"].to_numpy()
+        station_values = merged["q_station_l/s"].to_numpy(dtype=float)
+        y = merged["q_model_l/s"].to_numpy(dtype=float)
+        slope, intercept, y_pred = _linear_fit(station_values, y)
 
-        lr = LinearRegression().fit(x, y)
-        y_pred = lr.predict(x)
         merged["q_model_pred_l/s"] = y_pred
         merged["residual_l/s"] = y - y_pred
         merged["time"] = merged["date"].dt.strftime("%Y-%m-%d")
@@ -79,7 +98,6 @@ def run_model_vs_stations(
         export = merged[["time", "q_station_l/s", "q_model_l/s", "q_model_pred_l/s", "residual_l/s"]]
         export.to_csv(out_dir / f"S{station_id}_Pm{point_id}_model_vs_stations_{timestep}.csv", index=False)
 
-        station_values = x.flatten()
         rmse_direct = rmse(y, station_values)
         rmse_reg = rmse(y, y_pred)
         q_mean_model = float(y.mean()) if len(y) else float("nan")
@@ -89,9 +107,9 @@ def run_model_vs_stations(
             "Model point": f"Pm{point_id}",
             "X variable": "station [l/s]",
             "Y variable": "model [l/s]",
-            "Linear equation": f"model = {lr.coef_[0]:.6f} * station + {lr.intercept_:.6f}",
-            "slope": float(lr.coef_[0]),
-            "intercept": float(lr.intercept_),
+            "Linear equation": f"model = {slope:.6f} * station + {intercept:.6f}",
+            "slope": slope,
+            "intercept": intercept,
             "n": int(len(merged)),
             "R2": r2(y, y_pred),
             "Pearson r": pearson(station_values, y),
