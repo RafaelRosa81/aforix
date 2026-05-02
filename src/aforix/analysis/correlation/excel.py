@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,23 @@ def safe_save_workbook(wb: Workbook, path: Path) -> Path:
             except PermissionError:
                 continue
         raise
+
+
+def write_run_config_sheet(wb: Workbook, config: dict[str, Any], *, name: str = "RunConfig") -> None:
+    ws = wb.create_sheet(name[:31], 0)
+    ws.append(["Parameter", "Value"])
+    rows = dict(config)
+    rows.setdefault("generated_at", datetime.now().isoformat(timespec="seconds"))
+    for key, value in rows.items():
+        if isinstance(value, (list, tuple, set)):
+            rendered = " ".join(str(v) for v in value)
+        elif isinstance(value, dict):
+            rendered = "; ".join(f"{k}={v}" for k, v in value.items())
+        else:
+            rendered = "" if value is None else str(value)
+        ws.append([key, rendered])
+    ws.column_dimensions["A"].width = 32
+    ws.column_dimensions["B"].width = 100
 
 
 def add_pair_sheet(
