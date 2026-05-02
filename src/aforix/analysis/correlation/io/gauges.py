@@ -56,6 +56,25 @@ def _parse_dates(series: pd.Series) -> pd.Series:
     return parsed.dt.normalize()
 
 
+def _source_key(value: object) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", str(value).upper())
+
+
+def _build_source_code_map(instruments: Iterable[MeasuringInstrument]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for instrument in instruments:
+        code = instrument.code.upper().strip()
+        for value in (instrument.code, instrument.name, instrument.subdir):
+            if value:
+                mapping[_source_key(value)] = code
+    return mapping
+
+
+def _normalize_source_series(series: pd.Series, source_code_map: dict[str, str]) -> pd.Series:
+    raw = series.astype(str).str.upper().str.strip()
+    return raw.map(lambda value: source_code_map.get(_source_key(value), value))
+
+
 def _load_summary_table(path: Path, default_source: str | None = None) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
@@ -90,13 +109,17 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
     return out
 
 
-def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
+def _finalize_rows(
+    df: pd.DataFrame,
+    ranking_codes: list[str],
+    source_code_map: dict[str, str],
+) -> Dict[str, pd.DataFrame]:
     if df.empty:
         return {}
 
     out = df.copy()
     out["point"] = out["point"].astype(str).str.strip()
-    out["source"] = out["source"].astype(str).str.upper().str.strip()
+    out["source"] = _normalize_source_series(out["source"], source_code_map)
     out = out[out["point"].str.fullmatch(r"\d+")]
     if out.empty:
         return {}
@@ -109,7 +132,8 @@ def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.D
         .reset_index(drop=True)
     )
 
-    rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
+    normalized_ranking = [source_code_map.get(_source_key(code), str(code).upper()) for code in ranking_codes]
+    rank = {code.upper(): idx for idx, code in enumerate(normalized_ranking)}
     out["rank"] = out["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
     out = out.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first")
     out = out.drop(columns=["rank"])
@@ -167,11 +191,12 @@ def load_gauges_daily(
     """Load daily gauge series from every available normalized Summary source.
 
     The loader combines all available Summary tables instead of trusting only the
-    global Summary.csv. This protects correlations when the consolidated table is
-    stale or incomplete. Only strictly numeric point identifiers are kept.
+    global Summary.csv. It normalizes instrument names to configured instrument
+    codes before applying ranking, so the ranking is fully config-driven.
     """
 
     instruments_list = list(instruments)
+    source_code_map = _build_source_code_map(instruments_list)
     frames: list[pd.DataFrame] = []
 
     global_summary = _load_summary_table(normalized_root / "Summary.csv")
@@ -211,4 +236,4 @@ def load_gauges_daily(
         return {}
 
     all_rows = pd.concat(frames, ignore_index=True, sort=False)
-    return _finalize_rows(all_rows, ranking_codes)
+    return _finalize_rows(all_rows, ranking_codes, source_code_map)
