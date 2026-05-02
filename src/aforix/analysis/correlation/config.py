@@ -6,6 +6,12 @@ from typing import Any
 from aforix.config.loader import load_config
 from aforix.analysis.correlation.types import CorrelationPaths
 
+DEFAULT_VARIABLE_ROLES: dict[str, dict[str, str]] = {
+    "gauges_vs_model": {"x": "gauge", "y": "model"},
+    "gauges_vs_stations": {"x": "station", "y": "gauge"},
+    "model_vs_stations": {"x": "station", "y": "model"},
+}
+
 
 def load_correlation_config(config_path: Path) -> dict[str, Any]:
     """Load Aforix config and return the full dictionary."""
@@ -85,3 +91,11 @@ def get_external_source_config(cfg: dict[str, Any], source_name: str) -> dict[st
 
 def get_correlation_section(cfg: dict[str, Any], workflow_name: str) -> dict[str, Any]:
     return _get_nested(cfg, ["analysis", "correlation", workflow_name], {}) or {}
+
+
+def get_variable_roles(cfg: dict[str, Any], workflow_name: str) -> dict[str, str]:
+    configured = _get_nested(cfg, ["analysis", "correlation", "variable_roles", workflow_name], None)
+    defaults = DEFAULT_VARIABLE_ROLES.get(workflow_name, {}).copy()
+    if isinstance(configured, dict):
+        defaults.update({k: str(v) for k, v in configured.items() if k in {"x", "y"}})
+    return defaults
