@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -37,6 +38,20 @@ def _apply_window_merge(df_g: pd.DataFrame, df_s: pd.DataFrame, days_window: int
     return pd.DataFrame(merged_rows)
 
 
+def _available_station_ids(stations_dir: Path, timestep: str) -> list[str]:
+    return sorted({p.name.split("_")[0] for p in stations_dir.glob(f"*_{timestep}_station_data.csv")})
+
+
+def _normalize_pairs(pairs: Iterable[tuple[str, str]] | None) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    for station_id, point_id in pairs or []:
+        station = str(station_id).replace("S", "").strip()
+        point = str(point_id).replace("Pm", "").replace("P", "").strip()
+        if station and point:
+            out.append((station, point))
+    return out
+
+
 def run_gauges_vs_stations(
     *,
     normalized_root: Path,
@@ -47,10 +62,13 @@ def run_gauges_vs_stations(
     timestep: str = "daily",
     match_mode: str = "exact",
     window_days: int = 0,
+    pairs: Iterable[tuple[str, str]] | None = None,
 ) -> Path:
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     ranking_label = "_".join(ranking_codes)
-    out_dir = output_dir / "gauges_vs_stations" / timestep / f"instruments_{ranking_label}" / f"match_{match_mode}_window_{window_days}"
+    selected_pairs = _normalize_pairs(pairs)
+    pairs_label = "all_pairs" if not selected_pairs else "pairs_" + "_".join(f"S{s}_P{p}" for s, p in selected_pairs)
+    out_dir = output_dir / "gauges_vs_stations" / timestep / f"instruments_{ranking_label}" / f"match_{match_mode}_window_{window_days}" / pairs_label
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -62,22 +80,25 @@ def run_gauges_vs_stations(
         "timestep": timestep,
         "match_mode": match_mode,
         "window_days": window_days,
-        "points": "ALL",
-        "stations": "ALL",
+        "pairs": selected_pairs if selected_pairs else "ALL",
         "normalized_root": str(normalized_root),
         "stations_dir": str(stations_dir),
         "output_dir": str(out_dir),
     })
     summary_rows = []
 
-    for station_file in stations_dir.glob(f"*_{timestep}_station_data.csv"):
-        station_id = station_file.name.split("_")[0]
+    station_ids = sorted({s for s, _ in selected_pairs}) if selected_pairs else _available_station_ids(stations_dir, timestep)
+
+    for station_id in station_ids:
         df_station = load_station_series(stations_dir, station_id, timestep)
         if timestep != "daily":
             continue
 
-        for point, df_gauge in gauges.items():
-            df_gauge = df_gauge.copy()
+        point_ids = [p for s, p in selected_pairs if s == station_id] if selected_pairs else sorted(gauges.keys(), key=lambda x: int(x))
+        for point in point_ids:
+            if point not in gauges:
+                continue
+            df_gauge = gauges[point].copy()
             merged = pd.merge(df_gauge, df_station, on="date", how="inner") if match_mode == "exact" else _apply_window_merge(df_gauge, df_station, window_days)
             if merged.empty:
                 continue
