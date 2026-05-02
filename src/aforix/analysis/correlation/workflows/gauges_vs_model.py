@@ -45,8 +45,20 @@ def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]
 def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
     roles = DEFAULT_VARIABLE_ROLES.copy()
     if variable_roles:
-        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
+        roles.update({k: str(v).lower() for k, v in variable_roles.items() if k in {"x", "y"}})
     return roles
+
+
+def _role_columns(roles: dict[str, str]) -> tuple[str, str, str, str, str]:
+    role_to_col = {"gauge": "q_gauge_l/s", "model": "q_model_l/s"}
+    if roles["x"] not in role_to_col or roles["y"] not in role_to_col:
+        raise ValueError(f"Invalid variable_roles for gauges_vs_model: {roles}")
+    x_col = role_to_col[roles["x"]]
+    y_col = role_to_col[roles["y"]]
+    pred_col = f"q_{roles['y']}_pred_l/s"
+    x_label = f"{roles['x'].capitalize()} q [l/s]"
+    y_label = f"{roles['y'].capitalize()} q [l/s]"
+    return x_col, y_col, pred_col, x_label, y_label
 
 
 def default_ranking(cfg: dict[str, Any], instruments: Iterable[MeasuringInstrument]) -> list[str]:
@@ -69,6 +81,7 @@ def run_gauges_vs_model(
     variable_roles: dict[str, str] | None = None,
 ) -> Path:
     roles = _roles(variable_roles)
+    x_col, y_col, pred_col, x_label, y_label = _role_columns(roles)
     start = _coerce_date(start_date)
     end = _coerce_date(end_date)
     if start is not None and end is not None and end < start:
@@ -89,6 +102,8 @@ def run_gauges_vs_model(
         "analysis_type": "gauges_vs_model",
         "x_role": roles["x"],
         "y_role": roles["y"],
+        "x_column": x_col,
+        "y_column": y_col,
         "ranking": ranking_codes,
         "points": sorted(selected_points, key=lambda p: int(p)) if selected_points else "ALL",
         "start_date": start_date,
@@ -118,45 +133,47 @@ def run_gauges_vs_model(
             continue
 
         merged = merged.sort_values("date").reset_index(drop=True)
-        gauge_values = merged["q_gauge_l/s"].to_numpy(dtype=float)
-        y = merged["q_model_l/s"].to_numpy(dtype=float)
-        slope, intercept, y_pred = _linear_fit(gauge_values, y)
-        merged["q_model_pred_l/s"] = y_pred
-        merged["residual_l/s"] = y - y_pred
+        x_values = merged[x_col].to_numpy(dtype=float)
+        y_values = merged[y_col].to_numpy(dtype=float)
+        slope, intercept, y_pred = _linear_fit(x_values, y_values)
+        merged[pred_col] = y_pred
+        merged["residual_l/s"] = y_values - y_pred
         merged["date_str"] = merged["date"].dt.strftime("%Y-%m-%d")
 
         dmin = merged["date"].min().strftime("%Y%m%d")
         dmax = merged["date"].max().strftime("%Y%m%d")
-        export = merged[["date_str", "q_gauge_l/s", "q_model_l/s", "q_model_pred_l/s", "residual_l/s", "source"]].copy()
-        export = export.rename(columns={"date_str": "time"})
+        export_cols = ["date_str", "q_gauge_l/s", "q_model_l/s", pred_col, "residual_l/s", "source"]
+        export = merged[export_cols].copy().rename(columns={"date_str": "time"})
         export.to_csv(out_dir / f"P{point}_gauge_vs_model_{dmin}_{dmax}.csv", index=False)
 
         n = len(merged)
-        rmse_direct = rmse(y, gauge_values)
-        rmse_reg = rmse(y, y_pred)
-        q_mean_model = float(y.mean()) if n else float("nan")
-        nrmse_direct = rmse_direct / q_mean_model if q_mean_model else float("nan")
+        rmse_direct = rmse(y_values, x_values)
+        rmse_reg = rmse(y_values, y_pred)
+        q_mean_y = float(y_values.mean()) if n else float("nan")
+        nrmse_direct = rmse_direct / q_mean_y if q_mean_y else float("nan")
 
         row = {
             "Point": f"P{point}",
             "X role": roles["x"],
             "Y role": roles["y"],
-            "X variable": "gauge [l/s]",
-            "Y variable": "model [l/s]",
-            "Linear equation (model vs gauge)": f"model = {slope:.6f} * gauge + {intercept:.6f}",
+            "X variable": f"{roles['x']} [l/s]",
+            "Y variable": f"{roles['y']} [l/s]",
+            "X column": x_col,
+            "Y column": y_col,
+            "Linear equation": f"{roles['y']} = {slope:.6f} * {roles['x']} + {intercept:.6f}",
             "slope": slope,
             "intercept": intercept,
             "n": n,
-            "R2": r2(y, y_pred),
-            "Pearson r": pearson(gauge_values, y),
-            "RMSE model vs. gauge [l/s]": rmse_direct,
-            "RMSE regression vs. model [l/s]": rmse_reg,
-            "q mean model [l/s]": q_mean_model,
-            "NRMSE model vs. gauge [-]": nrmse_direct,
-            "MAE regression vs. model [l/s]": mae(y, y_pred),
-            "MAPE regression vs. model [%]": mape(y, y_pred),
-            "PBIAS regression vs. model [%]": pbias(y, y_pred),
-            "NSE regression vs. model": nse(y, y_pred),
+            "R2": r2(y_values, y_pred),
+            "Pearson r": pearson(x_values, y_values),
+            "RMSE Y vs. X [l/s]": rmse_direct,
+            "RMSE regression vs. Y [l/s]": rmse_reg,
+            "q mean Y [l/s]": q_mean_y,
+            "NRMSE Y vs. X [-]": nrmse_direct,
+            "MAE regression vs. Y [l/s]": mae(y_values, y_pred),
+            "MAPE regression vs. Y [%]": mape(y_values, y_pred),
+            "PBIAS regression vs. Y [%]": pbias(y_values, y_pred),
+            "NSE regression vs. Y": nse(y_values, y_pred),
             "start": merged["date"].min().strftime("%Y-%m-%d"),
             "end": merged["date"].max().strftime("%Y-%m-%d"),
             "sources": " ".join(sorted(set(merged["source"].astype(str)))),
@@ -168,15 +185,15 @@ def run_gauges_vs_model(
             f"P{point}",
             export,
             row,
-            x_col="q_gauge_l/s",
-            y_col="q_model_l/s",
-            pred_col="q_model_pred_l/s",
+            x_col=x_col,
+            y_col=y_col,
+            pred_col=pred_col,
             time_col="time",
-            x_label="Gauge q [l/s]",
-            y_label="Model q [l/s]",
+            x_label=x_label,
+            y_label=y_label,
         )
-        save_scatter_with_regression(export, x_col="q_gauge_l/s", y_col="q_model_l/s", pred_col="q_model_pred_l/s", x_label="Gauge q [l/s]", y_label="Model q [l/s]", out_path=plots_dir / f"P{point}_scatter_gauge_vs_model.png")
-        save_time_series(export, time_col="time", series=[("q_gauge_l/s", "Gauge"), ("q_model_l/s", "Model")], out_path=plots_dir / f"P{point}_timeseries_gauge_vs_model.png")
+        save_scatter_with_regression(export, x_col=x_col, y_col=y_col, pred_col=pred_col, x_label=x_label, y_label=y_label, out_path=plots_dir / f"P{point}_scatter_gauge_vs_model.png")
+        save_time_series(export, time_col="time", series=[(x_col, roles["x"].capitalize()), (y_col, roles["y"].capitalize())], out_path=plots_dir / f"P{point}_timeseries_gauge_vs_model.png")
 
     if summary_rows:
         a = start.strftime("%Y%m%d") if start is not None else "NA"
