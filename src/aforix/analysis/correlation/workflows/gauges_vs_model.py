@@ -46,14 +46,18 @@ def run_gauges_vs_model(
     ranking_codes: list[str],
     start_date: str | None = None,
     end_date: str | None = None,
+    points: list[str] | None = None,
 ) -> Path:
     start = _coerce_date(start_date)
     end = _coerce_date(end_date)
     if start is not None and end is not None and end < start:
         raise ValueError("end_date cannot be earlier than start_date")
 
+    selected_points = {str(p).replace("P", "").strip() for p in points or [] if str(p).strip()}
+
     ranking_label = "_".join(ranking_codes)
-    out_dir = output_dir / "gauges_vs_model" / f"instruments_{ranking_label}"
+    points_label = "all_points" if not selected_points else "points_" + "_".join(sorted(selected_points, key=lambda p: int(p)))
+    out_dir = output_dir / "gauges_vs_model" / f"instruments_{ranking_label}" / points_label
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -65,6 +69,9 @@ def run_gauges_vs_model(
     summary_rows: list[dict[str, Any]] = []
 
     common_points = sorted(set(gauges) & set(modeled), key=lambda p: int(p))
+    if selected_points:
+        common_points = [p for p in common_points if p in selected_points]
+
     for point in common_points:
         df_model = modeled[point].copy()
         df_gauge = gauges[point].copy()
