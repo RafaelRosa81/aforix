@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable
 
+import numpy as np
 import pandas as pd
 from openpyxl import Workbook
-from sklearn.linear_model import LinearRegression
 
 from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet, write_run_config_sheet
 from aforix.analysis.correlation.io.gauges import load_gauges_daily
@@ -28,6 +28,16 @@ def _date_window(df: pd.DataFrame, start_date: pd.Timestamp | None, end_date: pd
     if end_date is not None:
         out = out[out["date"] <= end_date]
     return out
+
+
+def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
+    if len(x) < 2 or np.nanstd(x) == 0:
+        slope = 0.0
+        intercept = float(np.nanmean(y)) if len(y) else float("nan")
+        return slope, intercept, np.full_like(y, intercept, dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+    y_pred = slope * x + intercept
+    return float(slope), float(intercept), y_pred
 
 
 def default_ranking(cfg: dict[str, Any], instruments: Iterable[MeasuringInstrument]) -> list[str]:
@@ -64,11 +74,10 @@ def run_gauges_vs_model(
     wb = Workbook()
     wb.remove(wb.active)
 
-    # CONFIG SHEET
     write_run_config_sheet(wb, {
         "analysis_type": "gauges_vs_model",
         "ranking": ranking_codes,
-        "points": sorted(selected_points) if selected_points else "ALL",
+        "points": sorted(selected_points, key=lambda p: int(p)) if selected_points else "ALL",
         "start_date": start_date,
         "end_date": end_date,
         "normalized_root": str(normalized_root),
@@ -96,10 +105,9 @@ def run_gauges_vs_model(
             continue
 
         merged = merged.sort_values("date").reset_index(drop=True)
-        x = merged["q_gauge_l/s"].to_numpy().reshape(-1, 1)
-        y = merged["q_model_l/s"].to_numpy()
-        lr = LinearRegression().fit(x, y)
-        y_pred = lr.predict(x)
+        gauge_values = merged["q_gauge_l/s"].to_numpy(dtype=float)
+        y = merged["q_model_l/s"].to_numpy(dtype=float)
+        slope, intercept, y_pred = _linear_fit(gauge_values, y)
         merged["q_model_pred_l/s"] = y_pred
         merged["residual_l/s"] = y - y_pred
         merged["date_str"] = merged["date"].dt.strftime("%Y-%m-%d")
@@ -110,7 +118,6 @@ def run_gauges_vs_model(
         export = export.rename(columns={"date_str": "time"})
         export.to_csv(out_dir / f"P{point}_gauge_vs_model_{dmin}_{dmax}.csv", index=False)
 
-        gauge_values = x.flatten()
         n = len(merged)
         rmse_direct = rmse(y, gauge_values)
         rmse_reg = rmse(y, y_pred)
@@ -121,9 +128,9 @@ def run_gauges_vs_model(
             "Point": f"P{point}",
             "X variable": "gauge [l/s]",
             "Y variable": "model [l/s]",
-            "Linear equation (model vs gauge)": f"model = {lr.coef_[0]:.6f} * gauge + {lr.intercept_:.6f}",
-            "slope": float(lr.coef_[0]),
-            "intercept": float(lr.intercept_),
+            "Linear equation (model vs gauge)": f"model = {slope:.6f} * gauge + {intercept:.6f}",
+            "slope": slope,
+            "intercept": intercept,
             "n": n,
             "R2": r2(y, y_pred),
             "Pearson r": pearson(gauge_values, y),
