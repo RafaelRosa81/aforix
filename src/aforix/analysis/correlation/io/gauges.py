@@ -83,9 +83,18 @@ def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.D
 
     out = df.copy()
     out["point"] = out["point"].astype(str).str.strip()
+    out["source"] = out["source"].astype(str).str.upper().str.strip()
     out = out[out["point"].str.fullmatch(r"\d+")]
     if out.empty:
         return {}
+
+    # First aggregate repeated measurements from the same instrument on the same
+    # point/day. Then apply the inter-instrument ranking to choose one daily value.
+    out = (
+        out.groupby(["point", "date", "source"], as_index=False)["q_gauge_l/s"]
+        .mean()
+        .reset_index(drop=True)
+    )
 
     rank = {code.upper(): idx for idx, code in enumerate(ranking_codes)}
     out["rank"] = out["source"].map(lambda c: rank.get(str(c).upper(), 10_000))
