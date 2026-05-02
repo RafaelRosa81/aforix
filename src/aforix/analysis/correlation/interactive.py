@@ -27,6 +27,14 @@ def ask_date_range() -> Tuple[str | None, str | None]:
     return (start or None, end or None)
 
 
+def ask_points() -> List[str]:
+    raw = input("Enter points to include, e.g. 3 5 8 or 3,5,8, or press Enter for all points: ").strip()
+    if not raw:
+        return []
+    normalized = raw.replace(",", " ").replace(";", " ")
+    return [token.replace("P", "").strip() for token in normalized.split() if token.strip()]
+
+
 def ask_timestep() -> str:
     print("Select timestep:")
     print("1) daily")
