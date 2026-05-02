@@ -14,6 +14,8 @@ from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, 
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 from aforix.analysis.correlation.types import MeasuringInstrument
 
+DEFAULT_VARIABLE_ROLES = {"x": "gauge", "y": "model"}
+
 
 def _coerce_date(value: str | None) -> pd.Timestamp | None:
     if not value:
@@ -40,6 +42,13 @@ def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]
     return float(slope), float(intercept), y_pred
 
 
+def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
+    roles = DEFAULT_VARIABLE_ROLES.copy()
+    if variable_roles:
+        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
+    return roles
+
+
 def default_ranking(cfg: dict[str, Any], instruments: Iterable[MeasuringInstrument]) -> list[str]:
     configured = cfg.get("analysis", {}).get("correlation", {}).get("default_ranking", None)
     if configured:
@@ -57,7 +66,9 @@ def run_gauges_vs_model(
     start_date: str | None = None,
     end_date: str | None = None,
     points: list[str] | None = None,
+    variable_roles: dict[str, str] | None = None,
 ) -> Path:
+    roles = _roles(variable_roles)
     start = _coerce_date(start_date)
     end = _coerce_date(end_date)
     if start is not None and end is not None and end < start:
@@ -76,6 +87,8 @@ def run_gauges_vs_model(
 
     write_run_config_sheet(wb, {
         "analysis_type": "gauges_vs_model",
+        "x_role": roles["x"],
+        "y_role": roles["y"],
         "ranking": ranking_codes,
         "points": sorted(selected_points, key=lambda p: int(p)) if selected_points else "ALL",
         "start_date": start_date,
@@ -126,6 +139,8 @@ def run_gauges_vs_model(
 
         row = {
             "Point": f"P{point}",
+            "X role": roles["x"],
+            "Y role": roles["y"],
             "X variable": "gauge [l/s]",
             "Y variable": "model [l/s]",
             "Linear equation (model vs gauge)": f"model = {slope:.6f} * gauge + {intercept:.6f}",
