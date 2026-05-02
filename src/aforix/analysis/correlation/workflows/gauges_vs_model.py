@@ -7,7 +7,7 @@ import pandas as pd
 from openpyxl import Workbook
 from sklearn.linear_model import LinearRegression
 
-from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet
+from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet, write_run_config_sheet
 from aforix.analysis.correlation.io.gauges import load_gauges_daily
 from aforix.analysis.correlation.io.model import load_model_data
 from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, r2, rmse
@@ -63,6 +63,18 @@ def run_gauges_vs_model(
 
     wb = Workbook()
     wb.remove(wb.active)
+
+    # CONFIG SHEET
+    write_run_config_sheet(wb, {
+        "analysis_type": "gauges_vs_model",
+        "ranking": ranking_codes,
+        "points": sorted(selected_points) if selected_points else "ALL",
+        "start_date": start_date,
+        "end_date": end_date,
+        "normalized_root": str(normalized_root),
+        "model_dir": str(model_dir),
+        "output_dir": str(out_dir),
+    })
 
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     modeled = load_model_data(model_dir)
