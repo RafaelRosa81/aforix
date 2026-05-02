@@ -2,16 +2,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from openpyxl import Workbook
-from sklearn.linear_model import LinearRegression
 
-from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet
+from aforix.analysis.correlation.excel import add_pair_sheet, safe_save_workbook, write_summary_sheet, write_run_config_sheet
 from aforix.analysis.correlation.io.gauges import load_gauges_daily
 from aforix.analysis.correlation.io.stations import load_station_series
 from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, r2, rmse
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 from aforix.analysis.correlation.types import MeasuringInstrument
+
+
+def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
+    if len(x) < 2 or np.nanstd(x) == 0:
+        slope = 0.0
+        intercept = float(np.nanmean(y)) if len(y) else float("nan")
+        return slope, intercept, np.full_like(y, intercept, dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+    y_pred = slope * x + intercept
+    return float(slope), float(intercept), y_pred
 
 
 def _apply_window_merge(df_g: pd.DataFrame, df_s: pd.DataFrame, days_window: int) -> pd.DataFrame:
@@ -40,12 +50,24 @@ def run_gauges_vs_stations(
 ) -> Path:
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     ranking_label = "_".join(ranking_codes)
-    out_dir = output_dir / "gauges_vs_stations" / timestep / f"instruments_{ranking_label}"
+    out_dir = output_dir / "gauges_vs_stations" / timestep / f"instruments_{ranking_label}" / f"match_{match_mode}_window_{window_days}"
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     wb = Workbook()
     wb.remove(wb.active)
+    write_run_config_sheet(wb, {
+        "analysis_type": "gauges_vs_stations",
+        "ranking": ranking_codes,
+        "timestep": timestep,
+        "match_mode": match_mode,
+        "window_days": window_days,
+        "points": "ALL",
+        "stations": "ALL",
+        "normalized_root": str(normalized_root),
+        "stations_dir": str(stations_dir),
+        "output_dir": str(out_dir),
+    })
     summary_rows = []
 
     for station_file in stations_dir.glob(f"*_{timestep}_station_data.csv"):
@@ -61,10 +83,9 @@ def run_gauges_vs_stations(
                 continue
 
             merged = merged.sort_values("date").reset_index(drop=True)
-            x = merged["q_station_l/s"].to_numpy().reshape(-1, 1)
-            y = merged["q_gauge_l/s"].to_numpy()
-            lr = LinearRegression().fit(x, y)
-            y_pred = lr.predict(x)
+            station_values = merged["q_station_l/s"].to_numpy(dtype=float)
+            y = merged["q_gauge_l/s"].to_numpy(dtype=float)
+            slope, intercept, y_pred = _linear_fit(station_values, y)
             merged["q_gauge_pred_l/s"] = y_pred
             merged["residual_l/s"] = y - y_pred
             merged["time"] = merged["date"].dt.strftime("%Y-%m-%d")
@@ -72,9 +93,8 @@ def run_gauges_vs_stations(
             dmin = merged["date"].min().strftime("%Y%m%d")
             dmax = merged["date"].max().strftime("%Y%m%d")
             export = merged[["time", "q_station_l/s", "q_gauge_l/s", "q_gauge_pred_l/s", "residual_l/s"]].copy()
-            export.to_csv(out_dir / f"S{station_id}_P{point}_gauges_vs_stations_{timestep}_{dmin}_{dmax}.csv", index=False)
+            export.to_csv(out_dir / f"S{station_id}_P{point}_gauges_vs_stations_{timestep}_{match_mode}_{dmin}_{dmax}.csv", index=False)
 
-            station_values = x.flatten()
             rmse_direct = rmse(y, station_values)
             rmse_reg = rmse(y, y_pred)
             q_mean_gauge = float(y.mean()) if len(y) else float("nan")
@@ -83,9 +103,9 @@ def run_gauges_vs_stations(
                 "Point": f"P{point}",
                 "X variable": "station [l/s]",
                 "Y variable": "gauge [l/s]",
-                "Linear equation (gauge vs station)": f"gauge = {lr.coef_[0]:.6f} * station + {lr.intercept_:.6f}",
-                "slope": float(lr.coef_[0]),
-                "intercept": float(lr.intercept_),
+                "Linear equation (gauge vs station)": f"gauge = {slope:.6f} * station + {intercept:.6f}",
+                "slope": slope,
+                "intercept": intercept,
                 "n": int(len(merged)),
                 "R2": r2(y, y_pred),
                 "Pearson r": pearson(station_values, y),
@@ -109,7 +129,7 @@ def run_gauges_vs_stations(
             save_time_series(export, time_col="time", series=[("q_station_l/s", "Station"), ("q_gauge_l/s", "Gauge")], out_path=plots_dir / f"S{station_id}_P{point}_timeseries_gauges_vs_stations.png")
 
     if summary_rows:
-        pd.DataFrame(summary_rows).to_csv(out_dir / f"summary_gauges_vs_stations_{timestep}_{match_mode}.csv", index=False)
+        pd.DataFrame(summary_rows).to_csv(out_dir / f"summary_gauges_vs_stations_{timestep}_{match_mode}_window_{window_days}.csv", index=False)
         write_summary_sheet(wb, "SummaryMetrics", summary_rows)
-        safe_save_workbook(wb, out_dir / f"correlation_gauges_vs_stations_{timestep}_{ranking_label}_{match_mode}.xlsx")
+        safe_save_workbook(wb, out_dir / f"correlation_gauges_vs_stations_{timestep}_{ranking_label}_{match_mode}_window_{window_days}.xlsx")
     return out_dir
