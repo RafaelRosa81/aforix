@@ -5,7 +5,7 @@ from pathlib import Path
 
 import typer
 
-from aforix.analysis.correlation.config import load_correlation_config, resolve_correlation_paths
+from aforix.analysis.correlation.config import load_correlation_config, resolve_correlation_paths, get_variable_roles
 from aforix.analysis.correlation.instruments import load_instruments
 from aforix.analysis.correlation.interactive import (
     ask_correlation_type,
@@ -84,7 +84,7 @@ def run_correlation(
     if interactive and correlation_type in {"gauges_vs_stations", "model_vs_stations"}:
         timestep = ask_timestep()
 
-    if interactive and correlation_type == "model_vs_stations" and not pairs and not all_pairs:
+    if interactive and correlation_type in {"gauges_vs_stations", "model_vs_stations"} and not pairs and not all_pairs:
         parsed_pairs = ask_pairs()
     else:
         parsed_pairs = _parse_pairs(pairs)
@@ -107,6 +107,7 @@ def run_correlation(
             start_date=start_date,
             end_date=end_date,
             points=parsed_points,
+            variable_roles=get_variable_roles(cfg, "gauges_vs_model"),
         )
         typer.echo(f"Gauges vs Model completed: {out}")
         return
@@ -121,6 +122,8 @@ def run_correlation(
             timestep=timestep,
             match_mode=match_mode,
             window_days=window_days,
+            pairs=parsed_pairs,
+            variable_roles=get_variable_roles(cfg, "gauges_vs_stations"),
         )
         typer.echo(f"Gauges vs Stations completed: {out}")
         return
@@ -135,6 +138,7 @@ def run_correlation(
             pairs=parsed_pairs,
             timestep=timestep,
             all_pairs=all_pairs,
+            variable_roles=get_variable_roles(cfg, "model_vs_stations"),
         )
         typer.echo(f"Model vs Stations completed: {out}")
         return
