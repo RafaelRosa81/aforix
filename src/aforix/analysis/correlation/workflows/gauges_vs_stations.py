@@ -14,14 +14,14 @@ from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, 
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 from aforix.analysis.correlation.types import MeasuringInstrument
 
-DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "gauge"}
 
-
-def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
-    roles = DEFAULT_VARIABLE_ROLES.copy()
-    if variable_roles:
-        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
-    return roles
+def _require_roles(variable_roles: dict[str, str] | None, workflow_name: str) -> dict[str, str]:
+    if not variable_roles:
+        raise ValueError(f"variable_roles must be provided from config for {workflow_name}")
+    missing = {"x", "y"} - set(variable_roles)
+    if missing:
+        raise ValueError(f"Missing variable_roles key(s) for {workflow_name}: {', '.join(sorted(missing))}")
+    return {"x": str(variable_roles["x"]).lower(), "y": str(variable_roles["y"]).lower()}
 
 
 def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
@@ -74,7 +74,7 @@ def run_gauges_vs_stations(
     pairs: Iterable[tuple[str, str]] | None = None,
     variable_roles: dict[str, str] | None = None,
 ) -> Path:
-    roles = _roles(variable_roles)
+    roles = _require_roles(variable_roles, "gauges_vs_stations")
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     ranking_label = "_".join(ranking_codes)
     selected_pairs = _normalize_pairs(pairs)
