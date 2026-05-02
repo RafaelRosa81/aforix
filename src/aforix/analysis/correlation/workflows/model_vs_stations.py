@@ -20,7 +20,7 @@ DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "model"}
 def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
     roles = DEFAULT_VARIABLE_ROLES.copy()
     if variable_roles:
-        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
+        roles.update({k: str(v).lower() for k, v in variable_roles.items() if k in {"x", "y"}})
     return roles
 
 
@@ -32,6 +32,18 @@ def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]
     slope, intercept = np.polyfit(x, y, 1)
     y_pred = slope * x + intercept
     return float(slope), float(intercept), y_pred
+
+
+def _role_columns(roles: dict[str, str]) -> tuple[str, str, str, str, str]:
+    role_to_col = {"station": "q_station_l/s", "model": "q_model_l/s"}
+    if roles["x"] not in role_to_col or roles["y"] not in role_to_col:
+        raise ValueError(f"Invalid variable_roles for model_vs_stations: {roles}")
+    x_col = role_to_col[roles["x"]]
+    y_col = role_to_col[roles["y"]]
+    pred_col = f"q_{roles['y']}_pred_l/s"
+    x_label = f"{roles['x'].capitalize()} q [l/s]"
+    y_label = f"{roles['y'].capitalize()} q [l/s]"
+    return x_col, y_col, pred_col, x_label, y_label
 
 
 def _available_station_ids(stations_dir: Path, timestep: str) -> list[str]:
@@ -55,6 +67,7 @@ def run_model_vs_stations(
     variable_roles: dict[str, str] | None = None,
 ) -> Path:
     roles = _roles(variable_roles)
+    x_col, y_col, pred_col, x_label, y_label = _role_columns(roles)
     out_dir = output_dir / "model_vs_stations" / timestep
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -66,6 +79,8 @@ def run_model_vs_stations(
         "analysis_type": "model_vs_stations",
         "x_role": roles["x"],
         "y_role": roles["y"],
+        "x_column": x_col,
+        "y_column": y_col,
         "pairs": list(pairs or []),
         "all_pairs": all_pairs,
         "timestep": timestep,
@@ -100,40 +115,44 @@ def run_model_vs_stations(
         if merged.empty:
             continue
 
-        station_values = merged["q_station_l/s"].to_numpy(dtype=float)
-        y = merged["q_model_l/s"].to_numpy(dtype=float)
-        slope, intercept, y_pred = _linear_fit(station_values, y)
+        x_values = merged[x_col].to_numpy(dtype=float)
+        y_values = merged[y_col].to_numpy(dtype=float)
+        slope, intercept, y_pred = _linear_fit(x_values, y_values)
 
-        merged["q_model_pred_l/s"] = y_pred
-        merged["residual_l/s"] = y - y_pred
+        merged[pred_col] = y_pred
+        merged["residual_l/s"] = y_values - y_pred
         merged["time"] = merged["date"].dt.strftime("%Y-%m-%d")
 
-        export = merged[["time", "q_station_l/s", "q_model_l/s", "q_model_pred_l/s", "residual_l/s"]]
+        export = merged[["time", "q_station_l/s", "q_model_l/s", pred_col, "residual_l/s"]]
         export.to_csv(out_dir / f"S{station_id}_Pm{point_id}_model_vs_stations_{timestep}.csv", index=False)
 
-        rmse_direct = rmse(y, station_values)
-        rmse_reg = rmse(y, y_pred)
-        q_mean_model = float(y.mean()) if len(y) else float("nan")
+        rmse_direct = rmse(y_values, x_values)
+        rmse_reg = rmse(y_values, y_pred)
+        q_mean_y = float(y_values.mean()) if len(y_values) else float("nan")
 
         row = {
             "Station": f"S{station_id}",
             "Model point": f"Pm{point_id}",
             "X role": roles["x"],
             "Y role": roles["y"],
-            "X variable": "station [l/s]",
-            "Y variable": "model [l/s]",
-            "Linear equation": f"model = {slope:.6f} * station + {intercept:.6f}",
+            "X variable": f"{roles['x']} [l/s]",
+            "Y variable": f"{roles['y']} [l/s]",
+            "X column": x_col,
+            "Y column": y_col,
+            "Linear equation": f"{roles['y']} = {slope:.6f} * {roles['x']} + {intercept:.6f}",
             "slope": slope,
             "intercept": intercept,
             "n": int(len(merged)),
-            "R2": r2(y, y_pred),
-            "Pearson r": pearson(station_values, y),
-            "RMSE": rmse_direct,
-            "NRMSE": rmse_direct / q_mean_model if q_mean_model else float("nan"),
-            "MAE": mae(y, y_pred),
-            "MAPE": mape(y, y_pred),
-            "PBIAS": pbias(y, y_pred),
-            "NSE": nse(y, y_pred),
+            "R2": r2(y_values, y_pred),
+            "Pearson r": pearson(x_values, y_values),
+            "RMSE Y vs. X [l/s]": rmse_direct,
+            "RMSE regression vs. Y [l/s]": rmse_reg,
+            "q mean Y [l/s]": q_mean_y,
+            "NRMSE Y vs. X [-]": rmse_direct / q_mean_y if q_mean_y else float("nan"),
+            "MAE regression vs. Y [l/s]": mae(y_values, y_pred),
+            "MAPE regression vs. Y [%]": mape(y_values, y_pred),
+            "PBIAS regression vs. Y [%]": pbias(y_values, y_pred),
+            "NSE regression vs. Y": nse(y_values, y_pred),
         }
 
         summary_rows.append(row)
@@ -143,16 +162,16 @@ def run_model_vs_stations(
             f"S{station_id}_Pm{point_id}",
             export,
             row,
-            x_col="q_station_l/s",
-            y_col="q_model_l/s",
-            pred_col="q_model_pred_l/s",
+            x_col=x_col,
+            y_col=y_col,
+            pred_col=pred_col,
             time_col="time",
-            x_label="Station q [l/s]",
-            y_label="Model q [l/s]",
+            x_label=x_label,
+            y_label=y_label,
         )
 
-        save_scatter_with_regression(export, x_col="q_station_l/s", y_col="q_model_l/s", pred_col="q_model_pred_l/s", x_label="Station q [l/s]", y_label="Model q [l/s]", out_path=plots_dir / f"S{station_id}_Pm{point_id}_scatter.png")
-        save_time_series(export, time_col="time", series=[("q_station_l/s", "Station"), ("q_model_l/s", "Model")], out_path=plots_dir / f"S{station_id}_Pm{point_id}_timeseries.png")
+        save_scatter_with_regression(export, x_col=x_col, y_col=y_col, pred_col=pred_col, x_label=x_label, y_label=y_label, out_path=plots_dir / f"S{station_id}_Pm{point_id}_scatter.png")
+        save_time_series(export, time_col="time", series=[(x_col, roles["x"].capitalize()), (y_col, roles["y"].capitalize())], out_path=plots_dir / f"S{station_id}_Pm{point_id}_timeseries.png")
 
     if summary_rows:
         pd.DataFrame(summary_rows).to_csv(out_dir / f"summary_model_vs_stations_{timestep}.csv", index=False)
