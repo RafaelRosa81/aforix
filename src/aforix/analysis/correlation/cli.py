@@ -13,6 +13,7 @@ from aforix.analysis.correlation.interactive import (
     ask_instruments,
     ask_pairs,
     ask_timestep,
+    ask_points,
 )
 from aforix.analysis.correlation.workflows.gauges_vs_model import default_ranking, run_gauges_vs_model
 from aforix.analysis.correlation.workflows.gauges_vs_stations import run_gauges_vs_stations
@@ -40,6 +41,13 @@ def _parse_pairs(raw: str | None) -> list[tuple[str, str]]:
     return pairs
 
 
+def _parse_points(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    normalized = raw.replace(",", " ").replace(";", " ")
+    return [token.replace("P", "").strip() for token in normalized.split() if token.strip()]
+
+
 @app.command("run")
 def run_correlation(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
@@ -51,6 +59,7 @@ def run_correlation(
     ranking: str = typer.Option(None, "--ranking", help="Instrument ranking, e.g. 'NV FT ML'"),
     timestep: str = typer.Option("daily", "--timestep", help="daily | monthly; gauges_vs_stations also accepts hourly later"),
     pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 15] [117 10]"'),
+    points: str = typer.Option(None, "--points", help='Points, e.g. "3 5 8" or "3,5,8"'),
     all_pairs: bool = typer.Option(False, "--all-pairs", help="Compare all available stations and model points"),
     match_mode: str = typer.Option("exact", "--match-mode", help="exact | window"),
     window_days: int = typer.Option(0, "--window-days", help="Window size in days for match-mode=window"),
@@ -80,6 +89,11 @@ def run_correlation(
     else:
         parsed_pairs = _parse_pairs(pairs)
 
+    parsed_points = _parse_points(points)
+
+    if interactive and correlation_type == "gauges_vs_model" and not parsed_points:
+        parsed_points = ask_points()
+
     if interactive and not start_date and not end_date and correlation_type == "gauges_vs_model":
         start_date, end_date = ask_date_range()
 
@@ -92,6 +106,7 @@ def run_correlation(
             ranking_codes=ranking_codes,
             start_date=start_date,
             end_date=end_date,
+            points=parsed_points,
         )
         typer.echo(f"Gauges vs Model completed: {out}")
         return
