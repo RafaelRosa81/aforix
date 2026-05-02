@@ -32,13 +32,13 @@ build_groups:
   input_runs_root: runs
   output_dir: database/raw_canonical
 
-  groups: #define qué grupos procesa build-groups.
+  groups:
     - Summary
     - Points
     - Sections
     - Gates
 
-  concat_groups: #define cuáles grupos se concatenan en un único CSV.
+  concat_groups:
     - Summary
 
   sources:
@@ -214,3 +214,53 @@ export:
     enabled: true
     input_dir: database/normalized
     output_dir: outputs/excel
+
+external_sources:
+  model:
+    raw_dir: database/external/raw/model
+    normalized_dir: database/external/normalized/model
+
+  dinagua:
+    raw_dir: database/external/raw/dinagua
+    normalized_dir: database/external/normalized/dinagua
+
+analysis:
+  correlation:
+    output_root: runs/analysis_correlation
+    default_ranking:
+      - NV
+      - FT
+      - ML
+    variable_roles:
+      gauges_vs_model:
+        x: model
+        y: gauge
+      gauges_vs_stations:
+        x: station
+        y: gauge
+      model_vs_stations:
+        x: station
+        y: model
+
+measuring_instruments:
+  - code: NV
+    name: Nivus
+    subdir: nivus
+    summary_format: matrix
+    flow_unit: l/s
+    flow_row_label: "q [l/s]"
+    time_row_label: "etime"
+
+  - code: FT
+    name: FlowTracker
+    subdir: flowtracker
+    summary_format: wide
+    flow_column: q_total_ls
+    flow_unit: l/s
+
+  - code: ML
+    name: Molinete
+    subdir: molinete
+    summary_format: wide
+    flow_column: caudal
+    flow_unit: m3/s
