@@ -9,6 +9,7 @@ import pandas as pd
 from aforix.analysis.correlation.types import MeasuringInstrument
 
 _SUMMARY_RE = re.compile(r"^P(\d+)_Summary_(\d{8})_(\d{6})\.csv$")
+_MIN_VALID_DATE = pd.Timestamp("1990-01-01")
 
 
 def _to_lps(values: pd.Series, unit: str) -> pd.Series:
@@ -33,16 +34,26 @@ def _point_from_summary_filename(path: Path) -> str | None:
     return match.group(1)
 
 
-def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+def _find_col(df: pd.DataFrame, candidates: list[str], *, allow_contains: bool = True) -> str | None:
     lowered = {str(c).lower(): c for c in df.columns}
     for c in candidates:
         if c.lower() in lowered:
             return lowered[c.lower()]
-    for original in df.columns:
-        lo = str(original).lower()
-        if any(c.lower() in lo for c in candidates):
-            return original
+    if allow_contains:
+        for original in df.columns:
+            lo = str(original).lower()
+            if any(c.lower() in lo for c in candidates):
+                return original
     return None
+
+
+def _parse_dates(series: pd.Series) -> pd.Series:
+    raw = series.astype(str).str.strip()
+    parsed = pd.to_datetime(raw, format="%Y%m%d", errors="coerce")
+    missing = parsed.isna()
+    if missing.any():
+        parsed.loc[missing] = pd.to_datetime(raw.loc[missing], errors="coerce", dayfirst=True)
+    return parsed.dt.normalize()
 
 
 def _load_summary_table(path: Path, default_source: str | None = None) -> pd.DataFrame:
@@ -53,9 +64,9 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
     if df.empty:
         return pd.DataFrame()
 
-    point_col = _find_col(df, ["point", "point_id", "measurement_point", "punto", "site", "station", "p"])
-    date_col = _find_col(df, ["date", "datetime", "fecha", "time"])
-    source_col = _find_col(df, ["source", "instrument", "instrument_code", "instrument_used", "source_code"])
+    point_col = _find_col(df, ["station_id", "point", "point_id", "measurement_point", "punto", "site", "station", "p"])
+    date_col = _find_col(df, ["measurement_date", "date", "fecha", "datetime"], allow_contains=False)
+    source_col = _find_col(df, ["instrument", "source", "instrument_code", "instrument_used", "source_code"])
     q_col = _find_col(df, ["q_l/s", "q_ls", "q_total_ls", "q_mean_ls", "q_meas_ls", "caudal_ls", "flow_ls"])
     q_m3s_col = _find_col(df, ["q_m3s", "q_total_m3s", "q(m3/s)", "caudal_m3s", "caudal", "q"])
 
@@ -65,7 +76,7 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
 
     out = pd.DataFrame()
     out["point"] = df[point_col].astype(str).str.replace("P", "", regex=False).str.strip()
-    out["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
+    out["date"] = _parse_dates(df[date_col])
     out["source"] = df[source_col].astype(str).str.upper() if source_col else (default_source or "UNK").upper()
     out["source_table"] = str(path)
 
@@ -74,7 +85,9 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
     else:
         out["q_gauge_l/s"] = pd.to_numeric(df[q_m3s_col], errors="coerce") * 1000.0
 
-    return out.dropna(subset=["point", "date", "q_gauge_l/s"])
+    out = out.dropna(subset=["point", "date", "q_gauge_l/s"])
+    out = out[out["date"] >= _MIN_VALID_DATE]
+    return out
 
 
 def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str]) -> Dict[str, pd.DataFrame]:
@@ -127,18 +140,19 @@ def _load_wide_summary(path: Path, instrument: MeasuringInstrument) -> list[tupl
     d = df.copy()
     q = _to_lps(d[instrument.flow_column], instrument.flow_unit)
     date_col = None
-    for candidate in ["date", "datetime", "etime", "timestamp", "fecha", "time"]:
+    for candidate in ["measurement_date", "date", "datetime", "etime", "timestamp", "fecha"]:
         if candidate in d.columns:
             date_col = candidate
             break
     if date_col:
-        dates = pd.to_datetime(d[date_col], errors="coerce").dt.normalize()
+        dates = _parse_dates(d[date_col])
     else:
         fallback_date = _date_from_summary_filename(path)
         if fallback_date is None or pd.isna(fallback_date):
             return []
         dates = pd.Series([fallback_date.normalize()] * len(d), index=d.index)
     tmp = pd.DataFrame({"date": dates, "q_gauge_l/s": q}).dropna()
+    tmp = tmp[tmp["date"] >= _MIN_VALID_DATE]
     if tmp.empty:
         return []
     grouped = tmp.groupby("date", as_index=False)["q_gauge_l/s"].mean()
@@ -184,7 +198,7 @@ def load_gauges_daily(
                 continue
             if instrument.summary_format.lower() in {"matrix", "long", "row"}:
                 date, q = _load_matrix_summary(file, instrument)
-                if date is not None and q is not None:
+                if date is not None and q is not None and date >= _MIN_VALID_DATE:
                     rows.append({"point": point, "date": date.normalize(), "q_gauge_l/s": q, "source": code})
             else:
                 for date, q in _load_wide_summary(file, instrument):
