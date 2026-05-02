@@ -14,6 +14,15 @@ from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, 
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 from aforix.analysis.correlation.types import MeasuringInstrument
 
+DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "gauge"}
+
+
+def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
+    roles = DEFAULT_VARIABLE_ROLES.copy()
+    if variable_roles:
+        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
+    return roles
+
 
 def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
     if len(x) < 2 or np.nanstd(x) == 0:
@@ -63,7 +72,9 @@ def run_gauges_vs_stations(
     match_mode: str = "exact",
     window_days: int = 0,
     pairs: Iterable[tuple[str, str]] | None = None,
+    variable_roles: dict[str, str] | None = None,
 ) -> Path:
+    roles = _roles(variable_roles)
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     ranking_label = "_".join(ranking_codes)
     selected_pairs = _normalize_pairs(pairs)
@@ -76,6 +87,8 @@ def run_gauges_vs_stations(
     wb.remove(wb.active)
     write_run_config_sheet(wb, {
         "analysis_type": "gauges_vs_stations",
+        "x_role": roles["x"],
+        "y_role": roles["y"],
         "ranking": ranking_codes,
         "timestep": timestep,
         "match_mode": match_mode,
@@ -122,6 +135,8 @@ def run_gauges_vs_stations(
             row = {
                 "Station": f"S{station_id}",
                 "Point": f"P{point}",
+                "X role": roles["x"],
+                "Y role": roles["y"],
                 "X variable": "station [l/s]",
                 "Y variable": "gauge [l/s]",
                 "Linear equation (gauge vs station)": f"gauge = {slope:.6f} * station + {intercept:.6f}",
