@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 
 
@@ -14,22 +16,28 @@ def compute_cg_from_weights(weights_pct: pd.Series, tq_pct: pd.Series) -> float:
     w_pct = weights_pct[mask]
     tq = tq_pct[mask]
 
-    w_dec = w_pct / 100.0
-
-    D = w_pct.sum()
-    if D == 0:
+    denominator = w_pct.sum()
+    if denominator == 0:
         raise ValueError("Sum of weights is zero")
 
-    S = (w_dec * tq).sum()
+    numerator = ((w_pct / 100.0) * tq).sum()
+    return float(100.0 * numerator / denominator)
 
-    return float(100.0 * S / D)
+
+def find_tq_column(df: pd.DataFrame) -> str:
+    candidates = ("tq [%]", "tq(%)", "tq")
+    allowed = {_normalize(c) for c in candidates}
+
+    for col in df.columns:
+        if _normalize(str(col)) in allowed:
+            return str(col)
+
+    raise ValueError("tq column not found (tq != atq != hq)")
 
 
-def find_column(df: pd.DataFrame, candidates: tuple[str, ...]) -> str:
-    cols_lower = {c.lower(): c for c in df.columns}
-    for cand in candidates:
-        cand_l = cand.lower()
-        for col_l, col in cols_lower.items():
-            if cand_l in col_l:
-                return col
-    raise ValueError(f"Column not found among candidates={candidates}")
+def _normalize(v: str) -> str:
+    v = v.strip().lower()
+    v = v.replace("%", " percent ")
+    v = re.sub(r"[\[\]\(\)]", " ", v)
+    v = re.sub(r"\s+", " ", v)
+    return v.strip()
