@@ -14,14 +14,14 @@ from aforix.analysis.correlation.io.stations import load_station_series
 from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, r2, rmse
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 
-DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "model"}
 
-
-def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
-    roles = DEFAULT_VARIABLE_ROLES.copy()
-    if variable_roles:
-        roles.update({k: str(v).lower() for k, v in variable_roles.items() if k in {"x", "y"}})
-    return roles
+def _require_roles(variable_roles: dict[str, str] | None, workflow_name: str) -> dict[str, str]:
+    if not variable_roles:
+        raise ValueError(f"variable_roles must be provided from config for {workflow_name}")
+    missing = {"x", "y"} - set(variable_roles)
+    if missing:
+        raise ValueError(f"Missing variable_roles key(s) for {workflow_name}: {', '.join(sorted(missing))}")
+    return {"x": str(variable_roles["x"]).lower(), "y": str(variable_roles["y"]).lower()}
 
 
 def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
@@ -66,7 +66,7 @@ def run_model_vs_stations(
     all_pairs: bool = False,
     variable_roles: dict[str, str] | None = None,
 ) -> Path:
-    roles = _roles(variable_roles)
+    roles = _require_roles(variable_roles, "model_vs_stations")
     x_col, y_col, pred_col, x_label, y_label = _role_columns(roles)
     out_dir = output_dir / "model_vs_stations" / timestep
     plots_dir = out_dir / "plots"

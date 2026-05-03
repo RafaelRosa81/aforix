@@ -6,10 +6,10 @@ from typing import Any
 from aforix.config.loader import load_config
 from aforix.analysis.correlation.types import CorrelationPaths
 
-DEFAULT_VARIABLE_ROLES: dict[str, dict[str, str]] = {
-    "gauges_vs_model": {"x": "gauge", "y": "model"},
-    "gauges_vs_stations": {"x": "station", "y": "gauge"},
-    "model_vs_stations": {"x": "station", "y": "model"},
+ALLOWED_VARIABLE_ROLES: dict[str, set[str]] = {
+    "gauges_vs_model": {"gauge", "model"},
+    "gauges_vs_stations": {"station", "gauge"},
+    "model_vs_stations": {"station", "model"},
 }
 
 
@@ -94,8 +94,38 @@ def get_correlation_section(cfg: dict[str, Any], workflow_name: str) -> dict[str
 
 
 def get_variable_roles(cfg: dict[str, Any], workflow_name: str) -> dict[str, str]:
+    allowed = ALLOWED_VARIABLE_ROLES.get(workflow_name)
+    if allowed is None:
+        raise ValueError(
+            f"Unknown correlation workflow '{workflow_name}'. "
+            f"Known workflows: {', '.join(sorted(ALLOWED_VARIABLE_ROLES))}"
+        )
+
+    config_path = f"analysis.correlation.variable_roles.{workflow_name}"
     configured = _get_nested(cfg, ["analysis", "correlation", "variable_roles", workflow_name], None)
-    defaults = DEFAULT_VARIABLE_ROLES.get(workflow_name, {}).copy()
-    if isinstance(configured, dict):
-        defaults.update({k: str(v) for k, v in configured.items() if k in {"x", "y"}})
-    return defaults
+    if not isinstance(configured, dict):
+        raise ValueError(f"Missing required config section: {config_path}")
+
+    missing = {"x", "y"} - set(configured)
+    if missing:
+        raise ValueError(
+            f"Missing required config key(s): "
+            f"{', '.join(f'{config_path}.{key}' for key in sorted(missing))}"
+        )
+
+    roles = {"x": str(configured["x"]).lower(), "y": str(configured["y"]).lower()}
+    invalid = {axis: role for axis, role in roles.items() if role not in allowed}
+    if invalid:
+        details = ", ".join(f"{axis}={role!r}" for axis, role in invalid.items())
+        raise ValueError(
+            f"Invalid variable role(s) for {workflow_name}: {details}. "
+            f"Allowed roles: {', '.join(sorted(allowed))}"
+        )
+
+    if roles["x"] == roles["y"]:
+        raise ValueError(
+            f"Invalid variable roles for {workflow_name}: x and y must be different. "
+            f"Received x={roles['x']!r}, y={roles['y']!r}."
+        )
+
+    return roles

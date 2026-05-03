@@ -14,14 +14,26 @@ from aforix.analysis.correlation.metrics import mae, mape, nse, pbias, pearson, 
 from aforix.analysis.correlation.plotting import save_scatter_with_regression, save_time_series
 from aforix.analysis.correlation.types import MeasuringInstrument
 
-DEFAULT_VARIABLE_ROLES = {"x": "station", "y": "gauge"}
+
+def _require_roles(variable_roles: dict[str, str] | None, workflow_name: str) -> dict[str, str]:
+    if not variable_roles:
+        raise ValueError(f"variable_roles must be provided from config for {workflow_name}")
+    missing = {"x", "y"} - set(variable_roles)
+    if missing:
+        raise ValueError(f"Missing variable_roles key(s) for {workflow_name}: {', '.join(sorted(missing))}")
+    return {"x": str(variable_roles["x"]).lower(), "y": str(variable_roles["y"]).lower()}
 
 
-def _roles(variable_roles: dict[str, str] | None) -> dict[str, str]:
-    roles = DEFAULT_VARIABLE_ROLES.copy()
-    if variable_roles:
-        roles.update({k: str(v) for k, v in variable_roles.items() if k in {"x", "y"}})
-    return roles
+def _role_columns(roles: dict[str, str]) -> tuple[str, str, str, str, str]:
+    role_to_col = {"station": "q_station_l/s", "gauge": "q_gauge_l/s"}
+    if roles["x"] not in role_to_col or roles["y"] not in role_to_col:
+        raise ValueError(f"Invalid variable_roles for gauges_vs_stations: {roles}")
+    x_col = role_to_col[roles["x"]]
+    y_col = role_to_col[roles["y"]]
+    pred_col = f"q_{roles['y']}_pred_l/s"
+    x_label = f"{roles['x'].capitalize()} q [l/s]"
+    y_label = f"{roles['y'].capitalize()} q [l/s]"
+    return x_col, y_col, pred_col, x_label, y_label
 
 
 def _linear_fit(x: np.ndarray, y: np.ndarray) -> tuple[float, float, np.ndarray]:
@@ -74,7 +86,8 @@ def run_gauges_vs_stations(
     pairs: Iterable[tuple[str, str]] | None = None,
     variable_roles: dict[str, str] | None = None,
 ) -> Path:
-    roles = _roles(variable_roles)
+    roles = _require_roles(variable_roles, "gauges_vs_stations")
+    x_col, y_col, pred_col, x_label, y_label = _role_columns(roles)
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes)
     ranking_label = "_".join(ranking_codes)
     selected_pairs = _normalize_pairs(pairs)
@@ -89,6 +102,8 @@ def run_gauges_vs_stations(
         "analysis_type": "gauges_vs_stations",
         "x_role": roles["x"],
         "y_role": roles["y"],
+        "x_column": x_col,
+        "y_column": y_col,
         "ranking": ranking_codes,
         "timestep": timestep,
         "match_mode": match_mode,
@@ -117,42 +132,44 @@ def run_gauges_vs_stations(
                 continue
 
             merged = merged.sort_values("date").reset_index(drop=True)
-            station_values = merged["q_station_l/s"].to_numpy(dtype=float)
-            y = merged["q_gauge_l/s"].to_numpy(dtype=float)
-            slope, intercept, y_pred = _linear_fit(station_values, y)
-            merged["q_gauge_pred_l/s"] = y_pred
-            merged["residual_l/s"] = y - y_pred
+            x_values = merged[x_col].to_numpy(dtype=float)
+            y_values = merged[y_col].to_numpy(dtype=float)
+            slope, intercept, y_pred = _linear_fit(x_values, y_values)
+            merged[pred_col] = y_pred
+            merged["residual_l/s"] = y_values - y_pred
             merged["time"] = merged["date"].dt.strftime("%Y-%m-%d")
 
             dmin = merged["date"].min().strftime("%Y%m%d")
             dmax = merged["date"].max().strftime("%Y%m%d")
-            export = merged[["time", "q_station_l/s", "q_gauge_l/s", "q_gauge_pred_l/s", "residual_l/s"]].copy()
+            export = merged[["time", "q_station_l/s", "q_gauge_l/s", pred_col, "residual_l/s"]].copy()
             export.to_csv(out_dir / f"S{station_id}_P{point}_gauges_vs_stations_{timestep}_{match_mode}_{dmin}_{dmax}.csv", index=False)
 
-            rmse_direct = rmse(y, station_values)
-            rmse_reg = rmse(y, y_pred)
-            q_mean_gauge = float(y.mean()) if len(y) else float("nan")
+            rmse_direct = rmse(y_values, x_values)
+            rmse_reg = rmse(y_values, y_pred)
+            q_mean_y = float(y_values.mean()) if len(y_values) else float("nan")
             row = {
                 "Station": f"S{station_id}",
                 "Point": f"P{point}",
                 "X role": roles["x"],
                 "Y role": roles["y"],
-                "X variable": "station [l/s]",
-                "Y variable": "gauge [l/s]",
-                "Linear equation (gauge vs station)": f"gauge = {slope:.6f} * station + {intercept:.6f}",
+                "X variable": f"{roles['x']} [l/s]",
+                "Y variable": f"{roles['y']} [l/s]",
+                "X column": x_col,
+                "Y column": y_col,
+                "Linear equation": f"{roles['y']} = {slope:.6f} * {roles['x']} + {intercept:.6f}",
                 "slope": slope,
                 "intercept": intercept,
                 "n": int(len(merged)),
-                "R2": r2(y, y_pred),
-                "Pearson r": pearson(station_values, y),
-                "RMSE gauge vs. station [l/s]": rmse_direct,
-                "RMSE regression vs. gauge [l/s]": rmse_reg,
-                "q mean gauge [l/s]": q_mean_gauge,
-                "NRMSE gauge vs. station [-]": rmse_direct / q_mean_gauge if q_mean_gauge else float("nan"),
-                "MAE regression vs. gauge [l/s]": mae(y, y_pred),
-                "MAPE regression vs. gauge [%]": mape(y, y_pred),
-                "PBIAS regression vs. gauge [%]": pbias(y, y_pred),
-                "NSE regression vs. gauge": nse(y, y_pred),
+                "R2": r2(y_values, y_pred),
+                "Pearson r": pearson(x_values, y_values),
+                "RMSE Y vs. X [l/s]": rmse_direct,
+                "RMSE regression vs. Y [l/s]": rmse_reg,
+                "q mean Y [l/s]": q_mean_y,
+                "NRMSE Y vs. X [-]": rmse_direct / q_mean_y if q_mean_y else float("nan"),
+                "MAE regression vs. Y [l/s]": mae(y_values, y_pred),
+                "MAPE regression vs. Y [%]": mape(y_values, y_pred),
+                "PBIAS regression vs. Y [%]": pbias(y_values, y_pred),
+                "NSE regression vs. Y": nse(y_values, y_pred),
                 "match_mode": match_mode,
                 "window_days": window_days,
                 "start": dmin,
@@ -160,9 +177,9 @@ def run_gauges_vs_stations(
             }
             summary_rows.append(row)
             sheet = f"S{station_id}_P{point}"
-            add_pair_sheet(wb, sheet, export, row, x_col="q_station_l/s", y_col="q_gauge_l/s", pred_col="q_gauge_pred_l/s", time_col="time", x_label="Station q [l/s]", y_label="Gauge q [l/s]")
-            save_scatter_with_regression(export, x_col="q_station_l/s", y_col="q_gauge_l/s", pred_col="q_gauge_pred_l/s", x_label="Station q [l/s]", y_label="Gauge q [l/s]", out_path=plots_dir / f"S{station_id}_P{point}_scatter_gauges_vs_stations.png")
-            save_time_series(export, time_col="time", series=[("q_station_l/s", "Station"), ("q_gauge_l/s", "Gauge")], out_path=plots_dir / f"S{station_id}_P{point}_timeseries_gauges_vs_stations.png")
+            add_pair_sheet(wb, sheet, export, row, x_col=x_col, y_col=y_col, pred_col=pred_col, time_col="time", x_label=x_label, y_label=y_label)
+            save_scatter_with_regression(export, x_col=x_col, y_col=y_col, pred_col=pred_col, x_label=x_label, y_label=y_label, out_path=plots_dir / f"S{station_id}_P{point}_scatter_gauges_vs_stations.png")
+            save_time_series(export, time_col="time", series=[(x_col, roles["x"].capitalize()), (y_col, roles["y"].capitalize())], out_path=plots_dir / f"S{station_id}_P{point}_timeseries_gauges_vs_stations.png")
 
     if summary_rows:
         pd.DataFrame(summary_rows).to_csv(out_dir / f"summary_gauges_vs_stations_{timestep}_{match_mode}_window_{window_days}.csv", index=False)
