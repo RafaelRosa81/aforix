@@ -58,6 +58,7 @@ Estas carpetas son locales o generadas por el pipeline y no deberían versionars
 - Pipeline de procesamiento: `docs/02_pipeline.md`
 - Referencia CLI: `docs/03_cli.md`
 - Guía de configuración: `docs/CONFIGURATION_GUIDE.md`
+- Guía de análisis de correlación: `docs/CORRELATION_GUIDE.md`
 - Modelo de datos: `docs/06_data_model.md`
 - Arquitectura del proyecto: `docs/ARCHITECTURE.md`
 - Reglas para agentes y desarrollo asistido: `AGENTS.md`
