@@ -136,94 +136,6 @@ validation:
     ranges: true
     hydraulic_consistency: true
 
-  required_columns:
-    Summary:
-      - station_id
-      - station_name
-      - measurement_date
-      - measurement_time
-      - instrument
-      - source_file
-      - source_run_dir
-      - run_id
-      - q_total_m3s
-      - q_total_ls
-      - area_total_m2
-    Points:
-      - station_id
-      - station_name
-      - measurement_date
-      - measurement_time
-      - instrument
-      - source_file
-      - source_run_dir
-      - run_id
-      - point_index
-      - distance_m
-      - depth_m
-      - area_m2
-      - q_m3s
-      - q_ls
-
-  completeness:
-    critical_columns:
-      Summary:
-        - station_id
-        - measurement_date
-        - measurement_time
-        - instrument
-        - q_total_m3s
-      Points:
-        - station_id
-        - measurement_date
-        - measurement_time
-        - instrument
-        - q_m3s
-
-  hydraulic_consistency:
-    q_tolerance_pct: 1.0
-    area_tolerance_pct: 1.0
-
-  ranges:
-    Summary:
-      area_total_m2:
-        min: 0
-      width_total_m:
-        min: 0
-      depth_mean_m:
-        min: 0
-      temperature_c:
-        min: -5
-        max: 45
-    Points:
-      depth_m:
-        min: 0
-      area_m2:
-        min: 0
-      temperature_c:
-        min: -5
-        max: 45
-
-export:
-  tables:
-    enabled: true
-    input_dir: database/normalized
-    output_dir: outputs/tables
-
-  excel:
-    enabled: true
-    input_dir: database/normalized
-    output_dir: outputs/excel
-
-external_sources:
-  model:
-    raw_dir: database/external/raw/model
-    normalized_dir: database/external/normalized/model
-
-  dinagua:
-    raw_dir: database/external/raw/dinagua
-    normalized_dir: database/external/normalized/dinagua
-
 analysis:
   correlation:
     output_root: runs/analysis_correlation
@@ -231,36 +143,32 @@ analysis:
       - NV
       - FT
       - ML
-    variable_roles:
-      gauges_vs_model:
-        x: model
-        y: gauge
-      gauges_vs_stations:
-        x: station
-        y: gauge
-      model_vs_stations:
-        x: station
-        y: model
+
+  quality_metrics:
+    enabled: true
+    input_dirs:
+      normalized_root: database/normalized
+      raw_canonical_root: database/raw_canonical
+    output_root: runs/analysis_quality_metrics
+
+    instruments:
+      nivus:
+        enabled: true
+        tables:
+          normalized_points: nivus/Points
+          raw_points: nivus/Points
+        columns:
+          weight_column: percent_q
 
 measuring_instruments:
   - code: NV
     name: Nivus
     subdir: nivus
-    summary_format: matrix
-    flow_unit: l/s
-    flow_row_label: "q [l/s]"
-    time_row_label: "etime"
 
   - code: FT
     name: FlowTracker
     subdir: flowtracker
-    summary_format: wide
-    flow_column: q_total_ls
-    flow_unit: l/s
 
   - code: ML
     name: Molinete
     subdir: molinete
-    summary_format: wide
-    flow_column: caudal
-    flow_unit: m3/s
