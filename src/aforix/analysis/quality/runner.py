@@ -17,7 +17,13 @@ FILE_RE = re.compile(
 )
 
 
-def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> Path:
+def run_quality_metrics(
+    config_path: str | Path,
+    aggregation: str = "daily",
+    points: list[str] | None = None,
+    months: list[str] | None = None,
+    all_months: bool = False,
+) -> Path:
     qc = load_quality_config(config_path)
 
     if not qc.enabled:
@@ -25,6 +31,9 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
 
     if aggregation not in {"measurement", "daily", "monthly"}:
         raise ValueError("aggregation must be one of: measurement, daily, monthly")
+
+    wanted_points = {_normalize_point(p) for p in points or []}
+    wanted_months = {_normalize_month(m) for m in months or []}
 
     norm_dir = qc.nivus.normalized_points
     raw_dir = qc.nivus.raw_points
@@ -41,6 +50,14 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
         meta = _parse_measurement_filename(norm_file.name)
         if meta is None:
             logs.append({"file": norm_file.name, "status": "skipped", "reason": "filename_not_recognized"})
+            continue
+
+        point_id = _normalize_point(meta["point"])
+        month_id = meta["date"][:6]
+
+        if wanted_points and point_id not in wanted_points:
+            continue
+        if not all_months and wanted_months and month_id not in wanted_months:
             continue
 
         raw_file = raw_dir / norm_file.name
@@ -68,7 +85,7 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
 
             records.append(
                 {
-                    "point": f"P{meta['point']}",
+                    "point": f"P{point_id}",
                     "date": meta["date"],
                     "time": meta["time"],
                     "period": period,
@@ -80,7 +97,7 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
                 {
                     "file": norm_file.name,
                     "status": "ok",
-                    "point": f"P{meta['point']}",
+                    "point": f"P{point_id}",
                     "date": meta["date"],
                     "time": meta["time"],
                     "tq_column": tq_col,
@@ -93,7 +110,7 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
                 {
                     "file": norm_file.name,
                     "status": "error",
-                    "point": f"P{meta['point']}",
+                    "point": f"P{point_id}",
                     "date": meta["date"],
                     "time": meta["time"],
                     "error": str(exc),
@@ -125,6 +142,25 @@ def run_quality_metrics(config_path: str | Path, aggregation: str = "daily") -> 
     _write_excel_report(excel_path, cg_table, log_df, results_df, aggregation)
 
     return out_dir
+
+
+def discover_available_filters(config_path: str | Path) -> tuple[list[str], list[str]]:
+    qc = load_quality_config(config_path)
+    norm_dir = qc.nivus.normalized_points
+    points: set[str] = set()
+    months: set[str] = set()
+
+    if not norm_dir.exists():
+        return [], []
+
+    for norm_file in sorted(norm_dir.glob("*.csv")):
+        meta = _parse_measurement_filename(norm_file.name)
+        if meta is None:
+            continue
+        points.add(_normalize_point(meta["point"]))
+        months.add(meta["date"][:6])
+
+    return sorted(points, key=int), sorted(months)
 
 
 def _write_excel_report(
@@ -207,3 +243,14 @@ def _period_from_meta(meta: dict[str, str], aggregation: str) -> str:
     if aggregation == "measurement":
         return f"{meta['date']}_{meta['time']}"
     return meta["date"]
+
+
+def _normalize_point(value: str) -> str:
+    return str(value).strip().upper().replace("P", "")
+
+
+def _normalize_month(value: str) -> str:
+    value = str(value).strip()
+    if not re.fullmatch(r"\d{6}", value):
+        raise ValueError(f"Invalid month '{value}'. Expected YYYYMM.")
+    return value
