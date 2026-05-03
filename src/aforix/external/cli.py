@@ -7,6 +7,7 @@ import typer
 from aforix.config.loader import load_config
 from aforix.external.model.convert import run_model_conversion
 from aforix.external.dinagua.convert import run_dinagua_conversion
+from aforix.external.manual_stage.convert import run_manual_stage_conversion
 
 app = typer.Typer(help="External data converters")
 
@@ -31,3 +32,14 @@ def convert_dinagua(
     out = Path(cfg.get("external_sources", {}).get("dinagua", {}).get("normalized_dir", "database/external/normalized/dinagua"))
     run_dinagua_conversion(inp, out)
     typer.echo(f"DINAGUA data converted: {out}")
+
+
+@app.command("convert-manual-stage")
+def convert_manual_stage(
+    config: str = typer.Option(..., "--config", "-c"),
+):
+    cfg = load_config(Path(config))
+    inp = Path(cfg.get("external_sources", {}).get("manual_stage", {}).get("raw_dir", "data/external/manual_stage"))
+    out = Path(cfg.get("external_sources", {}).get("manual_stage", {}).get("normalized_dir", "database/external/normalized/manual_stage"))
+    run_manual_stage_conversion(inp, out)
+    typer.echo(f"Manual stage data converted: {out}")
