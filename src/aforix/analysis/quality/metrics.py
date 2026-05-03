@@ -3,40 +3,33 @@ from __future__ import annotations
 import pandas as pd
 
 
-def compute_cg_nivus(points_df: pd.DataFrame, sections_df: pd.DataFrame) -> float:
-    tq_col = _find_column(points_df, ["tq", "percent_q"])
-    factor_col = _find_column(sections_df, ["factor", "percent_q"])
+def compute_cg_from_weights(weights_pct: pd.Series, tq_pct: pd.Series) -> float:
+    weights_pct = pd.to_numeric(weights_pct, errors="coerce").abs()
+    tq_pct = pd.to_numeric(tq_pct, errors="coerce")
 
-    tq_vals = points_df[tq_col].astype(float).tolist()
-    f_vals = sections_df[factor_col].astype(float).tolist()
+    mask = weights_pct.notna() & tq_pct.notna()
+    if not mask.any():
+        raise ValueError("No valid data for CG computation")
 
-    n_points = len(tq_vals)
-    n_sections = len(f_vals)
+    w_pct = weights_pct[mask]
+    tq = tq_pct[mask]
 
-    if n_sections != n_points + 2:
-        raise ValueError("Invalid Nivus structure: sections != points + 2")
+    w_dec = w_pct / 100.0
 
-    w_dec = [abs(f / 100.0) for f in f_vals]
-    w_pct = [abs(f) for f in f_vals]
+    D = w_pct.sum()
+    if D == 0:
+        raise ValueError("Sum of weights is zero")
 
-    W = [0.0] * n_points
-    W[0] = w_dec[0] + w_dec[1]
-    if n_points > 1:
-        W[-1] = w_dec[-2] + w_dec[-1]
+    S = (w_dec * tq).sum()
 
-    for i in range(1, n_points - 1):
-        W[i] = w_dec[i + 1]
-
-    D = sum(w_pct)
-    S = sum(W[i] * tq_vals[i] for i in range(n_points))
-
-    return (100.0 * S) / D
+    return float(100.0 * S / D)
 
 
-def _find_column(df: pd.DataFrame, candidates: list[str]) -> str:
-    for c in df.columns:
-        name = c.lower()
-        for cand in candidates:
-            if cand in name:
-                return c
-    raise ValueError("Column not found")
+def find_column(df: pd.DataFrame, candidates: tuple[str, ...]) -> str:
+    cols_lower = {c.lower(): c for c in df.columns}
+    for cand in candidates:
+        cand_l = cand.lower()
+        for col_l, col in cols_lower.items():
+            if cand_l in col_l:
+                return col
+    raise ValueError(f"Column not found among candidates={candidates}")
