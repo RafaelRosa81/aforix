@@ -182,7 +182,10 @@ Responsabilidades:
 - construir series o comparaciones;
 - operar sobre datasets normalizados.
 
-El submódulo `analysis/correlation` implementa workflows de correlación entre aforos, modelo hidrológico y estaciones DINAGUA. Ver `docs/CORRELATION_GUIDE.md`.
+Submódulos relevantes:
+
+- `analysis/correlation`: correlación entre aforos, modelo y estaciones DINAGUA (`docs/CORRELATION_GUIDE.md`).
+- `analysis/quality`: métricas de calidad de medición (`docs/QUALITY_METRICS_GUIDE.md`).
 
 Este módulo debe mantenerse desacoplado de formatos propios de instrumentos.
 
