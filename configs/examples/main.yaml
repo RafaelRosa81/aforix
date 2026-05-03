@@ -46,46 +46,6 @@ build_groups:
     - molinete
     - nivus
 
-  column_aliases:
-    flowtracker:
-      Summary:
-        nombre_del_fichero: file_name
-        fecha_y_hora_de_inicio: start_date_and_time
-        nom_del_punto_de_aforo: site_name
-        operadores: operators
-        tipo_de_sensor: sensor_type
-        numero_de_serie_number: serial_number
-        version_de_software: software_ver
-        version_de_cpu: cpu_firmware_version
-        factor_de_correccion_montaje_percent: mounting_correction_percent
-        int_de_promediado_sec: averaging_interval_sec
-        sistema_de_unidades: unit_system
-        ecuacion_de_calculo_del_caudal: discharge_equation
-        margen_de_inicio: start_edge
-        number_estaciones: number_stations
-        ancho_total_m: total_width_m
-        area_total_m2: total_area_m2
-        caudal_total_m3_s: total_discharge_m3_s
-        calado_medido_m: mean_depth_m
-        velocidad_media_m_s: mean_velocity_m_s
-        snr_promedio_db: mean_snr_db
-        verr_promedio_m_s: mean_verr_m_s
-        temp_promedio_degc: mean_temp_degc
-        bnd_promedio: mean_bnd
-        condiciones_de_contorno_bnd: boundary_condition_bnd
-        discharge_uncertainty_iso_total_percent: discharge_uncertainty_iso_overall_percent
-        discharge_uncertainty_iso_precision_percent: discharge_uncertainty_iso_accuracy_percent
-        discharge_uncertainty_iso_calado_percent: discharge_uncertainty_iso_depth_percent
-        discharge_uncertainty_iso_velocidad_percent: discharge_uncertainty_iso_velocity_percent
-        discharge_uncertainty_iso_ancho_percent: discharge_uncertainty_iso_width_percent
-        discharge_uncertainty_iso_metodo_percent: discharge_uncertainty_iso_method_percent
-        discharge_uncertainty_iso_number_estaciones_percent: discharge_uncertainty_iso_number_stations_percent
-        discharge_uncertainty_statistical_total_percent: discharge_uncertainty_statistical_overall_percent
-        discharge_uncertainty_statistical_precision_percent: discharge_uncertainty_statistical_accuracy_percent
-        discharge_uncertainty_statistical_calado_percent: discharge_uncertainty_statistical_depth_percent
-        discharge_uncertainty_statistical_velocidad_percent: discharge_uncertainty_statistical_velocity_percent
-        discharge_uncertainty_statistical_ancho_percent: discharge_uncertainty_statistical_width_percent
-
 normalize:
   enabled: true
   registry_dir: configs/normalization
@@ -136,6 +96,94 @@ validation:
     ranges: true
     hydraulic_consistency: true
 
+  required_columns:
+    Summary:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - q_total_m3s
+      - q_total_ls
+      - area_total_m2
+    Points:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - point_index
+      - distance_m
+      - depth_m
+      - area_m2
+      - q_m3s
+      - q_ls
+
+  completeness:
+    critical_columns:
+      Summary:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_total_m3s
+      Points:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_m3s
+
+  hydraulic_consistency:
+    q_tolerance_pct: 1.0
+    area_tolerance_pct: 1.0
+
+  ranges:
+    Summary:
+      area_total_m2:
+        min: 0
+      width_total_m:
+        min: 0
+      depth_mean_m:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
+    Points:
+      depth_m:
+        min: 0
+      area_m2:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
+
+export:
+  tables:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/tables
+
+  excel:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/excel
+
+external_sources:
+  model:
+    raw_dir: database/external/raw/model
+    normalized_dir: database/external/normalized/model
+
+  dinagua:
+    raw_dir: database/external/raw/dinagua
+    normalized_dir: database/external/normalized/dinagua
+
 analysis:
   correlation:
     output_root: runs/analysis_correlation
@@ -143,6 +191,16 @@ analysis:
       - NV
       - FT
       - ML
+    variable_roles:
+      gauges_vs_model:
+        x: model
+        y: gauge
+      gauges_vs_stations:
+        x: station
+        y: gauge
+      model_vs_stations:
+        x: station
+        y: model
 
   quality_metrics:
     enabled: true
@@ -164,11 +222,21 @@ measuring_instruments:
   - code: NV
     name: Nivus
     subdir: nivus
+    summary_format: matrix
+    flow_unit: l/s
+    flow_row_label: "q [l/s]"
+    time_row_label: "etime"
 
   - code: FT
     name: FlowTracker
     subdir: flowtracker
+    summary_format: wide
+    flow_column: q_total_ls
+    flow_unit: l/s
 
   - code: ML
     name: Molinete
     subdir: molinete
+    summary_format: wide
+    flow_column: caudal
+    flow_unit: m3/s
