@@ -19,7 +19,6 @@ class NivusQualityConfig:
     normalized_points: Path
     raw_points: Path
     weight_column: str
-    tq_candidates: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -55,16 +54,6 @@ def load_quality_config(config_path: str | Path) -> QualityConfig:
     tables = nivus_cfg.get("tables", {}) or {}
     columns = nivus_cfg.get("columns", {}) or {}
 
-    normalized_points_rel = tables.get("normalized_points", "nivus/Points")
-    raw_points_rel = tables.get("raw_points", "nivus/Points")
-
-    tq_candidates = tuple(
-        columns.get(
-            "tq_candidates",
-            ["tq [%]", "tq(%)", "tq", "atq [%]", "hq [%]"],
-        )
-    )
-
     return QualityConfig(
         enabled=enabled,
         paths=QualityPaths(
@@ -73,10 +62,9 @@ def load_quality_config(config_path: str | Path) -> QualityConfig:
             output_root=output_root,
         ),
         nivus=NivusQualityConfig(
-            normalized_points=normalized_root / normalized_points_rel,
-            raw_points=raw_canonical_root / raw_points_rel,
+            normalized_points=normalized_root / tables.get("normalized_points", "nivus/Points"),
+            raw_points=raw_canonical_root / tables.get("raw_points", "nivus/Points"),
             weight_column=str(columns.get("weight_column", "percent_q")),
-            tq_candidates=tq_candidates,
         ),
     )
 
