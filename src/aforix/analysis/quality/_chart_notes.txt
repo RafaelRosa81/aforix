@@ -1,0 +1,1 @@
+Temporary note: chart generation bug is caused by assigning a plain string to chart.series[0].tx. Remove that assignment in runner.py.

@@ -209,8 +209,6 @@ def _add_line_charts(cg_ws, chart_ws, aggregation: str) -> None:
         data = Reference(cg_ws, min_col=2, max_col=max_col, min_row=row, max_row=row)
         chart.add_data(data, from_rows=True, titles_from_data=False)
         chart.set_categories(categories)
-        if chart.series:
-            chart.series[0].tx = point_label
 
         chart_ws.add_chart(chart, f"A{chart_row_anchor}")
         chart_row_anchor += 15
