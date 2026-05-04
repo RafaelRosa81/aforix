@@ -56,8 +56,8 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "ranges",
     },
     "export": {"tables", "excel", "input_dir", "output_dir"},
-    "analysis": {"correlation", "quality_metrics"},
-    "external_sources": {"model", "dinagua"},
+    "analysis": {"correlation", "quality_metrics", "stage_discharge"},
+    "external_sources": {"model", "dinagua", "manual_stage"},
 }
 
 INGEST_ALLOWED_KEYS: dict[str, set[str]] = {
@@ -83,6 +83,9 @@ PATH_KEYS_CAN_BE_CREATED = {
     "output_root",
     "normalized_root",
     "raw_canonical_root",
+    "manual_stage_root",
+    "run_output_root",
+    "stable_output_dir",
 }
 
 
@@ -407,7 +410,7 @@ def _validate_external_sources_section(cfg: dict[str, Any]) -> list[str]:
     sources = cfg.get("external_sources")
     if not isinstance(sources, dict):
         return errors
-    for source_name in ("model", "dinagua"):
+    for source_name in ("model", "dinagua", "manual_stage"):
         source = sources.get(source_name)
         if source is None:
             continue
@@ -463,8 +466,6 @@ def _collect_path_errors(value: Any, *, base_dir: Path, prefix: str) -> list[str
         path = _resolve_path(item, base_dir=base_dir)
         if key in PATH_KEYS_MUST_EXIST and not path.exists():
             errors.append(f"Path defined in '{full_key}' does not exist: {path}")
-        elif key in PATH_KEYS_CAN_BE_CREATED and not path.parent.exists():
-            errors.append(f"Parent directory for '{full_key}' does not exist: {path.parent}")
     return errors
 
 

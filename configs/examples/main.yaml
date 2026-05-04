@@ -184,6 +184,11 @@ external_sources:
     raw_dir: database/external/raw/dinagua
     normalized_dir: database/external/normalized/dinagua
 
+  manual_stage:
+    enabled: true
+    raw_dir: data/external/manual_stage
+    normalized_dir: database/external/normalized/manual_stage
+
 analysis:
   correlation:
     output_root: runs/analysis_correlation
@@ -217,6 +222,98 @@ analysis:
           raw_points: nivus/Points
         columns:
           weight_column: percent_q
+
+  stage_discharge:
+    enabled: true
+
+    input_dirs:
+      normalized_root: database/normalized
+      manual_stage_root: database/external/normalized/manual_stage
+
+    output:
+      run_output_root: runs/analysis_stage_discharge
+      stable_output_dir: database/analysis/stage_discharge
+      write_stable_copy: true
+
+    interactive_defaults:
+      instruments:
+        - nivus
+        - flowtracker
+        - molinete
+      ranking:
+        - nivus
+        - flowtracker
+        - molinete
+      include_best_ranked: true
+      depth_mode: both
+      instrument_stage_mode: both
+      outlier_method: mad
+      z_thresh: 3.0
+      mad_thresh: 3.5
+      coherence: true
+      models:
+        - poly1
+        - poly2
+        - power
+        - power_log
+
+    selection:
+      points: all
+      instruments: all
+      start_date: null
+      end_date: null
+      depth_mode: both
+      instrument_stage_mode: both
+      include_best_ranked: true
+
+    instrument_selection:
+      ranking:
+        - nivus
+        - flowtracker
+        - molinete
+
+    instruments:
+      nivus:
+        code: NV
+        enabled: true
+        summary_table: nivus/Summary
+        q_column: q_total_ls
+        q_unit: l/s
+        stage_sources:
+          mean:
+            column: depth_mean_m
+            enabled: true
+          max:
+            column: depth_max_m
+            enabled: false
+
+      flowtracker:
+        code: FT
+        enabled: true
+        summary_table: flowtracker/Summary
+        q_column: q_total_ls
+        q_unit: l/s
+        stage_sources:
+          mean:
+            column: depth_mean_m
+            enabled: true
+          max:
+            column: depth_max_m
+            enabled: false
+
+      molinete:
+        code: ML
+        enabled: true
+        summary_table: molinete/Summary
+        q_column: q_total_ls
+        q_unit: l/s
+        stage_sources:
+          mean:
+            column: depth_mean_m
+            enabled: true
+          max:
+            column: depth_max_m
+            enabled: true
 
 measuring_instruments:
   - code: NV
