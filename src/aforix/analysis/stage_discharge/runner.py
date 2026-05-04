@@ -73,6 +73,7 @@ def run_stage_discharge(config_path: Path) -> Path:
         fits=fits_df,
         metrics=metrics_df,
         best_models=best_df,
+        config=cfg,
     )
 
     return out_dir
