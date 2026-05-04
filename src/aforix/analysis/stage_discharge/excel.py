@@ -50,11 +50,62 @@ def _write_sheet(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame) -> N
 def _iter_group_sheets(analysis_pairs: pd.DataFrame):
     if analysis_pairs.empty:
         return
-    group_cols = ["station_id", "analysis_group", "stage_origin", "stage_type"]
+    group_cols = ["station_id", "analysis_group"]
     for keys, group_df in analysis_pairs.groupby(group_cols):
-        station_id, analysis_group, stage_origin, stage_type = keys
-        sheet_name = f"{station_id}_{analysis_group}_{stage_type}"
-        yield sheet_name, group_df.sort_values(["measurement_date", "instrument"])
+        station_id, analysis_group = keys
+        sheet_name = f"{station_id}_{analysis_group}"
+        yield sheet_name, _wide_group_table(group_df)
+
+
+def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
+    base_cols = [
+        "station_id",
+        "station_name",
+        "measurement_date",
+        "measurement_time",
+        "analysis_group",
+        "instrument",
+        "rank",
+        "q_total_ls",
+        "q_total_m3s",
+        "normalized_source_table",
+        "original_source_file",
+        "run_id",
+    ]
+    available_base = [c for c in base_cols if c in group_df.columns]
+
+    pivot_index = available_base
+    tmp = group_df.copy()
+    tmp["stage_column"] = tmp["stage_type"].map(
+        {
+            "manual": "stage_manual_m",
+            "mean": "stage_mean_m",
+            "max": "stage_max_m",
+        }
+    )
+
+    tmp = tmp.dropna(subset=["stage_column"])
+    if tmp.empty:
+        return group_df.sort_values(["measurement_date", "instrument"])
+
+    wide = (
+        tmp.pivot_table(
+            index=pivot_index,
+            columns="stage_column",
+            values="stage_m",
+            aggfunc="first",
+        )
+        .reset_index()
+    )
+    wide.columns.name = None
+
+    for col in ["stage_manual_m", "stage_mean_m", "stage_max_m"]:
+        if col not in wide.columns:
+            wide[col] = pd.NA
+
+    ordered_cols = available_base + ["stage_manual_m", "stage_mean_m", "stage_max_m"]
+    wide = wide[ordered_cols]
+    return wide.sort_values(["measurement_date", "instrument"]).reset_index(drop=True)
 
 
 def _readme_table(output_dir: Path) -> pd.DataFrame:
@@ -63,7 +114,8 @@ def _readme_table(output_dir: Path) -> pd.DataFrame:
             {"item": "report", "value": "Stage-discharge analysis report"},
             {"item": "output_dir", "value": str(output_dir)},
             {"item": "source", "value": "database/normalized + database/external/normalized/manual_stage"},
-            {"item": "sheets", "value": "MatchedPairs, AnalysisPairs, Fits, Metrics, BestModels, and one sheet per point/group/stage type"},
+            {"item": "group_sheets", "value": "One sheet per station_id + analysis_group. Each sheet combines manual, mean and max stage columns."},
+            {"item": "stage_columns", "value": "stage_manual_m, stage_mean_m, stage_max_m"},
         ]
     )
 
