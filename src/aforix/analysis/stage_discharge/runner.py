@@ -30,6 +30,7 @@ def run_stage_discharge(config_path: Path, override_config: dict | None = None) 
     selection_cfg = cfg.get("selection", {}) or {}
     depth_mode = selection_cfg.get("depth_mode", cfg.get("depth_mode", "both"))
     instrument_stage_mode = selection_cfg.get("instrument_stage_mode", cfg.get("instrument_stage_mode", "both"))
+    selected_points = selection_cfg.get("points", "all")
 
     df_summary = load_summary_tables(normalized_root, instruments_cfg)
     df_points_max = load_points_max_stage(normalized_root, instruments_cfg)
@@ -38,6 +39,7 @@ def run_stage_discharge(config_path: Path, override_config: dict | None = None) 
     df_manual = load_manual_stage(manual_root)
 
     df = match_manual_and_instrument(df_summary, df_manual)
+    df = _filter_selected_points(df, selected_points)
     df = apply_ranking(df, ranking)
 
     analysis_pairs = build_analysis_pairs(
@@ -55,21 +57,50 @@ def run_stage_discharge(config_path: Path, override_config: dict | None = None) 
     best_df = select_best_models(metrics_df)
     best_df.to_csv(out_dir / "stage_discharge_best_models.csv", index=False, encoding="utf-8-sig")
 
-    write_best_model_plots(
-        analysis_pairs=analysis_pairs,
-        best_models=best_df,
-        fits_df=fits_df,
-        output_dir=out_dir,
-    )
+    plotting_cfg = cfg.get("plotting", {}) or {}
+    if plotting_cfg.get("enabled", True):
+        write_best_model_plots(
+            analysis_pairs=analysis_pairs,
+            best_models=best_df,
+            fits_df=fits_df,
+            output_dir=out_dir,
+            max_plots=plotting_cfg.get("max_plots", 40),
+        )
 
-    write_excel_report(
-        output_dir=out_dir,
-        matched=df,
-        analysis_pairs=analysis_pairs,
-        fits=fits_df,
-        metrics=metrics_df,
-        best_models=best_df,
-        config=cfg,
-    )
+    excel_cfg = cfg.get("excel", {}) or {}
+    if excel_cfg.get("enabled", True):
+        write_excel_report(
+            output_dir=out_dir,
+            matched=df,
+            analysis_pairs=analysis_pairs,
+            fits=fits_df,
+            metrics=metrics_df,
+            best_models=best_df,
+            config=cfg,
+        )
 
     return out_dir
+
+
+def _filter_selected_points(df, selected_points):
+    if selected_points is None or selected_points == "all":
+        return df
+    if isinstance(selected_points, str):
+        if selected_points.strip().lower() == "all":
+            return df
+        points = [selected_points]
+    else:
+        points = list(selected_points)
+    normalized_points = {_normalize_station_id(p) for p in points}
+    if "station_id" not in df.columns or not normalized_points:
+        return df
+    return df[df["station_id"].map(_normalize_station_id).isin(normalized_points)].copy()
+
+
+def _normalize_station_id(value) -> str:
+    s = str(value).strip().upper()
+    if s.startswith("P"):
+        digits = "".join(ch for ch in s[1:] if ch.isdigit())
+    else:
+        digits = "".join(ch for ch in s if ch.isdigit())
+    return f"P{int(digits)}" if digits else s
