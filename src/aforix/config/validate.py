@@ -466,8 +466,6 @@ def _collect_path_errors(value: Any, *, base_dir: Path, prefix: str) -> list[str
         path = _resolve_path(item, base_dir=base_dir)
         if key in PATH_KEYS_MUST_EXIST and not path.exists():
             errors.append(f"Path defined in '{full_key}' does not exist: {path}")
-        elif key in PATH_KEYS_CAN_BE_CREATED and not path.parent.exists():
-            errors.append(f"Parent directory for '{full_key}' does not exist: {path.parent}")
     return errors
 
 
