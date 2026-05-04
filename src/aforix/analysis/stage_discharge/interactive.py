@@ -28,10 +28,23 @@ def run_interactive(config_path: Path) -> Path:
 
     _configure_instruments(cfg)
     _configure_points(cfg)
+    _configure_date_range(cfg)
     _configure_depth_modes(cfg)
     _configure_outputs(cfg)
 
     return run_stage_discharge(config_path, override_config=cfg)
+
+
+def _configure_date_range(cfg: dict[str, Any]) -> None:
+    selection = cfg.setdefault("selection", {})
+    start_default = selection.get("start_date") or ""
+    end_default = selection.get("end_date") or ""
+
+    start = typer.prompt("Start date (YYYY-MM-DD or empty)", default=str(start_default)).strip()
+    end = typer.prompt("End date (YYYY-MM-DD or empty)", default=str(end_default)).strip()
+
+    selection["start_date"] = start or None
+    selection["end_date"] = end or None
 
 
 def _configure_instruments(cfg: dict[str, Any]) -> None:
