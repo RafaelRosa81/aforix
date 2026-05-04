@@ -14,6 +14,7 @@ from aforix.analysis.stage_discharge.stage_sources import build_analysis_pairs
 from aforix.analysis.stage_discharge.fitting import run_fitting
 from aforix.analysis.stage_discharge.model_selection import select_best_models
 from aforix.analysis.stage_discharge.plotting import write_best_model_plots
+from aforix.analysis.stage_discharge.excel import write_excel_report
 
 
 def run_stage_discharge(config_path: Path) -> Path:
@@ -62,6 +63,16 @@ def run_stage_discharge(config_path: Path) -> Path:
         best_models=best_df,
         fits_df=fits_df,
         output_dir=out_dir,
+    )
+
+    # Excel report
+    write_excel_report(
+        output_dir=out_dir,
+        matched=df,
+        analysis_pairs=analysis_pairs,
+        fits=fits_df,
+        metrics=metrics_df,
+        best_models=best_df,
     )
 
     return out_dir
