@@ -1,9 +1,21 @@
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
 
 MAX_SHEET_NAME_LEN = 31
+DROP_COLUMNS = ["station_name", "original_source_file", "source_run_dir"]
+TRACEABILITY_COLUMNS = ["normalized_source_table", "run_id"]
+METRIC_RENAMES = {
+    "rmse": "rmse_ls",
+    "mae": "mae_ls",
+    "bias": "bias_ls",
+    "nrmse": "nrmse_ratio",
+    "pbias_pct": "pbias_pct",
+    "r2": "r2_dimensionless",
+    "nse": "nse_dimensionless",
+}
 
 
 def write_excel_report(
@@ -14,16 +26,16 @@ def write_excel_report(
     fits: pd.DataFrame,
     metrics: pd.DataFrame,
     best_models: pd.DataFrame,
+    config: dict[str, Any] | None = None,
 ) -> Path:
     report_path = output_dir / "stage_discharge_report.xlsx"
 
     with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
-        _write_sheet(writer, "README", _readme_table(output_dir))
-        _write_sheet(writer, "MatchedPairs", matched)
-        _write_sheet(writer, "AnalysisPairs", analysis_pairs)
-        _write_sheet(writer, "Fits", fits)
-        _write_sheet(writer, "Metrics", metrics)
-        _write_sheet(writer, "BestModels", best_models)
+        _write_sheet(writer, "README", _readme_table(output_dir, config or {}))
+        _write_sheet(writer, "AnalysisPairs", _prepare_general_sheet(analysis_pairs))
+        _write_sheet(writer, "Fits", _prepare_general_sheet(fits))
+        _write_sheet(writer, "Metrics", _prepare_metrics_sheet(metrics))
+        _write_sheet(writer, "BestModels", _prepare_metrics_sheet(best_models))
 
         for sheet_name, group_df in _iter_group_sheets(analysis_pairs):
             _write_sheet(writer, sheet_name, group_df)
@@ -60,7 +72,6 @@ def _iter_group_sheets(analysis_pairs: pd.DataFrame):
 def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
     base_cols = [
         "station_id",
-        "station_name",
         "measurement_date",
         "measurement_time",
         "analysis_group",
@@ -69,7 +80,6 @@ def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
         "q_total_ls",
         "q_total_m3s",
         "normalized_source_table",
-        "original_source_file",
         "run_id",
     ]
     available_base = [c for c in base_cols if c in group_df.columns]
@@ -86,7 +96,7 @@ def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
 
     tmp = tmp.dropna(subset=["stage_column"])
     if tmp.empty:
-        return group_df.sort_values(["measurement_date", "instrument"])
+        return _prepare_general_sheet(group_df.sort_values(["measurement_date", "instrument"]))
 
     wide = (
         tmp.pivot_table(
@@ -103,21 +113,68 @@ def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
         if col not in wide.columns:
             wide[col] = pd.NA
 
-    ordered_cols = available_base + ["stage_manual_m", "stage_mean_m", "stage_max_m"]
+    ordered_cols = [
+        "station_id",
+        "measurement_date",
+        "measurement_time",
+        "analysis_group",
+        "instrument",
+        "rank",
+        "q_total_ls",
+        "q_total_m3s",
+        "stage_manual_m",
+        "stage_mean_m",
+        "stage_max_m",
+        "normalized_source_table",
+        "run_id",
+    ]
+    ordered_cols = [c for c in ordered_cols if c in wide.columns]
     wide = wide[ordered_cols]
     return wide.sort_values(["measurement_date", "instrument"]).reset_index(drop=True)
 
 
-def _readme_table(output_dir: Path) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {"item": "report", "value": "Stage-discharge analysis report"},
-            {"item": "output_dir", "value": str(output_dir)},
-            {"item": "source", "value": "database/normalized + database/external/normalized/manual_stage"},
-            {"item": "group_sheets", "value": "One sheet per station_id + analysis_group. Each sheet combines manual, mean and max stage columns."},
-            {"item": "stage_columns", "value": "stage_manual_m, stage_mean_m, stage_max_m"},
-        ]
-    )
+def _prepare_general_sheet(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out = out.drop(columns=[c for c in DROP_COLUMNS if c in out.columns], errors="ignore")
+    return _move_traceability_right(out)
+
+
+def _prepare_metrics_sheet(df: pd.DataFrame) -> pd.DataFrame:
+    out = _prepare_general_sheet(df)
+    out = out.rename(columns={k: v for k, v in METRIC_RENAMES.items() if k in out.columns})
+    return _move_traceability_right(out)
+
+
+def _move_traceability_right(df: pd.DataFrame) -> pd.DataFrame:
+    cols = list(df.columns)
+    trace = [c for c in TRACEABILITY_COLUMNS if c in cols]
+    non_trace = [c for c in cols if c not in trace]
+    return df[non_trace + trace]
+
+
+def _readme_table(output_dir: Path, config: dict[str, Any]) -> pd.DataFrame:
+    rows = [
+        {"item": "report", "value": "Stage-discharge analysis report"},
+        {"item": "output_dir", "value": str(output_dir)},
+        {"item": "source", "value": "database/normalized + database/external/normalized/manual_stage"},
+        {"item": "group_sheets", "value": "One sheet per station_id + analysis_group. Each sheet combines manual, mean and max stage columns."},
+        {"item": "stage_columns", "value": "stage_manual_m, stage_mean_m, stage_max_m"},
+        {"item": "metric_units", "value": "q_total_ls, rmse_ls, mae_ls and bias_ls are in L/s; q_total_m3s is in m3/s; stage_* columns are in m."},
+    ]
+    rows.extend(_flatten_config(config, prefix="config"))
+    return pd.DataFrame(rows)
+
+
+def _flatten_config(value: Any, *, prefix: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            rows.extend(_flatten_config(item, prefix=f"{prefix}.{key}"))
+    elif isinstance(value, list):
+        rows.append({"item": prefix, "value": ", ".join(str(v) for v in value)})
+    else:
+        rows.append({"item": prefix, "value": str(value)})
+    return rows
 
 
 def _safe_sheet_name(name: str) -> str:
