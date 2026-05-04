@@ -10,6 +10,15 @@ from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.runner import run_stage_discharge
 
 
+INSTRUMENT_CODES = {
+    "NV": "nivus",
+    "FT": "flowtracker",
+    "ML": "molinete",
+    "M9": "m9",
+}
+INSTRUMENT_NAMES_TO_CODES = {v: k for k, v in INSTRUMENT_CODES.items()}
+
+
 def run_interactive(config_path: Path) -> Path:
     cfg = load_stage_discharge_config(config_path)
     cfg = _copy_config(cfg)
@@ -27,16 +36,22 @@ def run_interactive(config_path: Path) -> Path:
 
 def _configure_instruments(cfg: dict[str, Any]) -> None:
     instruments_cfg = cfg.get("instruments", {})
-    available = [name for name, inst in instruments_cfg.items() if inst.get("enabled", False)]
-    default = _default_list(cfg, ["interactive_defaults", "instruments"], available)
-    selected = _prompt_list("Instruments", available, default)
+    available_names = [name for name, inst in instruments_cfg.items() if inst.get("enabled", False)]
+    available_codes = [_to_code(name) for name in available_names]
+
+    default_names = _default_list(cfg, ["interactive_defaults", "instruments"], available_names)
+    default_codes = [_to_code(name) for name in default_names if name in available_names]
+
+    selected_codes = _prompt_list("Instruments", available_codes, default_codes)
+    selected_names = [_to_name(code) for code in selected_codes]
 
     for name, inst in instruments_cfg.items():
-        inst["enabled"] = name in selected
+        inst["enabled"] = name in selected_names
 
-    ranking_default = _default_list(cfg, ["interactive_defaults", "ranking"], selected)
-    ranking = _prompt_list("Instrument ranking", selected, [r for r in ranking_default if r in selected])
-    cfg.setdefault("instrument_selection", {})["ranking"] = ranking
+    ranking_default_names = _default_list(cfg, ["interactive_defaults", "ranking"], selected_names)
+    ranking_default_codes = [_to_code(name) for name in ranking_default_names if name in selected_names]
+    ranking_codes = _prompt_list("Instrument ranking", selected_codes, ranking_default_codes)
+    cfg.setdefault("instrument_selection", {})["ranking"] = [_to_name(code) for code in ranking_codes]
 
 
 def _configure_points(cfg: dict[str, Any]) -> None:
@@ -53,7 +68,7 @@ def _configure_points(cfg: dict[str, Any]) -> None:
     prompt = "Points to analyze (all or comma-separated list)"
     value = typer.prompt(prompt, default=str(default_points))
     value = value.strip()
-    cfg.setdefault("selection", {})["points"] = "all" if value.lower() == "all" else _parse_list(value)
+    cfg.setdefault("selection", {})["points"] = "all" if value.lower() == "all" else [_normalize_station_id(v) for v in _parse_list(value)]
 
 
 def _configure_depth_modes(cfg: dict[str, Any]) -> None:
@@ -91,7 +106,7 @@ def _configure_outputs(cfg: dict[str, Any]) -> None:
 def _prompt_list(label: str, available: list[str], default: list[str]) -> list[str]:
     typer.echo(f"{label} available: {', '.join(available) if available else '(none)'}")
     value = typer.prompt(f"{label} to use", default=", ".join(default))
-    selected = _parse_list(value)
+    selected = [v.upper() for v in _parse_list(value)]
     valid = [item for item in selected if item in available]
     return valid or default
 
@@ -107,6 +122,23 @@ def _default_list(cfg: dict[str, Any], path: list[str], fallback: list[str]) -> 
             return fallback
         cur = cur[key]
     return cur if isinstance(cur, list) else fallback
+
+
+def _to_code(name: str) -> str:
+    return INSTRUMENT_NAMES_TO_CODES.get(str(name).lower(), str(name).upper())
+
+
+def _to_name(code: str) -> str:
+    return INSTRUMENT_CODES.get(str(code).upper(), str(code).lower())
+
+
+def _normalize_station_id(value: str) -> str:
+    s = str(value).strip().upper()
+    if s.startswith("P"):
+        digits = "".join(ch for ch in s[1:] if ch.isdigit())
+    else:
+        digits = "".join(ch for ch in s if ch.isdigit())
+    return f"P{int(digits)}" if digits else s
 
 
 def _copy_config(cfg: dict[str, Any]) -> dict[str, Any]:
