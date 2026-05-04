@@ -23,8 +23,9 @@ def run_stage_discharge(config_path: Path) -> Path:
     instruments_cfg = cfg.get("instruments", {})
     ranking = cfg.get("instrument_selection", {}).get("ranking", [])
 
-    depth_mode = cfg.get("depth_mode", "both")
-    instrument_stage_mode = cfg.get("instrument_stage_mode", "both")
+    selection_cfg = cfg.get("selection", {}) or {}
+    depth_mode = selection_cfg.get("depth_mode", cfg.get("depth_mode", "both"))
+    instrument_stage_mode = selection_cfg.get("instrument_stage_mode", cfg.get("instrument_stage_mode", "both"))
 
     df_summary = load_summary_tables(normalized_root, instruments_cfg)
     df_points_max = load_points_max_stage(normalized_root, instruments_cfg)
@@ -35,14 +36,12 @@ def run_stage_discharge(config_path: Path) -> Path:
     df = match_manual_and_instrument(df_summary, df_manual)
     df = apply_ranking(df, ranking)
 
-    out_dir = write_outputs(df, output_root)
-
     analysis_pairs = build_analysis_pairs(
         df,
         depth_mode=depth_mode,
         instrument_stage_mode=instrument_stage_mode,
     )
 
-    (out_dir / "stage_discharge_analysis_pairs.csv").write_text(analysis_pairs.to_csv(index=False))
+    out_dir = write_outputs(df, output_root, analysis_pairs=analysis_pairs)
 
     return out_dir
