@@ -11,6 +11,7 @@ from aforix.analysis.stage_discharge.matching import match_manual_and_instrument
 from aforix.analysis.stage_discharge.instrument_selection import apply_ranking
 from aforix.analysis.stage_discharge.outputs import write_outputs
 from aforix.analysis.stage_discharge.stage_sources import build_analysis_pairs
+from aforix.analysis.stage_discharge.fitting import run_fitting
 
 
 def run_stage_discharge(config_path: Path) -> Path:
@@ -43,5 +44,10 @@ def run_stage_discharge(config_path: Path) -> Path:
     )
 
     out_dir = write_outputs(df, output_root, analysis_pairs=analysis_pairs)
+
+    # Fitting stage-discharge curves
+    fits_df, metrics_df = run_fitting(analysis_pairs)
+    fits_df.to_csv(out_dir / "stage_discharge_fits.csv", index=False, encoding="utf-8-sig")
+    metrics_df.to_csv(out_dir / "stage_discharge_metrics.csv", index=False, encoding="utf-8-sig")
 
     return out_dir
