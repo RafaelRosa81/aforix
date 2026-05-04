@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pandas as pd
+
 from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.inputs import (
     load_manual_stage,
@@ -31,6 +33,8 @@ def run_stage_discharge(config_path: Path, override_config: dict | None = None) 
     depth_mode = selection_cfg.get("depth_mode", cfg.get("depth_mode", "both"))
     instrument_stage_mode = selection_cfg.get("instrument_stage_mode", cfg.get("instrument_stage_mode", "both"))
     selected_points = selection_cfg.get("points", "all")
+    start_date = selection_cfg.get("start_date")
+    end_date = selection_cfg.get("end_date")
 
     df_summary = load_summary_tables(normalized_root, instruments_cfg)
     df_points_max = load_points_max_stage(normalized_root, instruments_cfg)
@@ -40,6 +44,7 @@ def run_stage_discharge(config_path: Path, override_config: dict | None = None) 
 
     df = match_manual_and_instrument(df_summary, df_manual)
     df = _filter_selected_points(df, selected_points)
+    df = _filter_date_range(df, start_date=start_date, end_date=end_date)
     df = apply_ranking(df, ranking)
 
     analysis_pairs = build_analysis_pairs(
@@ -95,6 +100,26 @@ def _filter_selected_points(df, selected_points):
     if "station_id" not in df.columns or not normalized_points:
         return df
     return df[df["station_id"].map(_normalize_station_id).isin(normalized_points)].copy()
+
+
+def _filter_date_range(df, *, start_date=None, end_date=None):
+    if df.empty or "measurement_date" not in df.columns:
+        return df
+    if not start_date and not end_date:
+        return df
+
+    out = df.copy()
+    dates = pd.to_datetime(out["measurement_date"], errors="coerce")
+    mask = dates.notna()
+    if start_date:
+        start = pd.to_datetime(start_date, errors="coerce")
+        if pd.notna(start):
+            mask &= dates >= start
+    if end_date:
+        end = pd.to_datetime(end_date, errors="coerce")
+        if pd.notna(end):
+            mask &= dates <= end
+    return out[mask].copy()
 
 
 def _normalize_station_id(value) -> str:
