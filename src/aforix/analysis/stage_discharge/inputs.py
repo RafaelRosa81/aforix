@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pandas as pd
 
 
@@ -6,10 +7,33 @@ def load_manual_stage(manual_dir: Path) -> pd.DataFrame:
     f = manual_dir / "manual_stage.csv"
     if not f.exists():
         return pd.DataFrame()
-    return pd.read_csv(f)
+    df = pd.read_csv(f)
+    if "measurement_date" in df.columns:
+        df["measurement_date"] = pd.to_datetime(df["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    if "station_id" in df.columns:
+        df["station_id"] = df["station_id"].map(_normalize_station_id)
+    return df
 
 
 def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.DataFrame:
+    """Load normalized Summary data.
+
+    Prefer the stable concatenated table database/normalized/Summary.csv.
+    Fall back to per-instrument Summary locations when the concatenated table is absent.
+    """
+    summary_file = normalized_root / "Summary.csv"
+    enabled_instruments = {name for name, cfg in instruments_cfg.items() if cfg.get("enabled", False)}
+
+    if summary_file.exists():
+        df = pd.read_csv(summary_file)
+        df = _standardize_summary_dates_and_ids(df)
+        if "instrument" in df.columns and enabled_instruments:
+            df["instrument"] = df["instrument"].astype(str).str.lower().str.strip()
+            df = df[df["instrument"].isin(enabled_instruments)].copy()
+        if "source_file" not in df.columns:
+            df["source_file"] = summary_file.name
+        return df.reset_index(drop=True)
+
     dfs = []
     for inst, cfg in instruments_cfg.items():
         if not cfg.get("enabled", False):
@@ -20,13 +44,50 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
         if not path.exists():
             continue
 
-        for f in path.glob("*.csv"):
+        if path.is_file():
+            files = [path]
+        else:
+            files = sorted(path.glob("*.csv"))
+
+        for f in files:
             df = pd.read_csv(f)
+            df = _standardize_summary_dates_and_ids(df)
             df["instrument"] = inst
-            df["source_file"] = f.name
+            if "source_file" not in df.columns:
+                df["source_file"] = f.name
             dfs.append(df)
 
     if not dfs:
         return pd.DataFrame()
 
     return pd.concat(dfs, ignore_index=True)
+
+
+def _standardize_summary_dates_and_ids(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if "measurement_date" in df.columns:
+        df["measurement_date"] = pd.to_datetime(df["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    elif "date" in df.columns:
+        df["measurement_date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    if "station_id" in df.columns:
+        df["station_id"] = df["station_id"].map(_normalize_station_id)
+    elif "point" in df.columns:
+        df["station_id"] = df["point"].map(_normalize_station_id)
+
+    return df
+
+
+def _normalize_station_id(value) -> str | None:
+    if pd.isna(value):
+        return None
+    s = str(value).strip().upper()
+    if not s:
+        return None
+    if s.startswith("P"):
+        digits = "".join(ch for ch in s[1:] if ch.isdigit())
+    else:
+        digits = "".join(ch for ch in s if ch.isdigit())
+    if not digits:
+        return s
+    return f"P{int(digits)}"
