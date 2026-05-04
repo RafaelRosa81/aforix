@@ -37,8 +37,8 @@ def write_excel_report(
         _write_sheet(writer, "Metrics", _prepare_metrics_sheet(metrics))
         _write_sheet(writer, "BestModels", _prepare_metrics_sheet(best_models))
 
-        for sheet_name, group_df in _iter_group_sheets(analysis_pairs):
-            _write_sheet(writer, sheet_name, group_df)
+        for sheet_name, group_df, summary_df in _iter_group_sheets(analysis_pairs, best_models):
+            _write_group_sheet(writer, sheet_name, summary_df, group_df)
 
     return report_path
 
@@ -46,27 +46,68 @@ def write_excel_report(
 def _write_sheet(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame) -> None:
     safe_name = _safe_sheet_name(sheet_name)
     df.to_excel(writer, sheet_name=safe_name, index=False)
+    _format_worksheet(writer, safe_name, header_row=1)
+
+
+def _write_group_sheet(writer: pd.ExcelWriter, sheet_name: str, summary_df: pd.DataFrame, group_df: pd.DataFrame) -> None:
+    safe_name = _safe_sheet_name(sheet_name)
+    summary_df.to_excel(writer, sheet_name=safe_name, index=False, startrow=0)
+    start_row = len(summary_df) + 3
+    group_df.to_excel(writer, sheet_name=safe_name, index=False, startrow=start_row)
+    _format_worksheet(writer, safe_name, header_row=1)
+    _format_worksheet(writer, safe_name, header_row=start_row + 1)
     ws = writer.book[safe_name]
-    ws.freeze_panes = "A2"
-    for cell in ws[1]:
+    ws.freeze_panes = f"A{start_row + 2}"
+
+
+def _format_worksheet(writer: pd.ExcelWriter, sheet_name: str, header_row: int) -> None:
+    ws = writer.book[sheet_name]
+    for cell in ws[header_row]:
         cell.style = "Headline 3"
     for col in ws.columns:
         max_len = 0
         col_letter = col[0].column_letter
-        for cell in col[:200]:
+        for cell in col[:250]:
             value = "" if cell.value is None else str(cell.value)
             max_len = max(max_len, len(value))
-        ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 40)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 42)
 
 
-def _iter_group_sheets(analysis_pairs: pd.DataFrame):
+def _iter_group_sheets(analysis_pairs: pd.DataFrame, best_models: pd.DataFrame):
     if analysis_pairs.empty:
         return
     group_cols = ["station_id", "analysis_group"]
     for keys, group_df in analysis_pairs.groupby(group_cols):
         station_id, analysis_group = keys
         sheet_name = f"{station_id}_{analysis_group}"
-        yield sheet_name, _wide_group_table(group_df)
+        summary_df = _best_model_summary(best_models, station_id, analysis_group)
+        yield sheet_name, _wide_group_table(group_df), summary_df
+
+
+def _best_model_summary(best_models: pd.DataFrame, station_id: str, analysis_group: str) -> pd.DataFrame:
+    columns = [
+        "station_id",
+        "analysis_group",
+        "instrument",
+        "stage_origin",
+        "stage_type",
+        "model",
+        "n_points",
+        "r2_dimensionless",
+        "rmse_ls",
+        "mae_ls",
+        "nrmse_ratio",
+        "pbias_pct",
+    ]
+    if best_models.empty:
+        return pd.DataFrame(columns=columns)
+    subset = best_models[
+        (best_models["station_id"].astype(str) == str(station_id))
+        & (best_models["analysis_group"].astype(str) == str(analysis_group))
+    ].copy()
+    subset = _prepare_metrics_sheet(subset)
+    available = [c for c in columns if c in subset.columns]
+    return subset[available].sort_values(["stage_origin", "stage_type"]).reset_index(drop=True)
 
 
 def _wide_group_table(group_df: pd.DataFrame) -> pd.DataFrame:
@@ -158,6 +199,7 @@ def _readme_table(output_dir: Path, config: dict[str, Any]) -> pd.DataFrame:
         {"item": "output_dir", "value": str(output_dir)},
         {"item": "source", "value": "database/normalized + database/external/normalized/manual_stage"},
         {"item": "group_sheets", "value": "One sheet per station_id + analysis_group. Each sheet combines manual, mean and max stage columns."},
+        {"item": "group_sheet_summary", "value": "Each station/group sheet starts with the selected best models for manual, mean and max stages."},
         {"item": "stage_columns", "value": "stage_manual_m, stage_mean_m, stage_max_m"},
         {"item": "metric_units", "value": "q_total_ls, rmse_ls, mae_ls and bias_ls are in L/s; q_total_m3s is in m3/s; stage_* columns are in m."},
     ]
