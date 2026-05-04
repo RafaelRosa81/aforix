@@ -12,6 +12,8 @@ from aforix.analysis.stage_discharge.instrument_selection import apply_ranking
 from aforix.analysis.stage_discharge.outputs import write_outputs
 from aforix.analysis.stage_discharge.stage_sources import build_analysis_pairs
 from aforix.analysis.stage_discharge.fitting import run_fitting
+from aforix.analysis.stage_discharge.model_selection import select_best_models
+from aforix.analysis.stage_discharge.plotting import write_best_model_plots
 
 
 def run_stage_discharge(config_path: Path) -> Path:
@@ -45,9 +47,21 @@ def run_stage_discharge(config_path: Path) -> Path:
 
     out_dir = write_outputs(df, output_root, analysis_pairs=analysis_pairs)
 
-    # Fitting stage-discharge curves
+    # Fitting
     fits_df, metrics_df = run_fitting(analysis_pairs)
     fits_df.to_csv(out_dir / "stage_discharge_fits.csv", index=False, encoding="utf-8-sig")
     metrics_df.to_csv(out_dir / "stage_discharge_metrics.csv", index=False, encoding="utf-8-sig")
+
+    # Model selection
+    best_df = select_best_models(metrics_df)
+    best_df.to_csv(out_dir / "stage_discharge_best_models.csv", index=False, encoding="utf-8-sig")
+
+    # Plotting
+    write_best_model_plots(
+        analysis_pairs=analysis_pairs,
+        best_models=best_df,
+        fits_df=fits_df,
+        output_dir=out_dir,
+    )
 
     return out_dir
