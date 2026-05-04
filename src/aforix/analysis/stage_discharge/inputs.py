@@ -12,6 +12,7 @@ def load_manual_stage(manual_dir: Path) -> pd.DataFrame:
         df["measurement_date"] = pd.to_datetime(df["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
     if "station_id" in df.columns:
         df["station_id"] = df["station_id"].map(_normalize_station_id)
+    df["manual_stage_source_table"] = str(f)
     return df
 
 
@@ -20,6 +21,8 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
 
     Prefer the stable concatenated table database/normalized/Summary.csv.
     Fall back to per-instrument Summary locations when the concatenated table is absent.
+    The original source_file column is preserved as traceability, but analysis input
+    provenance is recorded separately in normalized_source_table.
     """
     summary_file = normalized_root / "Summary.csv"
     enabled_instruments = {name for name, cfg in instruments_cfg.items() if cfg.get("enabled", False)}
@@ -30,8 +33,9 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
         if "instrument" in df.columns and enabled_instruments:
             df["instrument"] = df["instrument"].astype(str).str.lower().str.strip()
             df = df[df["instrument"].isin(enabled_instruments)].copy()
-        if "source_file" not in df.columns:
-            df["source_file"] = summary_file.name
+        df["normalized_source_table"] = str(summary_file)
+        if "source_file" in df.columns:
+            df = df.rename(columns={"source_file": "original_source_file"})
         return df.reset_index(drop=True)
 
     dfs = []
@@ -53,8 +57,9 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
             df = pd.read_csv(f)
             df = _standardize_summary_dates_and_ids(df)
             df["instrument"] = inst
-            if "source_file" not in df.columns:
-                df["source_file"] = f.name
+            df["normalized_source_table"] = str(f)
+            if "source_file" in df.columns:
+                df = df.rename(columns={"source_file": "original_source_file"})
             dfs.append(df)
 
     if not dfs:
