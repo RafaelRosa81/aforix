@@ -17,8 +17,8 @@ from aforix.analysis.stage_discharge.plotting import write_best_model_plots
 from aforix.analysis.stage_discharge.excel import write_excel_report
 
 
-def run_stage_discharge(config_path: Path) -> Path:
-    cfg = load_stage_discharge_config(config_path)
+def run_stage_discharge(config_path: Path, override_config: dict | None = None) -> Path:
+    cfg = override_config or load_stage_discharge_config(config_path)
 
     normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
     manual_root = Path(cfg.get("input_dirs", {}).get("manual_stage_root", "database/external/normalized/manual_stage"))
@@ -48,16 +48,13 @@ def run_stage_discharge(config_path: Path) -> Path:
 
     out_dir = write_outputs(df, output_root, analysis_pairs=analysis_pairs)
 
-    # Fitting
     fits_df, metrics_df = run_fitting(analysis_pairs)
     fits_df.to_csv(out_dir / "stage_discharge_fits.csv", index=False, encoding="utf-8-sig")
     metrics_df.to_csv(out_dir / "stage_discharge_metrics.csv", index=False, encoding="utf-8-sig")
 
-    # Model selection
     best_df = select_best_models(metrics_df)
     best_df.to_csv(out_dir / "stage_discharge_best_models.csv", index=False, encoding="utf-8-sig")
 
-    # Plotting
     write_best_model_plots(
         analysis_pairs=analysis_pairs,
         best_models=best_df,
@@ -65,7 +62,6 @@ def run_stage_discharge(config_path: Path) -> Path:
         output_dir=out_dir,
     )
 
-    # Excel report
     write_excel_report(
         output_dir=out_dir,
         matched=df,
