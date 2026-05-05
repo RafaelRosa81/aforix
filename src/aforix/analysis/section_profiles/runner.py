@@ -30,6 +30,7 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
 
     instruments_cfg = cfg.get('instruments', {})
     selection = cfg.get('selection', {}) or {}
+    excel_cfg = cfg.get('excel', {}) or {}
 
     x_axis = cfg.get('defaults', {}).get('x_axis', 'distance_m')
     y_axis = cfg.get('defaults', {}).get('y_axis', 'depth_m')
@@ -63,8 +64,15 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
     group_cols = ['station_id', 'measurement_date', 'measurement_time', 'instrument', 'instrument_code']
     available = [c for c in group_cols if c in df.columns]
 
+    reserved_sheet_names = set()
+    if excel_cfg.get('include_readme', True):
+        reserved_sheet_names.add('README')
+    if excel_cfg.get('include_index', True):
+        reserved_sheet_names.add('Index')
+
     sheets = []
-    used_sheet_names: set[str] = set()
+    used_sheet_names: set[str] = set(reserved_sheet_names)
+
     for _, g in df.groupby(available, dropna=False):
         g2 = g.copy()
 
@@ -110,7 +118,7 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
         x_axis=x_axis,
         y_axis=y_axis,
         chart_type=chart_type,
-        excel_cfg=cfg.get('excel', {}),
+        excel_cfg=excel_cfg,
     )
 
     return out_dir
