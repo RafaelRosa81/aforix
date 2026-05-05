@@ -26,7 +26,6 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
         (str(v) for v in df.get("station_id", pd.Series(dtype=str)).dropna().unique()),
         key=_point_sort_key,
     )
-    available_dates = pd.to_datetime(df.get("measurement_date", pd.Series(dtype=str)), errors="coerce").dropna()
 
     typer.echo("Interactive section profiles mode")
     typer.echo(f"Available instruments: {', '.join(available_codes) or '(none)'}")
@@ -44,8 +43,12 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     if selected_points:
         preview = filter_points(preview, set(_normalize_point(p) for p in selected_points))
 
-    if not available_dates.empty:
-        typer.echo(f"Available date range: {available_dates.min().date()} to {available_dates.max().date()}")
+    selected_dates = _valid_measurement_dates(preview)
+    if not selected_dates.empty:
+        typer.echo(f"Available date range for selected data: {selected_dates.min().date()} to {selected_dates.max().date()}")
+    else:
+        typer.echo("Available date range for selected data: (none found)")
+
     start_date = typer.prompt("Start date YYYY-MM-DD, empty = no start filter", default="", show_default=False) or None
     end_date = typer.prompt("End date YYYY-MM-DD, empty = no end filter", default="", show_default=False) or None
     preview = filter_date_range(preview, start_date, end_date)
@@ -80,6 +83,11 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     defaults["y_axis"] = y_axis
     defaults["chart_type"] = chart_type
     return cfg
+
+
+def _valid_measurement_dates(df: pd.DataFrame) -> pd.Series:
+    dates = pd.to_datetime(df.get("measurement_date", pd.Series(dtype=str)), errors="coerce").dropna()
+    return dates[dates.dt.year > 1970]
 
 
 def _instrument_code_map(instruments_cfg: dict[str, Any]) -> dict[str, str]:
