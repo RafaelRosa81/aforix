@@ -19,14 +19,17 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
         typer.echo("No normalized Points data found for section profiles.")
         return cfg
 
-    available_instruments = sorted(str(v) for v in df.get("instrument", pd.Series(dtype=str)).dropna().unique())
+    code_to_name = _instrument_code_map(instruments_cfg)
+    available_names = sorted(str(v) for v in df.get("instrument", pd.Series(dtype=str)).dropna().unique())
+    available_codes = [_instrument_name_to_code(name, instruments_cfg) for name in available_names]
     available_points = sorted(str(v) for v in df.get("station_id", pd.Series(dtype=str)).dropna().unique(), key=_point_sort_key)
     available_dates = pd.to_datetime(df.get("measurement_date", pd.Series(dtype=str)), errors="coerce").dropna()
 
     typer.echo("Interactive section profiles mode")
-    typer.echo(f"Available instruments: {', '.join(available_instruments) or '(none)'}")
-    instrument_input = typer.prompt("Select instruments, comma-separated, empty = all", default="", show_default=False)
-    selected_instruments = _parse_csv(instrument_input)
+    typer.echo(f"Available instruments: {', '.join(available_codes) or '(none)'}")
+    instrument_input = typer.prompt("Select instrument codes, comma-separated, empty = all", default="", show_default=False)
+    selected_codes = _parse_csv(instrument_input)
+    selected_instruments = [_code_or_name_to_instrument(v, code_to_name) for v in selected_codes] if selected_codes else None
 
     preview = df.copy()
     if selected_instruments:
@@ -74,6 +77,25 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     defaults["y_axis"] = y_axis
     defaults["chart_type"] = chart_type
     return cfg
+
+
+def _instrument_code_map(instruments_cfg: dict[str, Any]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for name, item in instruments_cfg.items():
+        code = str(item.get("code", name)).upper()
+        out[code] = name
+        out[name.lower()] = name
+    return out
+
+
+def _instrument_name_to_code(name: str, instruments_cfg: dict[str, Any]) -> str:
+    cfg = instruments_cfg.get(name, {})
+    return str(cfg.get("code", name)).upper()
+
+
+def _code_or_name_to_instrument(value: str, code_to_name: dict[str, str]) -> str:
+    key = str(value).strip()
+    return code_to_name.get(key.upper()) or code_to_name.get(key.lower()) or key.lower()
 
 
 def _parse_csv(value: str | None) -> list[str] | None:
