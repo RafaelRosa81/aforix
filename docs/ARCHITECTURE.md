@@ -187,6 +187,7 @@ Submódulos relevantes:
 - `analysis/correlation`: correlación entre aforos, modelo y estaciones DINAGUA (`docs/CORRELATION_GUIDE.md`).
 - `analysis/quality`: métricas de calidad de medición (`docs/QUALITY_METRICS_GUIDE.md`).
 - `analysis/stage_discharge`: análisis caudal-altura (`docs/STAGE_DISCHARGE_ANALYSIS.md`).
+- `analysis/section_profiles`: perfiles de sección (`docs/SECTION_PROFILES_ANALYSIS.md`).
 
 Este módulo debe mantenerse desacoplado de formatos propios de instrumentos.
 
