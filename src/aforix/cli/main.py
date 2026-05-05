@@ -11,6 +11,7 @@ from aforix.analysis.statistics import run as run_statistics
 from aforix.analysis.correlation.cli import app as correlation_app
 from aforix.analysis.quality.cli import app as quality_app
 from aforix.analysis.stage_discharge.cli import app as stage_discharge_app
+from aforix.analysis.section_profiles.cli import app as section_profiles_app
 from aforix.external.cli import app as external_app
 from aforix.groups.build import run as run_build_groups
 from aforix.filters.groups import run as run_filter_groups
@@ -45,6 +46,7 @@ app.add_typer(external_app, name="external")
 analyze_app.add_typer(correlation_app, name="correlation")
 analyze_app.add_typer(quality_app, name="quality")
 analyze_app.add_typer(stage_discharge_app, name="stage-discharge")
+analyze_app.add_typer(section_profiles_app, name="section-profiles")
 
 
 def _load_validated_config(config: str | Path) -> Path:

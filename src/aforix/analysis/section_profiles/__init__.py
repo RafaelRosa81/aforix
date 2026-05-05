@@ -1,0 +1,1 @@
+"""Section profile visualization analysis."""

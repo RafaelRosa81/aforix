@@ -56,7 +56,7 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "ranges",
     },
     "export": {"tables", "excel", "input_dir", "output_dir"},
-    "analysis": {"correlation", "quality_metrics", "stage_discharge"},
+    "analysis": {"correlation", "quality_metrics", "stage_discharge", "section_profiles"},
     "external_sources": {"model", "dinagua", "manual_stage"},
 }
 
