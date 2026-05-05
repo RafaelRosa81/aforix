@@ -58,7 +58,10 @@ def _apply_cli_overrides(
     sel = cfg.setdefault("selection", {})
 
     if instruments is not None:
-        sel["instruments"] = _parse_csv(instruments)
+        sel["instruments"] = _normalize_instruments(
+            _parse_csv(instruments),
+            cfg.get("instruments", {}),
+        )
     if points is not None:
         sel["points"] = [_normalize_point(p) for p in _parse_csv(points)]
     if start_date is not None:
@@ -73,6 +76,20 @@ def _apply_cli_overrides(
         defaults["y_axis"] = y_axis
     if chart_type is not None:
         defaults["chart_type"] = chart_type
+
+
+def _normalize_instruments(values: list[str], instruments_cfg: dict) -> list[str]:
+    code_map = {}
+    for name, item in instruments_cfg.items():
+        code = str(item.get("code", name)).upper()
+        code_map[code] = name
+        code_map[name.lower()] = name
+
+    out = []
+    for value in values:
+        key = value.strip()
+        out.append(code_map.get(key.upper()) or code_map.get(key.lower()) or key.lower())
+    return out
 
 
 def _parse_csv(v: str | None) -> list[str]:
