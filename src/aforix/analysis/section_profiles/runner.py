@@ -17,6 +17,7 @@ from aforix.analysis.section_profiles.naming import (
     make_run_dir,
     make_output_name,
     make_sheet_name,
+    unique_sheet_name,
 )
 from aforix.analysis.section_profiles.excel import write_excel
 
@@ -34,12 +35,10 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
     y_axis = cfg.get('defaults', {}).get('y_axis', 'depth_m')
     chart_type = cfg.get('defaults', {}).get('chart_type', 'scatter')
 
-    # load data
     df = load_points_by_instrument(normalized_root, instruments_cfg)
     if df.empty:
         return make_run_dir(output_root)
 
-    # filters
     inst_sel = selection.get('instruments')
     inst_set = set(inst_sel) if isinstance(inst_sel, list) else None
     df = filter_instruments(df, inst_set)
@@ -50,7 +49,6 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
 
     df = filter_date_range(df, selection.get('start_date'), selection.get('end_date'))
 
-    # validation: ensure requested columns exist
     available_cols = set(df.columns)
     if x_axis not in available_cols:
         raise ValueError(f"Column '{x_axis}' is not available. Available columns: {sorted(available_cols)}")
@@ -66,14 +64,16 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
     available = [c for c in group_cols if c in df.columns]
 
     sheets = []
-    for _, g in df.groupby(available):
+    used_sheet_names: set[str] = set()
+    for _, g in df.groupby(available, dropna=False):
         g2 = g.copy()
 
         row0 = g2.iloc[0].to_dict()
-        sheet_name = make_sheet_name(
+        base_sheet_name = make_sheet_name(
             row0,
             cfg.get('excel', {}).get('sheet_name_template', '{station_id}_{measurement_date}_{instrument_code}')
         )
+        sheet_name = unique_sheet_name(base_sheet_name, used_sheet_names)
 
         summary = {
             'x_axis': x_axis,
