@@ -19,22 +19,18 @@ def write_excel(
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # First write tables with pandas
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
         for sh in sheets:
             name = sh['sheet_name']
             df = sh['data']
             summary = sh['summary']
 
-            # write summary
             sum_df = pd.DataFrame(list(summary.items()), columns=['item', 'value'])
             sum_df.to_excel(writer, sheet_name=name, index=False, startrow=0)
 
-            # write data below
             start_row = len(sum_df) + 2
             df.to_excel(writer, sheet_name=name, index=False, startrow=start_row)
 
-    # Then add charts with openpyxl
     wb = load_workbook(output_path)
 
     for sh in sheets:
@@ -44,11 +40,12 @@ def write_excel(
         if df.empty:
             continue
 
-        # locate data range
+        # FIX: ensure only one chart per sheet
+        ws._charts = []
+
         start_row = len(sh['summary']) + 3
         end_row = start_row + len(df) - 1
 
-        # find column indices
         headers = list(df.columns)
         if x_axis not in headers or y_axis not in headers:
             continue
