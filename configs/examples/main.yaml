@@ -223,6 +223,69 @@ analysis:
         columns:
           weight_column: percent_q
 
+  section_profiles:
+    enabled: true
+
+    input_dirs:
+      normalized_root: database/normalized
+
+    output:
+      run_output_root: runs/analysis_section_profiles
+      stable_output_dir: database/analysis/section_profiles
+      write_stable_copy: false
+
+    selection:
+      points: all
+      instruments: all
+      start_date: null
+      end_date: null
+
+    defaults:
+      x_axis: distance_m
+      y_axis: depth_m
+      chart_type: scatter
+
+    allowed:
+      x_columns:
+        - distance_m
+        - point_index
+        - station_id
+      y_columns:
+        - depth_m
+        - velocity_mean_m_s
+        - area_m2
+        - q_m3s
+        - q_ls
+        - percent_q
+        - temperature_c
+      chart_types:
+        - scatter
+        - bar
+
+    instruments:
+      nivus:
+        enabled: true
+        code: NV
+        points_table: nivus/Points
+
+      flowtracker:
+        enabled: true
+        code: FT
+        points_table: flowtracker/Points
+
+      molinete:
+        enabled: true
+        code: ML
+        points_table: molinete/Points
+
+    excel:
+      enabled: true
+      include_summary: true
+      include_chart: true
+      chart_anchor: H2
+      sheet_name_template: "{station_id}_{measurement_date}_{instrument_code}"
+      output_name_template: "section_profile_{y_axis}_by_{x_axis}_{instrument_tag}_{points_tag}_{date_range}.xlsx"
+
   stage_discharge:
     enabled: true
 
