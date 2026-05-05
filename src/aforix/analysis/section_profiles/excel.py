@@ -6,6 +6,7 @@ from typing import Dict, Any
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.chart import ScatterChart, BarChart, Reference, Series
+from openpyxl.styles import Font
 
 
 def write_excel(
@@ -18,8 +19,16 @@ def write_excel(
     excel_cfg: Dict[str, Any] | None = None,
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    excel_cfg = excel_cfg or {}
 
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        if excel_cfg.get('include_readme', True):
+            _readme_table(output_path, x_axis=x_axis, y_axis=y_axis, chart_type=chart_type).to_excel(
+                writer, sheet_name='README', index=False
+            )
+        if excel_cfg.get('include_index', True):
+            _index_table(sheets).to_excel(writer, sheet_name='Index', index=False)
+
         for sh in sheets:
             name = sh['sheet_name']
             df = sh['data']
@@ -33,6 +42,9 @@ def write_excel(
 
     wb = load_workbook(output_path)
 
+    for ws in wb.worksheets:
+        _format_sheet(ws)
+
     for sh in sheets:
         ws = wb[sh['sheet_name']]
         df = sh['data']
@@ -40,7 +52,6 @@ def write_excel(
         if df.empty:
             continue
 
-        # FIX: ensure only one chart per sheet
         ws._charts = []
 
         start_row = len(sh['summary']) + 3
@@ -69,8 +80,55 @@ def write_excel(
         chart.x_axis.title = x_axis
         chart.y_axis.title = y_axis
 
-        anchor = (excel_cfg or {}).get('chart_anchor', 'H2')
+        anchor = excel_cfg.get('chart_anchor', 'H2')
         ws.add_chart(chart, anchor)
 
     wb.save(output_path)
     return output_path
+
+
+def _readme_table(output_path: Path, *, x_axis: str, y_axis: str, chart_type: str) -> pd.DataFrame:
+    rows = [
+        {'item': 'report', 'value': 'Section profiles analysis'},
+        {'item': 'output_file', 'value': str(output_path)},
+        {'item': 'source', 'value': 'database/normalized/{instrument}/Points/*.csv'},
+        {'item': 'x_axis', 'value': x_axis},
+        {'item': 'y_axis', 'value': y_axis},
+        {'item': 'chart_type', 'value': chart_type},
+        {'item': 'structure', 'value': 'One worksheet per measurement plus README and Index sheets.'},
+        {'item': 'charts', 'value': 'Native Excel charts generated with openpyxl.'},
+    ]
+    return pd.DataFrame(rows)
+
+
+def _index_table(sheets: list[dict]) -> pd.DataFrame:
+    rows = []
+    for sh in sheets:
+        summary = sh.get('summary', {})
+        rows.append(
+            {
+                'sheet_name': sh.get('sheet_name'),
+                'station_id': summary.get('station_id'),
+                'measurement_date': summary.get('measurement_date'),
+                'measurement_time': summary.get('measurement_time'),
+                'instrument': summary.get('instrument'),
+                'instrument_code': summary.get('instrument_code'),
+                'n_rows': summary.get('n_rows'),
+                'source_file': summary.get('source_file'),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _format_sheet(ws) -> None:
+    ws.freeze_panes = 'A2'
+    if ws.max_row >= 1:
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+    for column_cells in ws.columns:
+        max_len = 0
+        col_letter = column_cells[0].column_letter
+        for cell in column_cells[:250]:
+            value = '' if cell.value is None else str(cell.value)
+            max_len = max(max_len, len(value))
+        ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 55)

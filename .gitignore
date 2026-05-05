@@ -30,4 +30,13 @@ database/
 #Archivos
 crear_carpetas.py
 tree_aforix.txt
-donde_me_quedo.txt 
+donde_me_quedo.txt
+# seguridad extra
+runs/**
+data/**
+database/**
+
+# por si acaso
+*.csv
+*.xlsx
+*.parquet 

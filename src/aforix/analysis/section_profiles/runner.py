@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any, Iterable
+from typing import Dict, Any
 
 import pandas as pd
 
@@ -37,42 +37,43 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
     # load data
     df = load_points_by_instrument(normalized_root, instruments_cfg)
     if df.empty:
-        out_dir = make_run_dir(output_root)
-        return out_dir
+        return make_run_dir(output_root)
 
     # filters
     inst_sel = selection.get('instruments')
-    if isinstance(inst_sel, list):
-        inst_set = set(inst_sel)
-    else:
-        inst_set = None
+    inst_set = set(inst_sel) if isinstance(inst_sel, list) else None
     df = filter_instruments(df, inst_set)
 
     pts_sel = selection.get('points')
-    if isinstance(pts_sel, list):
-        pts_set = set(pts_sel)
-    else:
-        pts_set = None
+    pts_set = set(pts_sel) if isinstance(pts_sel, list) else None
     df = filter_points(df, pts_set)
 
     df = filter_date_range(df, selection.get('start_date'), selection.get('end_date'))
+
+    # validation: ensure requested columns exist
+    available_cols = set(df.columns)
+    if x_axis not in available_cols:
+        raise ValueError(f"Column '{x_axis}' is not available. Available columns: {sorted(available_cols)}")
+    if y_axis not in available_cols:
+        raise ValueError(f"Column '{y_axis}' is not available. Available columns: {sorted(available_cols)}")
+
     df = ensure_columns(df, x_axis, y_axis)
 
     if df.empty:
-        out_dir = make_run_dir(output_root)
-        return out_dir
+        return make_run_dir(output_root)
 
-    # group per measurement
     group_cols = ['station_id', 'measurement_date', 'measurement_time', 'instrument', 'instrument_code']
     available = [c for c in group_cols if c in df.columns]
 
     sheets = []
     for _, g in df.groupby(available):
         g2 = g.copy()
-        # do not force sorting; preserve input order
 
         row0 = g2.iloc[0].to_dict()
-        sheet_name = make_sheet_name(row0, cfg.get('excel', {}).get('sheet_name_template', '{station_id}_{measurement_date}_{instrument_code}'))
+        sheet_name = make_sheet_name(
+            row0,
+            cfg.get('excel', {}).get('sheet_name_template', '{station_id}_{measurement_date}_{instrument_code}')
+        )
 
         summary = {
             'x_axis': x_axis,
@@ -84,13 +85,10 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
             'instrument_code': row0.get('instrument_code'),
             'chart_type': chart_type,
             'source_file': row0.get('normalized_source_table'),
+            'n_rows': len(g2),
         }
 
-        sheets.append({
-            'sheet_name': sheet_name,
-            'data': g2,
-            'summary': summary,
-        })
+        sheets.append({'sheet_name': sheet_name, 'data': g2, 'summary': summary})
 
     out_dir = make_run_dir(output_root)
 
