@@ -22,7 +22,10 @@ def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     code_to_name = _instrument_code_map(instruments_cfg)
     available_names = sorted(str(v) for v in df.get("instrument", pd.Series(dtype=str)).dropna().unique())
     available_codes = [_instrument_name_to_code(name, instruments_cfg) for name in available_names]
-    available_points = sorted(str(v) for v in df.get("station_id", pd.Series(dtype=str)).dropna().unique(), key=_point_sort_key)
+    available_points = sorted(
+        (str(v) for v in df.get("station_id", pd.Series(dtype=str)).dropna().unique()),
+        key=_point_sort_key,
+    )
     available_dates = pd.to_datetime(df.get("measurement_date", pd.Series(dtype=str)), errors="coerce").dropna()
 
     typer.echo("Interactive section profiles mode")
