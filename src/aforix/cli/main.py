@@ -13,6 +13,7 @@ from aforix.filters.groups import run as run_filter_groups
 from aforix.export.excel import run as run_export_excel
 from aforix.database.consolidate import consolidate_flowtracker_run
 from aforix.export.tables.cli import main as export_tables_main
+from aforix.export.sih.cli import main as export_sih_main
 from aforix.normalize.run import normalize_database
 from aforix.validation.run import run_validation
 
@@ -187,6 +188,38 @@ def export_tables(
         argv.append("--interactive")
 
     export_tables_main(argv)
+
+
+@export_app.command("sih")
+def export_sih(
+    config: str = typer.Option(..., "--config", "-c", help="Path to main YAML config"),
+    sih_config: str = typer.Option(
+        "configs/sih/sih.yaml",
+        "--sih-config",
+        help="Path to SIH module YAML config",
+    ),
+    selection_file: str | None = typer.Option(
+        None,
+        "--selection-file",
+        help="CSV file listing station/date/time/instrument rows to export",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Run interactive SIH export mode",
+    ),
+):
+    """Export Aforix measurements to SIH CSV format."""
+
+    config_path = _load_validated_config(config)
+
+    argv = ["-c", str(config_path), "--sih-config", sih_config]
+    if selection_file:
+        argv.extend(["--selection-file", selection_file])
+    if interactive:
+        argv.append("--interactive")
+
+    export_sih_main(argv)
 
 
 @consolidate_app.command("flowtracker")
