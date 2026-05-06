@@ -172,6 +172,10 @@ Responsabilidades:
 - permitir selección de tablas, instrumentos, puntos, fechas y parámetros;
 - exportar a formatos como Excel o CSV.
 
+Submódulos relevantes:
+
+- `export/sih`: exportación configurable SIH usando normalized, raw canonical y lookups (`docs/SIH_EXPORT.md`).
+
 ### analysis
 
 Contiene análisis hidrológicos o estadísticos posteriores.
@@ -273,7 +277,8 @@ Componentes disponibles:
 - construcción de `database/raw_canonical/`;
 - normalización mediante registry YAML;
 - validación de datasets normalizados;
-- exportación de tablas.
+- exportación de tablas;
+- exportación SIH configurable.
 
 Componentes pendientes o en evolución:
 
