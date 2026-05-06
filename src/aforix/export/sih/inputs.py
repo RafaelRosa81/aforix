@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from aforix.export.sih.io import read_csv_robust
+
 
 REQUIRED_SELECTION_COLUMNS = {
     "station_id",
@@ -26,12 +28,13 @@ class DuplicateMeasurementError(ValueError):
     pass
 
 
+
 def load_selection_file(path: str | Path) -> pd.DataFrame:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Selection file not found: {p}")
 
-    df = pd.read_csv(p, dtype=str).fillna("")
+    df = read_csv_robust(p, dtype=str, fillna_value="")
 
     missing = REQUIRED_SELECTION_COLUMNS - set(df.columns)
     if missing:
@@ -40,6 +43,7 @@ def load_selection_file(path: str | Path) -> pd.DataFrame:
         )
 
     return df
+
 
 
 def _load_summary_csv(root: Path, instrument: str, *, required: bool) -> pd.DataFrame | None:
@@ -51,7 +55,7 @@ def _load_summary_csv(root: Path, instrument: str, *, required: bool) -> pd.Data
 
     for path in candidates:
         if path.exists():
-            df = pd.read_csv(path, dtype=str).fillna("")
+            df = read_csv_robust(path, dtype=str, fillna_value="")
             if "instrument" in df.columns:
                 return df[df["instrument"].astype(str).str.lower() == instrument.lower()].copy()
             return df
@@ -63,18 +67,22 @@ def _load_summary_csv(root: Path, instrument: str, *, required: bool) -> pd.Data
     return None
 
 
+
 def load_normalized_summary(normalized_root: str | Path, instrument: str) -> pd.DataFrame:
     df = _load_summary_csv(Path(normalized_root), instrument, required=True)
     assert df is not None
     return df
 
 
+
 def load_raw_canonical_summary(raw_canonical_root: str | Path, instrument: str) -> pd.DataFrame | None:
     return _load_summary_csv(Path(raw_canonical_root), instrument, required=False)
 
 
+
 def _normalized_date_series(s: pd.Series) -> pd.Series:
     return s.astype(str).str.replace("-", "", regex=False).str.strip()
+
 
 
 def _normalized_time_series(s: pd.Series) -> pd.Series:
@@ -85,6 +93,7 @@ def _normalized_time_series(s: pd.Series) -> pd.Series:
         .str.strip()
         .str[:6]
     )
+
 
 
 def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> pd.Series:
@@ -109,6 +118,7 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
         )
 
     return matches.iloc[0]
+
 
 
 def resolve_optional_measurement(summary_df: pd.DataFrame | None, selection_row: pd.Series) -> pd.Series | None:
