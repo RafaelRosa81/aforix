@@ -26,7 +26,7 @@ from aforix.export.sih.mappings import (
     load_lookup_tables,
     resolve_instrument_lookup_id,
     resolve_instrumentos_rangos_lookup_id,
-    resolve_station_lookup_id,
+    resolve_station_id,
     resolve_tipo_aforo_lookup_id,
 )
 from aforix.export.sih.schema import (
@@ -91,10 +91,9 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
 
             dt = build_measurement_datetime(measurement)
 
-            id_estacion = resolve_station_lookup_id(
+            id_estacion = resolve_station_id(
                 measurement,
                 sih_config,
-                lookup_tables,
             )
 
             id_instrumento = resolve_instrument_lookup_id(
