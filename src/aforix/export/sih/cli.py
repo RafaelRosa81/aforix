@@ -1,6 +1,16 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
+
+from aforix.export.sih.config import (
+    get_default_selection_file,
+    load_sih_config,
+)
+from aforix.export.sih.runner import (
+    SihExportRequest,
+    run_sih_export,
+)
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -17,19 +27,29 @@ def parse_args(argv=None) -> argparse.Namespace:
 def main(argv=None) -> int:
     args = parse_args(argv)
 
+    sih_config = load_sih_config(args.sih_config)
+
+    selection_file = (
+        Path(args.selection_file)
+        if args.selection_file
+        else get_default_selection_file(sih_config)
+    )
+
+    request = SihExportRequest(
+        sih_config_path=Path(args.sih_config),
+        selection_file=selection_file,
+        interactive=args.interactive,
+    )
+
+    result = run_sih_export(request)
+
     print("\nAforix — SIH export")
     print("====================")
-    print(f"Main config: {args.config}")
-    print(f"SIH config: {args.sih_config}")
+    print(f"Output directory: {result.output_dir}")
+    print(f"Generated files: {len(result.exported_files)}")
 
-    if args.selection_file:
-        print(f"Selection file: {args.selection_file}")
-
-    if args.interactive:
-        print("Interactive mode requested")
-
-    print("\n⚠️ SIH export logic not implemented yet.")
-    print("This branch currently consolidates architecture and configuration only.")
+    for path in result.exported_files:
+        print(f" - {path}")
 
     return 0
 
