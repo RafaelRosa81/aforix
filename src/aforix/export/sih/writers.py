@@ -21,3 +21,18 @@ def write_csv(
     df.to_csv(output, index=False, sep=delimiter, encoding=encoding)
 
     return output
+
+
+def write_metadata(
+    rows: list[dict],
+    output_path: str | Path,
+    *,
+    encoding: str = "utf-8-sig",
+) -> Path:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    df = pd.DataFrame(rows)
+    df.to_csv(output, index=False, encoding=encoding)
+
+    return output
