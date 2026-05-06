@@ -33,7 +33,7 @@ from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
     SDH_AFOROS_COLUMNS,
 )
-from aforix.export.sih.writers import write_csv
+from aforix.export.sih.writers import write_csv, write_metadata
 
 
 @dataclass(frozen=True)
@@ -74,108 +74,146 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
     encoding = output_cfg.get("encoding", "utf-8-sig")
 
     exported_files: list[Path] = []
+    metadata_rows: list[dict[str, Any]] = []
 
     for _, row in selection_df.iterrows():
         instrument = str(row["instrument"])
-
-        instrument_cfg = get_instrument_config(sih_config, instrument)
-
-        summary_df = load_normalized_summary(normalized_root, instrument)
-        raw_summary_df = load_raw_canonical_summary(raw_canonical_root, instrument)
-
-        measurement = resolve_measurement(summary_df, row)
-        raw_measurement = resolve_optional_measurement(raw_summary_df, row)
-
-        dt = build_measurement_datetime(measurement)
-
-        id_estacion = resolve_station_lookup_id(
-            measurement,
-            sih_config,
-            lookup_tables,
-        )
-
-        id_instrumento = resolve_instrument_lookup_id(
-            instrument_cfg,
-            sih_config,
-            lookup_tables,
-        )
-
-        id_tipo_aforo = resolve_tipo_aforo_lookup_id(
-            instrument_cfg,
-            sih_config,
-            lookup_tables,
-        )
-
-        id_instrumentos_rangos = resolve_instrumentos_rangos_lookup_id(
-            instrument_cfg,
-            sih_config,
-            lookup_tables,
-        )
-
-        actuaciones_row = build_sdh_actuaciones_row(
-            measurement,
-            instrument_cfg,
-            dt,
-            datetime_format,
-            id_estacion=id_estacion,
-            id_instrumento=id_instrumento,
-            raw_measurement=raw_measurement,
-        )
-
-        aforos_row = build_sdh_aforos_row(
-            measurement,
-            instrument_cfg,
-            dt,
-            datetime_format,
-            id_estacion=id_estacion,
-            id_instrumento=id_instrumento,
-            id_tipo_aforo=id_tipo_aforo,
-            id_instrumentos_rangos=id_instrumentos_rangos,
-            raw_measurement=raw_measurement,
-        )
-
-        station_id = str(measurement.get("station_id", "unknown"))
-        ymd = dt.strftime("%Y%m%d")
-        hms = dt.strftime("%H%M%S")
         export_id = str(row.get("export_id", "EXPORT"))
 
-        actuaciones_name = output_names.get(
-            "actuaciones",
-            "ID_{export_id}_actuacion_{station_id}_{YYYYMMDD}_{HHMMSS}.csv",
-        ).format(
-            export_id=export_id,
-            station_id=station_id,
-            YYYYMMDD=ymd,
-            HHMMSS=hms,
-        )
+        try:
+            instrument_cfg = get_instrument_config(sih_config, instrument)
 
-        aforos_name = output_names.get(
-            "aforos",
-            "ID_{export_id}_aforo_{station_id}_{YYYYMMDD}_{HHMMSS}.csv",
-        ).format(
-            export_id=export_id,
-            station_id=station_id,
-            YYYYMMDD=ymd,
-            HHMMSS=hms,
-        )
+            summary_df = load_normalized_summary(normalized_root, instrument)
+            raw_summary_df = load_raw_canonical_summary(raw_canonical_root, instrument)
 
-        actuaciones_path = write_csv(
-            actuaciones_row,
-            SDH_ACTUACIONES_COLUMNS,
-            output_dir / actuaciones_name,
-            delimiter=delimiter,
-            encoding=encoding,
-        )
+            measurement = resolve_measurement(summary_df, row)
+            raw_measurement = resolve_optional_measurement(raw_summary_df, row)
 
-        aforos_path = write_csv(
-            aforos_row,
-            SDH_AFOROS_COLUMNS,
-            output_dir / aforos_name,
-            delimiter=delimiter,
-            encoding=encoding,
-        )
+            dt = build_measurement_datetime(measurement)
 
-        exported_files.extend([actuaciones_path, aforos_path])
+            id_estacion = resolve_station_lookup_id(
+                measurement,
+                sih_config,
+                lookup_tables,
+            )
+
+            id_instrumento = resolve_instrument_lookup_id(
+                instrument_cfg,
+                sih_config,
+                lookup_tables,
+            )
+
+            id_tipo_aforo = resolve_tipo_aforo_lookup_id(
+                instrument_cfg,
+                sih_config,
+                lookup_tables,
+            )
+
+            id_instrumentos_rangos = resolve_instrumentos_rangos_lookup_id(
+                instrument_cfg,
+                sih_config,
+                lookup_tables,
+            )
+
+            actuaciones_row = build_sdh_actuaciones_row(
+                measurement,
+                instrument_cfg,
+                dt,
+                datetime_format,
+                id_estacion=id_estacion,
+                id_instrumento=id_instrumento,
+                raw_measurement=raw_measurement,
+            )
+
+            aforos_row = build_sdh_aforos_row(
+                measurement,
+                instrument_cfg,
+                dt,
+                datetime_format,
+                id_estacion=id_estacion,
+                id_instrumento=id_instrumento,
+                id_tipo_aforo=id_tipo_aforo,
+                id_instrumentos_rangos=id_instrumentos_rangos,
+                raw_measurement=raw_measurement,
+            )
+
+            station_id = str(measurement.get("station_id", "unknown"))
+            ymd = dt.strftime("%Y%m%d")
+            hms = dt.strftime("%H%M%S")
+
+            actuaciones_name = output_names.get(
+                "actuaciones",
+                "ID_{export_id}_actuacion_{station_id}_{YYYYMMDD}_{HHMMSS}.csv",
+            ).format(
+                export_id=export_id,
+                station_id=station_id,
+                YYYYMMDD=ymd,
+                HHMMSS=hms,
+            )
+
+            aforos_name = output_names.get(
+                "aforos",
+                "ID_{export_id}_aforo_{station_id}_{YYYYMMDD}_{HHMMSS}.csv",
+            ).format(
+                export_id=export_id,
+                station_id=station_id,
+                YYYYMMDD=ymd,
+                HHMMSS=hms,
+            )
+
+            actuaciones_path = write_csv(
+                actuaciones_row,
+                SDH_ACTUACIONES_COLUMNS,
+                output_dir / actuaciones_name,
+                delimiter=delimiter,
+                encoding=encoding,
+            )
+
+            aforos_path = write_csv(
+                aforos_row,
+                SDH_AFOROS_COLUMNS,
+                output_dir / aforos_name,
+                delimiter=delimiter,
+                encoding=encoding,
+            )
+
+            exported_files.extend([actuaciones_path, aforos_path])
+
+            metadata_rows.append(
+                {
+                    "status": "success",
+                    "export_id": export_id,
+                    "instrument": instrument,
+                    "station_id": station_id,
+                    "measurement_date": measurement.get("measurement_date", ""),
+                    "measurement_time": measurement.get("measurement_time", ""),
+                    "normalized_source": "Summary.csv",
+                    "raw_canonical_found": raw_measurement is not None,
+                    "actuaciones_file": str(actuaciones_path),
+                    "aforos_file": str(aforos_path),
+                }
+            )
+
+        except Exception as exc:
+            metadata_rows.append(
+                {
+                    "status": "error",
+                    "export_id": export_id,
+                    "instrument": instrument,
+                    "station_id": row.get("station_id", ""),
+                    "measurement_date": row.get("measurement_date", ""),
+                    "measurement_time": row.get("measurement_time", ""),
+                    "error": str(exc),
+                }
+            )
+
+    metadata_path = write_metadata(
+        metadata_rows,
+        output_dir / "sih_export_metadata.csv",
+        encoding=encoding,
+    )
+
+    exported_files.append(metadata_path)
 
     return SihExportResult(
         output_dir=output_dir,
