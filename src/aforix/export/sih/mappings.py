@@ -159,6 +159,19 @@ def resolve_instrumentos_rangos_lookup_id(
     )
 
 
+def _raw_field(raw_measurement: pd.Series | None, instrument_cfg: dict[str, Any], key: str) -> str:
+    if raw_measurement is None:
+        return ""
+
+    raw_fields = instrument_cfg.get("raw_canonical_fields", {})
+    column = raw_fields.get(key)
+
+    if column in (None, ""):
+        return ""
+
+    return str(raw_measurement.get(column, ""))
+
+
 def build_sdh_actuaciones_row(
     measurement: pd.Series,
     instrument_cfg: dict[str, Any],
@@ -167,18 +180,19 @@ def build_sdh_actuaciones_row(
     *,
     id_estacion: str,
     id_instrumento: str,
+    raw_measurement: pd.Series | None = None,
 ) -> dict[str, Any]:
     return {
         "id": "",
         "id_estacion": id_estacion,
-        "id_operador": "",
+        "id_operador": _raw_field(raw_measurement, instrument_cfg, "id_operador"),
         "id_tipo_actuacion": instrument_cfg.get("id_tipo_actuacion", ""),
         "id_instrumento": id_instrumento,
         "fecha": format_datetime(dt, datetime_format),
         "pendiente": False,
         "relevante": False,
-        "lectura_escala": "",
-        "observaciones": "",
+        "lectura_escala": _raw_field(raw_measurement, instrument_cfg, "lectura_escala"),
+        "observaciones": _raw_field(raw_measurement, instrument_cfg, "observaciones"),
     }
 
 
@@ -192,6 +206,7 @@ def build_sdh_aforos_row(
     id_instrumento: str,
     id_tipo_aforo: str,
     id_instrumentos_rangos: str,
+    raw_measurement: pd.Series | None = None,
 ) -> dict[str, Any]:
     normalized_fields = instrument_cfg.get("normalized_fields", {})
 
@@ -201,12 +216,16 @@ def build_sdh_aforos_row(
             return ""
         return measurement.get(column, "")
 
+    escala_inicio = _raw_field(raw_measurement, instrument_cfg, "escala_inicio")
+    escala_fin = _raw_field(raw_measurement, instrument_cfg, "escala_fin")
+    escala_media = _raw_field(raw_measurement, instrument_cfg, "escala_media")
+
     return {
         "ancho": field("ancho"),
         "caudal": field("caudal"),
-        "escala_fin": "",
-        "escala_inicio": "",
-        "escala_media": "",
+        "escala_fin": escala_fin,
+        "escala_inicio": escala_inicio,
+        "escala_media": escala_media,
         "fecha_fin": format_datetime(dt, datetime_format),
         "fecha_inicio": format_datetime(dt, datetime_format),
         "id": "",
@@ -216,10 +235,10 @@ def build_sdh_aforos_row(
         "id_instrumentos_rangos": id_instrumentos_rangos,
         "id_perfil": "",
         "id_tipo_aforo": id_tipo_aforo,
-        "observaciones": "",
+        "observaciones": _raw_field(raw_measurement, instrument_cfg, "observaciones"),
         "profundidad": field("profundidad"),
         "seccion": field("seccion"),
         "velocidad_media": field("velocidad_media"),
-        "radio_hidraulico": "",
+        "radio_hidraulico": _raw_field(raw_measurement, instrument_cfg, "radio_hidraulico"),
         "nivel_confiabilidad": "",
     }
