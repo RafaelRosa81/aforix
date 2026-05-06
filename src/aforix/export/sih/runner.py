@@ -8,12 +8,15 @@ from aforix.export.sih.config import (
     get_lookup_file_paths,
     get_normalized_input_dir,
     get_output_dir,
+    get_raw_canonical_input_dir,
     load_sih_config,
 )
 from aforix.export.sih.inputs import (
     load_normalized_summary,
+    load_raw_canonical_summary,
     load_selection_file,
     resolve_measurement,
+    resolve_optional_measurement,
 )
 from aforix.export.sih.mappings import (
     build_measurement_datetime,
@@ -53,6 +56,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
     selection_df = load_selection_file(request.selection_file)
 
     normalized_root = get_normalized_input_dir(sih_config)
+    raw_canonical_root = get_raw_canonical_input_dir(sih_config)
     output_dir = get_output_dir(sih_config)
 
     lookup_paths = get_lookup_file_paths(sih_config)
@@ -77,8 +81,10 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
         instrument_cfg = get_instrument_config(sih_config, instrument)
 
         summary_df = load_normalized_summary(normalized_root, instrument)
+        raw_summary_df = load_raw_canonical_summary(raw_canonical_root, instrument)
 
         measurement = resolve_measurement(summary_df, row)
+        raw_measurement = resolve_optional_measurement(raw_summary_df, row)
 
         dt = build_measurement_datetime(measurement)
 
@@ -113,6 +119,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             datetime_format,
             id_estacion=id_estacion,
             id_instrumento=id_instrumento,
+            raw_measurement=raw_measurement,
         )
 
         aforos_row = build_sdh_aforos_row(
@@ -124,6 +131,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             id_instrumento=id_instrumento,
             id_tipo_aforo=id_tipo_aforo,
             id_instrumentos_rangos=id_instrumentos_rangos,
+            raw_measurement=raw_measurement,
         )
 
         station_id = str(measurement.get("station_id", "unknown"))
