@@ -98,6 +98,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
 
             id_instrumento = resolve_instrument_lookup_id(
                 instrument_cfg,
+                raw_measurement,
                 sih_config,
                 lookup_tables,
             )
