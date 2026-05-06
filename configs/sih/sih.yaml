@@ -20,7 +20,6 @@ sih:
       aforos: "ID_{export_id}_aforo_{station_id}_{YYYYMMDD}_{HHMMSS}.csv"
 
   lookup_files:
-    estaciones: configs/sih/estaciones.csv
     instrumentos: configs/sih/instrumentos.csv
     tipos_aforos: configs/sih/tipos_aforos.csv
     instrumentos_rangos: configs/sih/instrumentos_rangos.csv
@@ -52,16 +51,10 @@ sih:
 
   station_mapping:
     source:
+      dataset: normalized
       table: Summary
       column: station_id
-    transform:
-      strip_prefix: "P"
-      as_decimal_string: true
-      decimals: 1
-    lookup:
-      file: estaciones
-      key_column: apodo
-      value_column: id
+    mode: direct
 
   lookup_tables:
     instrumentos:
