@@ -15,21 +15,15 @@ sih:
     output_dir: outputs/sih
     delimiter: ","
     encoding: utf-8-sig
-    # Each selected measurement should generate one pair of files.
-    # station_id, YYYYMMDD and HHMMSS are resolved from normalized measurement metadata.
     output_names:
       actuaciones: "ID_{export_id}_actuacion_{station_id}_{YYYYMMDD}_{HHMMSS}.csv"
       aforos: "ID_{export_id}_aforo_{station_id}_{YYYYMMDD}_{HHMMSS}.csv"
 
-  workbook:
-    path: configs/sih/sih_mapping.xlsx
-    sheets:
-      actuaciones: sdh_actuaciones
-      aforos: sdh_aforos
-      estaciones: estaciones
-      instrumentos: instrumentos
-      tipos_aforos: tipos_aforos
-      instrumentos_rangos: instrumentos_rangos
+  lookup_files:
+    estaciones: configs/sih/estaciones.csv
+    instrumentos: configs/sih/instrumentos.csv
+    tipos_aforos: configs/sih/tipos_aforos.csv
+    instrumentos_rangos: configs/sih/instrumentos_rangos.csv
 
   datetime:
     source_date_column: measurement_date
@@ -39,7 +33,6 @@ sih:
     filename_time_format: "%H%M%S"
 
   selection:
-    # Supports CLI lists, interactive selection, or an external batch selection file.
     default_mode: batch_file
     batch_file:
       enabled: true
@@ -66,21 +59,21 @@ sih:
       as_decimal_string: true
       decimals: 1
     lookup:
-      sheet: estaciones
+      file: estaciones
       key_column: apodo
       value_column: id
 
   lookup_tables:
     instrumentos:
-      sheet: instrumentos
+      file: instrumentos
       key_column: codigo
       value_column: id
     tipos_aforos:
-      sheet: tipos_aforos
+      file: tipos_aforos
       key_column: descripcion
       value_column: id
     instrumentos_rangos:
-      sheet: instrumentos_rangos
+      file: instrumentos_rangos
       key_column: descripcion
       value_column: id
 
@@ -91,8 +84,8 @@ sih:
       normalized_name: flowtracker
       id_instrumento: 501
       id_tipo_actuacion: 4
-      id_tipo_aforo: null
-      id_instrumentos_rangos: null
+      tipo_aforo_lookup: null
+      instrumentos_rangos_lookup: null
 
       raw_canonical_fields:
         id_operador: operators
@@ -126,8 +119,8 @@ sih:
       normalized_name: molinete
       id_instrumento: null
       id_tipo_actuacion: 4
-      id_tipo_aforo: null
-      id_instrumentos_rangos: null
+      tipo_aforo_lookup: null
+      instrumentos_rangos_lookup: null
 
       raw_canonical_fields:
         id_operador: realizado
@@ -161,8 +154,8 @@ sih:
       normalized_name: nivus
       id_instrumento: 502
       id_tipo_actuacion: 4
-      id_tipo_aforo: null
-      id_instrumentos_rangos: null
+      tipo_aforo_lookup: null
+      instrumentos_rangos_lookup: null
 
       raw_canonical_fields:
         id_operador: null
@@ -203,8 +196,8 @@ sih:
       normalized_name: m9
       id_instrumento: null
       id_tipo_actuacion: null
-      id_tipo_aforo: null
-      id_instrumentos_rangos: null
+      tipo_aforo_lookup: null
+      instrumentos_rangos_lookup: null
       raw_canonical_fields: {}
       normalized_fields: {}
       quality:
