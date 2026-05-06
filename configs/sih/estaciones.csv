@@ -1,4 +1,243 @@
 id,apodo,nombreestacion
-145,11.0,Estacion_P11
-146,8.0,Estacion_P8
-147,1.0,Estacion_P1
+7008,7008,chamizo
+7011,7011,pintado_berrondo
+7012,7012,santa_lucia_chico_R6
+7013,7013,casupa_R40
+7014,7014,soldado_chanchos
+10,1.0,Villa Soriano
+20,2.0,Mercedes (Puerto)
+21,2.1,Mercedes - Prefectura
+22,2.2,Mercedes (Puente R.2)
+30,3.0,Paso Palmar
+40,4.0,Paso Porrúa
+50,5.0,Paso de los Toros
+51,5.1,Paso de los Toros
+60,6.0,San Gregorio de Polanco
+70,7.0,Paso Ramírez
+71,7.1,Perfil Sarandí
+72,7.2,AFE km 329
+80,8.0,Paso Pereira
+90,9.0,Paso Laguna
+91,9.1,Paso Laguna
+100,10.0,Puente Ruta 8 (Vieja)
+101,10.1,Treinta y Tres (R.8)
+110,11.0,Paso de la Laguna
+120,12.0,Villa Passano
+130,13.0,La Charqueada
+140,14.0,Picada de Corbo
+150,15.0,Paso Averías
+160,16.0,Puerto Rosario
+170,17.0,Río Branco
+171,17.1,Puente Mauá
+180,18.0,Dolores
+190,19.0,Carmelo - Atracadero
+191,19.1,Carmelo - Varadero
+192,19.2,Carmelo - Muelle Cacciola
+200,20.0,San José Pte. R-11
+210,21.0,Cañada Grande
+211,21.1,Puerto Flores
+220,22.0,Pando Pte. FFCC
+221,22.1, Pando   Presa Niveladora
+230,23.0,San Ramón
+240,24.0,Santiago Vázquez
+250,25.0,Paso Barrancas
+260,26.0,Sub-receptoria
+270,27.0,Propulsora Forestal
+271,27.1,Laguna Negra
+272,27.2,Estancia Asturias
+280,28.0,Bella Unión
+290,29.0,Constitución
+291,29.1,Constitución
+300,30.0,Salto
+310,31.0,Paysandú
+320,32.0,Nuevo Berlín
+330,33.0,Fray Bentos
+331,33.1,Bocas del Yaguarí
+360,36.0,Punta San Luis
+380,38.0,Nueva Palmira
+420,42.0,Picada de Almeida
+430,43.0,Paso de la Laguna
+431,43.1,Termas del Arapey
+440,44.0,Fray Marcos
+450,45.0,Lag. del Sauce (vertedero)
+451,45.1,Ao. Potrero
+460,46.0,San Carlos - Perfil Presa
+461,46.1,San Carlos - Puente Ruta 9
+470,47.0,Rincón del Bonete (ag. arr.)
+471,47.1,Rincón del Bonete (ag. abajo)
+480,48.0,Salto del Cololó
+490,49.0,Paso Yapeyú
+500,50.0,Paso Cerro Cardozo
+510,51.0,Paso Manuel Díaz
+511,51.1,Paso Manuel Díaz
+520,52.0,Paso del Borracho
+530,53.0,Florida - Piedra Alta
+531,53.1,Florida - Puente R.5
+532,53.2,Usina de Bombeo (OSE)
+540,54.0,Paso del Bote
+550,55.0,Picada de Coelho
+551,55.1,Picada de Coelho
+560,56.0,Polanco del Yí
+570,57.0,Sarandí del Yí
+580,58.0,Paso Barrancas
+590,59.0,Paso Pache (R.5 Vieja)
+591,59.1,Paso Pache (R.5 Nueva)
+600,60.0,Paso de la Lana
+610,61.0,Po. de la Compañía
+620,62.0,Po.de los Mellizos (Puente R3)
+630,63.0,La Coronilla
+640,64.0,Paso Mazangano
+650,65.0,Paso Aguiar (vieja)
+651,65.1,Paso Aguiar
+660,66.0,Paso de las Toscas
+670,67.0,Barra Laguna Garzón
+671,67.1,Laguna Garzón
+680,68.0,La Virazón
+690,69.0,José Ignacio (R-10)
+700,70.0,Arrospide
+701,70.1,Arrospide
+710,71.0,Pan de Azucar Pte. R-9
+720,72.0,Paso de los Carros
+730,73.0,San José (OSE)
+731,73.1,San José - Presa Usina OSE
+740,74.0,Usina de Bombeo Rocha
+750,75.0,Ao. Rocha-Est. de Depuración
+760,76.0,Ao. Rocha - Puente R.9
+761,76.1,Paso de la Estiba
+770,77.0,Presa Canelón Grande
+780,78.0,Paso del Puerto
+790,79.0,Paso Calatayud
+791,79.1,Paso Calatayud
+800,80.0,25 de Agosto
+801,80.1,Aguas Corrientes
+820,82.0,Paso Andrés Pérez
+830,83.0,Punta del Este
+840,84.0,Artigas - Usina de Bombeo (OSE)
+841,84.1,Artigas - Puente Concordia
+850,85.0,Artigas - Est. de Depuración
+860,86.0,Artigas - Puerto Central
+870,87.0,Paso Asencio
+880,88.0,Paso Casildo
+890,89.0,Paso Carpintería
+900,90.0,La Paloma
+901,90.1,La Paloma (Puerto Viejo)
+920,92.0,Puerto Colonia
+921,92.1,Puerto Colonia viejo
+930,93.0,Perfil Presa
+940,94.0,Aº. Gutierrez Pte. R-8
+950,95.0,Retamosa
+960,96.0,Paso Borches
+970,97.0,Paso Dragón
+980,98.0,Lago Merín
+990,99.0,Zaglia
+1000,100.0,Paso Centurión
+1010,101.0,Rincón del Marco
+1020,102.0,Paso de los Novillos
+1030,103.0,Picada del Médico
+1050,105.0,Laureles
+1060,106.0,Paso Tranqueras
+1070,107.0,Paso de las Piedras
+1080,108.0,Velázquez
+1090,109.0,Vergara
+1100,110.0,San Luis
+1110,111.0,Ao. I. Muerta - Paso Tranqueras
+1111,111.1,Ao. I. Muerta - Puente R.13
+1120,112.0,La Cantera
+1130,113.0,Piriápolis
+1140,114.0,Buceo
+1150,115.0,Picada de Varela
+1160,116.0,Paso Valdés
+1170,117.0,Paso Roldán
+1180,118.0,25 de Agosto
+1190,119.0,Paso de los Troncos
+1200,120.0,Ao. Mosquitos
+1210,121.0,Pte. Ruta 9 Vieja
+1220,122.0,Tacuarembó(Paso del Bote)
+1221,122.1,Tacuarembó (Pte. R-5)
+1222,122.2,Paso del Bote (UTE)
+1230,123.0,Paso Baltasar
+1240,124.0,Paso de Lugo
+1250,125.0,Durazno (Puente FF.CC.)
+1251,125.1,Durazno (Pte. Carretero viejo)
+1252,125.2,Durazno (Ruta 5)
+1260,126.0,La Catumbera
+1270,127.0,Cerro de la Bolsa
+1280,128.0,Paso del Avestruz
+1290,129.0,San Miguel
+1300,130.0,Juan Lacaze
+1310,131.0,Montevideo
+1311,131.1,Montevideo (SOHMA)
+1312,131.2,Punta Lobos (SOHMA)
+1330,133.0,Santa Lucia R-11
+1340,134.0,Puente Ruta 1
+1350,135.0,Paso Antolín
+1351,135.1,Paso Antolín (Nuevo)
+1360,136.0,Melo
+1370,137.0,Usina Laguna del Sauce
+1380,138.0,Ao. San Francisco - Ruta 8
+1381,138.1,Ao. San Francisco - Presa
+1390,139.0,Las Brujas
+1400,140.0,Dayman Pte. R-3
+1410,141.0,Queguay Pte. R-3
+1420,142.0,Po. de las Piedras (Puente R3)
+1421,142.1,Ao. Don Esteban - R.3
+1430,143.0,Belén
+1440,144.0,Los Ajos
+1450,145.0,Paso de las Piedras
+1470,147.0,Isla de Lobos
+1480,148.0,Paso de los Cunha
+1490,149.0,Canal Andreoni Pte. R-9 vieja
+1491,149.1,Canal Andreoni
+1500,150.0,Las Salinas (puente)
+1501,150.1,Las Salinas
+1510,151.0,Paso Severino - RJ 15
+1511,151.1,Presa Paso Severino
+1520,152.0,Est. Meteorológica I
+1521,152.1,Estación Meteorológica II
+1522,152.2,Laguna Negra (Compuertas)
+1530,153.0,Barra del Aº Maldonado
+1540,154.0,Paso Rogerio
+1550,155.0,Javier de Viana
+1560,156.0,Rincón del Cololó
+1570,157.0,San Gregorio
+1580,158.0,Arapey Gr. Pte. R-3
+1590,159.0,Itapebí Pte.R-3
+1610,161.0,Embalse Salto Grande
+1620,162.0,Salto Grande (A. Abajo)
+1630,163.0,Bequeló R-14 (Pte. viejo)
+1640,164.0,Cololó Pte. R-14
+1650,165.0,Las Maulas Pte. R-95
+1660,166.0,Paso del Cerro
+1670,167.0,Fraile Muerto (Puente R.7)
+1680,168.0,Puerto Aldao
+1690,169.0,Salsipuedes Estancia  R-20
+1700,170.0,Colonia A. Montaño
+1710,171.0,Biasssini - Pte. R-4
+1720,172.0,Paso del Puerto Pte. R-3
+1730,173.0,Arapey Ch. Pte R-4
+1740,174.0,Maldonado Pte. R-9
+1750,175.0,Paso de la Cruz
+1760,176.0,Picada Benítez
+1761,176.1,Picada Benítez
+1770,177.0,Canal Lag. Negra Pte. R-14
+1780,178.0,Paso Ramos
+1790,179.0,Conchillas
+1800,180.0,Paso Farías
+1810,181.0,Paso del Molino
+1811,181.1,Calzada Fanaesa
+1820,182.0,Dársena Higueritas
+1830,183.0,Lag. del Diario (R-10)
+1840,184.0,Náutico Concordia
+1850,185.0,Laguna Castillos
+1860,186.0,Represa India Muerta
+1870,187.0,Represa Los Chanchos
+1880,188.0,Embarcadero Riachuelo
+1890,189.0,Pantanoso Pte. L.Batlle Berres
+1900,190.0,Vertedero Agraciada
+1910,191.0,Barra del Chuy
+1920,192.0,Picada de Gambeta
+1940,194.0,Paso Melgarejo
+1950,195.0,Paso Tiraponchos
+1970,197.0,Peaje Pando
+1980,198.0,La Floresta
+1990,199.0,Peaje Solís

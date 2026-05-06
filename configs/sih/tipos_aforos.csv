@@ -1,4 +1,6 @@
 id,descripcion
-1,Vadeo
-2,Acustico
-3,ADCP
+1, LIQUIDO
+59,BOTE
+60,SOLIDO
+57,VADEO
+58,PUENTE
