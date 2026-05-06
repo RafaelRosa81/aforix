@@ -49,29 +49,49 @@ def load_lookup_tables(lookup_paths: dict[str, Any]) -> dict[str, pd.DataFrame]:
     }
 
 
+def _lookup_value(
+    lookup_tables: dict[str, pd.DataFrame],
+    *,
+    table_name: str,
+    key_column: str,
+    value_column: str,
+    key: str,
+    label: str,
+    required: bool = True,
+) -> str:
+    if key in (None, ""):
+        if required:
+            raise ValueError(f"Missing lookup key for {label}")
+        return ""
+
+    lookup_df = lookup_tables[table_name]
+    matches = lookup_df[lookup_df[key_column].astype(str) == str(key)]
+
+    if matches.empty:
+        if required:
+            raise ValueError(f"Lookup failed for {label}: key={key}")
+        return ""
+
+    return str(matches.iloc[0][value_column])
+
+
 def resolve_station_lookup_id(
     measurement: pd.Series,
     sih_config: dict[str, Any],
     lookup_tables: dict[str, pd.DataFrame],
 ) -> str:
     station_lookup = sih_config["sih"]["station_mapping"]["lookup"]
-
-    table_name = station_lookup["file"]
-    key_column = station_lookup["key_column"]
-    value_column = station_lookup["value_column"]
-
-    lookup_df = lookup_tables[table_name]
-
     lookup_key = station_id_to_lookup_key(measurement.get("station_id", ""))
 
-    matches = lookup_df[lookup_df[key_column].astype(str) == lookup_key]
-
-    if matches.empty:
-        raise ValueError(
-            f"Station lookup failed for station_id={measurement.get('station_id')} -> key={lookup_key}"
-        )
-
-    return str(matches.iloc[0][value_column])
+    return _lookup_value(
+        lookup_tables,
+        table_name=station_lookup["file"],
+        key_column=station_lookup["key_column"],
+        value_column=station_lookup["value_column"],
+        key=lookup_key,
+        label=f"station_id={measurement.get('station_id')} -> {lookup_key}",
+        required=True,
+    )
 
 
 def resolve_instrument_lookup_id(
@@ -80,23 +100,63 @@ def resolve_instrument_lookup_id(
     lookup_tables: dict[str, pd.DataFrame],
 ) -> str:
     lookup_cfg = sih_config["sih"]["lookup_tables"]["instrumentos"]
-
-    table_name = lookup_cfg["file"]
-    key_column = lookup_cfg["key_column"]
-    value_column = lookup_cfg["value_column"]
-
-    lookup_df = lookup_tables[table_name]
-
     instrument_code = instrument_cfg.get("aforix_code", "")
 
-    matches = lookup_df[lookup_df[key_column].astype(str) == instrument_code]
+    return _lookup_value(
+        lookup_tables,
+        table_name=lookup_cfg["file"],
+        key_column=lookup_cfg["key_column"],
+        value_column=lookup_cfg["value_column"],
+        key=instrument_code,
+        label=f"instrument code={instrument_code}",
+        required=True,
+    )
 
-    if matches.empty:
-        raise ValueError(
-            f"Instrument lookup failed for instrument code={instrument_code}"
-        )
 
-    return str(matches.iloc[0][value_column])
+def resolve_tipo_aforo_lookup_id(
+    instrument_cfg: dict[str, Any],
+    sih_config: dict[str, Any],
+    lookup_tables: dict[str, pd.DataFrame],
+) -> str:
+    direct_value = instrument_cfg.get("id_tipo_aforo")
+    if direct_value not in (None, ""):
+        return str(direct_value)
+
+    lookup_key = instrument_cfg.get("tipo_aforo_lookup")
+    lookup_cfg = sih_config["sih"]["lookup_tables"]["tipos_aforos"]
+
+    return _lookup_value(
+        lookup_tables,
+        table_name=lookup_cfg["file"],
+        key_column=lookup_cfg["key_column"],
+        value_column=lookup_cfg["value_column"],
+        key=lookup_key,
+        label=f"tipo_aforo={lookup_key}",
+        required=False,
+    )
+
+
+def resolve_instrumentos_rangos_lookup_id(
+    instrument_cfg: dict[str, Any],
+    sih_config: dict[str, Any],
+    lookup_tables: dict[str, pd.DataFrame],
+) -> str:
+    direct_value = instrument_cfg.get("id_instrumentos_rangos")
+    if direct_value not in (None, ""):
+        return str(direct_value)
+
+    lookup_key = instrument_cfg.get("instrumentos_rangos_lookup")
+    lookup_cfg = sih_config["sih"]["lookup_tables"]["instrumentos_rangos"]
+
+    return _lookup_value(
+        lookup_tables,
+        table_name=lookup_cfg["file"],
+        key_column=lookup_cfg["key_column"],
+        value_column=lookup_cfg["value_column"],
+        key=lookup_key,
+        label=f"instrumentos_rangos={lookup_key}",
+        required=False,
+    )
 
 
 def build_sdh_actuaciones_row(
@@ -130,6 +190,8 @@ def build_sdh_aforos_row(
     *,
     id_estacion: str,
     id_instrumento: str,
+    id_tipo_aforo: str,
+    id_instrumentos_rangos: str,
 ) -> dict[str, Any]:
     normalized_fields = instrument_cfg.get("normalized_fields", {})
 
@@ -151,9 +213,9 @@ def build_sdh_aforos_row(
         "id_actuacion": "",
         "id_estacion": id_estacion,
         "id_instrumento": id_instrumento,
-        "id_instrumentos_rangos": instrument_cfg.get("id_instrumentos_rangos", ""),
+        "id_instrumentos_rangos": id_instrumentos_rangos,
         "id_perfil": "",
-        "id_tipo_aforo": instrument_cfg.get("id_tipo_aforo", ""),
+        "id_tipo_aforo": id_tipo_aforo,
         "observaciones": "",
         "profundidad": field("profundidad"),
         "seccion": field("seccion"),
