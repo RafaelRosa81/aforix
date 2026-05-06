@@ -1,0 +1,4 @@
+station_id,measurement_date,measurement_time,instrument,export_id
+P1,20251201,103000,flowtracker,EXP001
+P8,20251215,124600,nivus,EXP002
+P11,20260119,141800,molinete,EXP003
