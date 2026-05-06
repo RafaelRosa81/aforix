@@ -9,20 +9,6 @@ from aforix.export.sih.io import read_csv_robust
 
 
 
-def station_id_to_lookup_key(station_id: str) -> str:
-    cleaned = str(station_id).strip()
-
-    if cleaned.upper().startswith("P"):
-        cleaned = cleaned[1:]
-
-    try:
-        value = float(cleaned)
-        return f"{value:.1f}"
-    except ValueError:
-        return cleaned
-
-
-
 def build_measurement_datetime(measurement: pd.Series) -> datetime:
     date_str = str(measurement.get("measurement_date", "")).strip()
     time_str = str(measurement.get("measurement_time", "")).strip()
@@ -57,6 +43,20 @@ def load_lookup_tables(lookup_paths: dict[str, Any]) -> dict[str, pd.DataFrame]:
 
 
 
+def resolve_station_id(
+    measurement: pd.Series,
+    sih_config: dict[str, Any],
+) -> str:
+    station_mapping = sih_config["sih"].get("station_mapping", {})
+    source_cfg = station_mapping.get("source", {})
+
+    column = source_cfg.get("column", "station_id")
+
+    value = measurement.get(column, "")
+    return str(value)
+
+
+
 def _lookup_value(
     lookup_tables: dict[str, pd.DataFrame],
     *,
@@ -81,26 +81,6 @@ def _lookup_value(
         return ""
 
     return str(matches.iloc[0][value_column])
-
-
-
-def resolve_station_lookup_id(
-    measurement: pd.Series,
-    sih_config: dict[str, Any],
-    lookup_tables: dict[str, pd.DataFrame],
-) -> str:
-    station_lookup = sih_config["sih"]["station_mapping"]["lookup"]
-    lookup_key = station_id_to_lookup_key(measurement.get("station_id", ""))
-
-    return _lookup_value(
-        lookup_tables,
-        table_name=station_lookup["file"],
-        key_column=station_lookup["key_column"],
-        value_column=station_lookup["value_column"],
-        key=lookup_key,
-        label=f"station_id={measurement.get('station_id')} -> {lookup_key}",
-        required=True,
-    )
 
 
 
