@@ -5,6 +5,9 @@ from typing import Any
 
 import pandas as pd
 
+from aforix.export.sih.io import read_csv_robust
+
+
 
 def station_id_to_lookup_key(station_id: str) -> str:
     cleaned = str(station_id).strip()
@@ -19,6 +22,7 @@ def station_id_to_lookup_key(station_id: str) -> str:
         return cleaned
 
 
+
 def build_measurement_datetime(measurement: pd.Series) -> datetime:
     date_str = str(measurement.get("measurement_date", "")).strip()
     time_str = str(measurement.get("measurement_time", "")).strip()
@@ -29,8 +33,10 @@ def build_measurement_datetime(measurement: pd.Series) -> datetime:
     return datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
 
 
+
 def format_datetime(dt: datetime, fmt: str) -> str:
     return dt.strftime(fmt)
+
 
 
 def get_instrument_config(sih_config: dict[str, Any], instrument: str) -> dict[str, Any]:
@@ -42,11 +48,13 @@ def get_instrument_config(sih_config: dict[str, Any], instrument: str) -> dict[s
     return instruments[instrument]
 
 
+
 def load_lookup_tables(lookup_paths: dict[str, Any]) -> dict[str, pd.DataFrame]:
     return {
-        name: pd.read_csv(path, dtype=str).fillna("")
+        name: read_csv_robust(path, dtype=str, fillna_value="")
         for name, path in lookup_paths.items()
     }
+
 
 
 def _lookup_value(
@@ -75,6 +83,7 @@ def _lookup_value(
     return str(matches.iloc[0][value_column])
 
 
+
 def resolve_station_lookup_id(
     measurement: pd.Series,
     sih_config: dict[str, Any],
@@ -94,6 +103,7 @@ def resolve_station_lookup_id(
     )
 
 
+
 def resolve_instrument_lookup_id(
     instrument_cfg: dict[str, Any],
     sih_config: dict[str, Any],
@@ -111,6 +121,7 @@ def resolve_instrument_lookup_id(
         label=f"instrument code={instrument_code}",
         required=True,
     )
+
 
 
 def resolve_tipo_aforo_lookup_id(
@@ -136,6 +147,7 @@ def resolve_tipo_aforo_lookup_id(
     )
 
 
+
 def resolve_instrumentos_rangos_lookup_id(
     instrument_cfg: dict[str, Any],
     sih_config: dict[str, Any],
@@ -159,6 +171,7 @@ def resolve_instrumentos_rangos_lookup_id(
     )
 
 
+
 def _raw_field(raw_measurement: pd.Series | None, instrument_cfg: dict[str, Any], key: str) -> str:
     if raw_measurement is None:
         return ""
@@ -170,6 +183,7 @@ def _raw_field(raw_measurement: pd.Series | None, instrument_cfg: dict[str, Any]
         return ""
 
     return str(raw_measurement.get(column, ""))
+
 
 
 def build_sdh_actuaciones_row(
@@ -194,6 +208,7 @@ def build_sdh_actuaciones_row(
         "lectura_escala": _raw_field(raw_measurement, instrument_cfg, "lectura_escala"),
         "observaciones": _raw_field(raw_measurement, instrument_cfg, "observaciones"),
     }
+
 
 
 def build_sdh_aforos_row(
