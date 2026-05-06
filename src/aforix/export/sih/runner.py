@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from aforix.export.sih.config import (
+    get_lookup_file_paths,
     get_normalized_input_dir,
     get_output_dir,
     load_sih_config,
@@ -19,6 +20,9 @@ from aforix.export.sih.mappings import (
     build_sdh_actuaciones_row,
     build_sdh_aforos_row,
     get_instrument_config,
+    load_lookup_tables,
+    resolve_instrument_lookup_id,
+    resolve_station_lookup_id,
 )
 from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
@@ -40,6 +44,7 @@ class SihExportResult:
     exported_files: tuple[Path, ...]
 
 
+
 def run_sih_export(request: SihExportRequest) -> SihExportResult:
     sih_config = load_sih_config(request.sih_config_path)
 
@@ -47,6 +52,9 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
 
     normalized_root = get_normalized_input_dir(sih_config)
     output_dir = get_output_dir(sih_config)
+
+    lookup_paths = get_lookup_file_paths(sih_config)
+    lookup_tables = load_lookup_tables(lookup_paths)
 
     datetime_format = (
         sih_config["sih"]
@@ -72,11 +80,25 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
 
         dt = build_measurement_datetime(measurement)
 
+        id_estacion = resolve_station_lookup_id(
+            measurement,
+            sih_config,
+            lookup_tables,
+        )
+
+        id_instrumento = resolve_instrument_lookup_id(
+            instrument_cfg,
+            sih_config,
+            lookup_tables,
+        )
+
         actuaciones_row = build_sdh_actuaciones_row(
             measurement,
             instrument_cfg,
             dt,
             datetime_format,
+            id_estacion=id_estacion,
+            id_instrumento=id_instrumento,
         )
 
         aforos_row = build_sdh_aforos_row(
@@ -84,6 +106,8 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             instrument_cfg,
             dt,
             datetime_format,
+            id_estacion=id_estacion,
+            id_instrumento=id_instrumento,
         )
 
         station_id = str(measurement.get("station_id", "unknown"))
