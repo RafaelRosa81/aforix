@@ -64,7 +64,25 @@ def get_raw_canonical_input_dir(config: dict[str, Any]) -> Path:
     return resolve_project_path(config, inputs.get("raw_canonical_input_dir"), "database/raw_canonical")
 
 
+def get_lookup_file_paths(config: dict[str, Any]) -> dict[str, Path]:
+    sih = sih_section(config)
+    lookup_files = sih.get("lookup_files", {}) or {}
+    if not isinstance(lookup_files, dict):
+        raise ValueError("'sih.lookup_files' must be a mapping.")
+    defaults = {
+        "estaciones": "configs/sih/estaciones.csv",
+        "instrumentos": "configs/sih/instrumentos.csv",
+        "tipos_aforos": "configs/sih/tipos_aforos.csv",
+        "instrumentos_rangos": "configs/sih/instrumentos_rangos.csv",
+    }
+    return {
+        name: resolve_project_path(config, lookup_files.get(name), default)
+        for name, default in defaults.items()
+    }
+
+
 def get_workbook_path(config: dict[str, Any]) -> Path:
+    # Deprecated. Kept temporarily for backward compatibility with early SIH design drafts.
     sih = sih_section(config)
     workbook = sih.get("workbook", {}) or {}
     return resolve_project_path(config, workbook.get("path"), "configs/sih/sih_mapping.xlsx")
