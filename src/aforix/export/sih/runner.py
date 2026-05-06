@@ -22,7 +22,9 @@ from aforix.export.sih.mappings import (
     get_instrument_config,
     load_lookup_tables,
     resolve_instrument_lookup_id,
+    resolve_instrumentos_rangos_lookup_id,
     resolve_station_lookup_id,
+    resolve_tipo_aforo_lookup_id,
 )
 from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
@@ -92,6 +94,18 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             lookup_tables,
         )
 
+        id_tipo_aforo = resolve_tipo_aforo_lookup_id(
+            instrument_cfg,
+            sih_config,
+            lookup_tables,
+        )
+
+        id_instrumentos_rangos = resolve_instrumentos_rangos_lookup_id(
+            instrument_cfg,
+            sih_config,
+            lookup_tables,
+        )
+
         actuaciones_row = build_sdh_actuaciones_row(
             measurement,
             instrument_cfg,
@@ -108,6 +122,8 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             datetime_format,
             id_estacion=id_estacion,
             id_instrumento=id_instrumento,
+            id_tipo_aforo=id_tipo_aforo,
+            id_instrumentos_rangos=id_instrumentos_rangos,
         )
 
         station_id = str(measurement.get("station_id", "unknown"))
