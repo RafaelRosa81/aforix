@@ -84,8 +84,8 @@ sih:
       normalized_name: flowtracker
       id_instrumento: 501
       id_tipo_actuacion: 4
-      tipo_aforo_lookup: null
-      instrumentos_rangos_lookup: null
+      tipo_aforo_lookup: Vadeo
+      instrumentos_rangos_lookup: Velocimetro puntual
 
       raw_canonical_fields:
         id_operador: operators
@@ -119,8 +119,8 @@ sih:
       normalized_name: molinete
       id_instrumento: null
       id_tipo_actuacion: 4
-      tipo_aforo_lookup: null
-      instrumentos_rangos_lookup: null
+      tipo_aforo_lookup: Vadeo
+      instrumentos_rangos_lookup: Velocimetro puntual
 
       raw_canonical_fields:
         id_operador: realizado
@@ -154,8 +154,8 @@ sih:
       normalized_name: nivus
       id_instrumento: 502
       id_tipo_actuacion: 4
-      tipo_aforo_lookup: null
-      instrumentos_rangos_lookup: null
+      tipo_aforo_lookup: Acustico
+      instrumentos_rangos_lookup: Doppler acustico
 
       raw_canonical_fields:
         id_operador: null
@@ -196,8 +196,8 @@ sih:
       normalized_name: m9
       id_instrumento: null
       id_tipo_actuacion: null
-      tipo_aforo_lookup: null
-      instrumentos_rangos_lookup: null
+      tipo_aforo_lookup: ADCP
+      instrumentos_rangos_lookup: ADCP movil
       raw_canonical_fields: {}
       normalized_fields: {}
       quality:
