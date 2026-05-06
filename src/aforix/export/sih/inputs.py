@@ -42,21 +42,49 @@ def load_selection_file(path: str | Path) -> pd.DataFrame:
     return df
 
 
-def load_normalized_summary(normalized_root: str | Path, instrument: str) -> pd.DataFrame:
-    root = Path(normalized_root)
+def _load_summary_csv(root: Path, instrument: str, *, required: bool) -> pd.DataFrame | None:
+    candidates = [
+        root / instrument / "Summary.csv",
+        root / instrument / "Summary" / "Summary.csv",
+        root / "Summary.csv",
+    ]
 
-    summary_path = root / instrument / "Summary.csv"
-    if not summary_path.exists():
-        alt = root / instrument / "Summary" / "Summary.csv"
-        if alt.exists():
-            summary_path = alt
+    for path in candidates:
+        if path.exists():
+            df = pd.read_csv(path, dtype=str).fillna("")
+            if "instrument" in df.columns:
+                return df[df["instrument"].astype(str).str.lower() == instrument.lower()].copy()
+            return df
 
-    if not summary_path.exists():
+    if required:
         raise FileNotFoundError(
-            f"Normalized Summary.csv not found for instrument '{instrument}': {summary_path}"
+            f"Summary.csv not found for instrument '{instrument}'. Tried: {candidates}"
         )
+    return None
 
-    return pd.read_csv(summary_path, dtype=str)
+
+def load_normalized_summary(normalized_root: str | Path, instrument: str) -> pd.DataFrame:
+    df = _load_summary_csv(Path(normalized_root), instrument, required=True)
+    assert df is not None
+    return df
+
+
+def load_raw_canonical_summary(raw_canonical_root: str | Path, instrument: str) -> pd.DataFrame | None:
+    return _load_summary_csv(Path(raw_canonical_root), instrument, required=False)
+
+
+def _normalized_date_series(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.replace("-", "", regex=False).str.strip()
+
+
+def _normalized_time_series(s: pd.Series) -> pd.Series:
+    return (
+        s.astype(str)
+        .str.replace(":", "", regex=False)
+        .str.replace(".", "", regex=False)
+        .str.strip()
+        .str[:6]
+    )
 
 
 def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> pd.Series:
@@ -66,15 +94,8 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
 
     matches = summary_df[
         (summary_df["station_id"].astype(str) == station_id)
-        & (summary_df["measurement_date"].astype(str).str.replace("-", "") == measurement_date)
-        & (
-            summary_df["measurement_time"]
-            .astype(str)
-            .str.replace(":", "")
-            .str.replace(".", "", regex=False)
-            .str[:6]
-            == measurement_time
-        )
+        & (_normalized_date_series(summary_df["measurement_date"]) == measurement_date)
+        & (_normalized_time_series(summary_df["measurement_time"]) == measurement_time)
     ]
 
     if matches.empty:
@@ -88,3 +109,12 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
         )
 
     return matches.iloc[0]
+
+
+def resolve_optional_measurement(summary_df: pd.DataFrame | None, selection_row: pd.Series) -> pd.Series | None:
+    if summary_df is None or summary_df.empty:
+        return None
+    try:
+        return resolve_measurement(summary_df, selection_row)
+    except MeasurementNotFoundError:
+        return None
