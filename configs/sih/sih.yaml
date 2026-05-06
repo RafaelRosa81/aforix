@@ -59,8 +59,12 @@ sih:
   lookup_tables:
     instrumentos:
       file: instrumentos
-      key_column: codigo
       value_column: id
+      match_columns:
+        - marca
+        - nro_serie
+        - modelo
+        - codigo
     tipos_aforos:
       file: tipos_aforos
       key_column: descripcion
@@ -73,12 +77,16 @@ sih:
   instruments:
     flowtracker:
       enabled: true
-      aforix_code: FT
       normalized_name: flowtracker
-      id_instrumento: 501
       id_tipo_actuacion: 4
       tipo_aforo_lookup: Vadeo
       instrumentos_rangos_lookup: Velocimetro puntual
+
+      instrument_lookup_fields:
+        marca: null
+        nro_serie: null
+        modelo: instrument
+        codigo: null
 
       raw_canonical_fields:
         id_operador: operators
@@ -108,12 +116,16 @@ sih:
 
     molinete:
       enabled: true
-      aforix_code: ML
       normalized_name: molinete
-      id_instrumento: null
       id_tipo_actuacion: 4
       tipo_aforo_lookup: Vadeo
       instrumentos_rangos_lookup: Velocimetro puntual
+
+      instrument_lookup_fields:
+        marca: null
+        nro_serie: helice
+        modelo: molinete
+        codigo: null
 
       raw_canonical_fields:
         id_operador: realizado
@@ -143,12 +155,16 @@ sih:
 
     nivus:
       enabled: true
-      aforix_code: NV
       normalized_name: nivus
-      id_instrumento: 502
       id_tipo_actuacion: 4
       tipo_aforo_lookup: Acustico
       instrumentos_rangos_lookup: Doppler acustico
+
+      instrument_lookup_fields:
+        marca: null
+        nro_serie: null
+        modelo: instrument
+        codigo: null
 
       raw_canonical_fields:
         id_operador: null
@@ -185,12 +201,15 @@ sih:
 
     m9:
       enabled: false
-      aforix_code: M9
       normalized_name: m9
-      id_instrumento: null
       id_tipo_actuacion: null
       tipo_aforo_lookup: ADCP
       instrumentos_rangos_lookup: ADCP movil
+      instrument_lookup_fields:
+        marca: null
+        nro_serie: null
+        modelo: instrument
+        codigo: null
       raw_canonical_fields: {}
       normalized_fields: {}
       quality:
