@@ -84,23 +84,76 @@ def _lookup_value(
 
 
 
+def _raw_field(raw_measurement: pd.Series | None, config: dict[str, Any], key: str) -> str:
+    if raw_measurement is None:
+        return ""
+
+    fields = config or {}
+    column = fields.get(key)
+
+    if column in (None, ""):
+        return ""
+
+    return str(raw_measurement.get(column, "")).strip()
+
+
+
 def resolve_instrument_lookup_id(
     instrument_cfg: dict[str, Any],
+    raw_measurement: pd.Series | None,
     sih_config: dict[str, Any],
     lookup_tables: dict[str, pd.DataFrame],
 ) -> str:
     lookup_cfg = sih_config["sih"]["lookup_tables"]["instrumentos"]
-    instrument_code = instrument_cfg.get("aforix_code", "")
 
-    return _lookup_value(
-        lookup_tables,
-        table_name=lookup_cfg["file"],
-        key_column=lookup_cfg["key_column"],
-        value_column=lookup_cfg["value_column"],
-        key=instrument_code,
-        label=f"instrument code={instrument_code}",
-        required=True,
+    table_name = lookup_cfg["file"]
+    value_column = lookup_cfg["value_column"]
+    match_columns = lookup_cfg.get(
+        "match_columns",
+        ["marca", "nro_serie", "modelo", "codigo"],
     )
+
+    instrument_lookup_fields = instrument_cfg.get("instrument_lookup_fields", {})
+
+    lookup_df = lookup_tables[table_name].copy()
+
+    used_columns: list[str] = []
+
+    for column_name in match_columns:
+        raw_column = instrument_lookup_fields.get(column_name)
+
+        if raw_column in (None, ""):
+            continue
+
+        raw_value = str(raw_measurement.get(raw_column, "")).strip() if raw_measurement is not None else ""
+
+        if raw_value == "":
+            continue
+
+        lookup_df = lookup_df[
+            lookup_df[column_name].astype(str).str.strip() == raw_value
+        ]
+
+        used_columns.append(f"{column_name}={raw_value}")
+
+    if not used_columns:
+        raise ValueError(
+            "Instrument lookup could not be resolved because no matching fields were configured/populated."
+        )
+
+    if lookup_df.empty:
+        raise ValueError(
+            "Instrument lookup failed. "
+            f"Used criteria: {', '.join(used_columns)}"
+        )
+
+    if len(lookup_df) > 1:
+        raise ValueError(
+            "Instrument lookup returned multiple matches. "
+            f"Used criteria: {', '.join(used_columns)}"
+        )
+
+    return str(lookup_df.iloc[0][value_column])
 
 
 
@@ -152,20 +205,6 @@ def resolve_instrumentos_rangos_lookup_id(
 
 
 
-def _raw_field(raw_measurement: pd.Series | None, instrument_cfg: dict[str, Any], key: str) -> str:
-    if raw_measurement is None:
-        return ""
-
-    raw_fields = instrument_cfg.get("raw_canonical_fields", {})
-    column = raw_fields.get(key)
-
-    if column in (None, ""):
-        return ""
-
-    return str(raw_measurement.get(column, ""))
-
-
-
 def build_sdh_actuaciones_row(
     measurement: pd.Series,
     instrument_cfg: dict[str, Any],
@@ -179,14 +218,14 @@ def build_sdh_actuaciones_row(
     return {
         "id": "",
         "id_estacion": id_estacion,
-        "id_operador": _raw_field(raw_measurement, instrument_cfg, "id_operador"),
+        "id_operador": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "id_operador"),
         "id_tipo_actuacion": instrument_cfg.get("id_tipo_actuacion", ""),
         "id_instrumento": id_instrumento,
         "fecha": format_datetime(dt, datetime_format),
         "pendiente": False,
         "relevante": False,
-        "lectura_escala": _raw_field(raw_measurement, instrument_cfg, "lectura_escala"),
-        "observaciones": _raw_field(raw_measurement, instrument_cfg, "observaciones"),
+        "lectura_escala": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "lectura_escala"),
+        "observaciones": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "observaciones"),
     }
 
 
@@ -211,9 +250,11 @@ def build_sdh_aforos_row(
             return ""
         return measurement.get(column, "")
 
-    escala_inicio = _raw_field(raw_measurement, instrument_cfg, "escala_inicio")
-    escala_fin = _raw_field(raw_measurement, instrument_cfg, "escala_fin")
-    escala_media = _raw_field(raw_measurement, instrument_cfg, "escala_media")
+    raw_fields = instrument_cfg.get("raw_canonical_fields", {})
+
+    escala_inicio = _raw_field(raw_measurement, raw_fields, "escala_inicio")
+    escala_fin = _raw_field(raw_measurement, raw_fields, "escala_fin")
+    escala_media = _raw_field(raw_measurement, raw_fields, "escala_media")
 
     return {
         "ancho": field("ancho"),
@@ -230,10 +271,10 @@ def build_sdh_aforos_row(
         "id_instrumentos_rangos": id_instrumentos_rangos,
         "id_perfil": "",
         "id_tipo_aforo": id_tipo_aforo,
-        "observaciones": _raw_field(raw_measurement, instrument_cfg, "observaciones"),
+        "observaciones": _raw_field(raw_measurement, raw_fields, "observaciones"),
         "profundidad": field("profundidad"),
         "seccion": field("seccion"),
         "velocidad_media": field("velocidad_media"),
-        "radio_hidraulico": _raw_field(raw_measurement, instrument_cfg, "radio_hidraulico"),
+        "radio_hidraulico": _raw_field(raw_measurement, raw_fields, "radio_hidraulico"),
         "nivel_confiabilidad": "",
     }
