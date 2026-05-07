@@ -39,7 +39,6 @@ def _coalesce_sources(df: pd.DataFrame, sources: list[str]) -> pd.Series:
     return out
 
 
-
 def _get_sources(col_spec: dict[str, Any]) -> list[str]:
     if "sources" in col_spec:
         sources = col_spec["sources"]
@@ -51,7 +50,6 @@ def _get_sources(col_spec: dict[str, Any]) -> list[str]:
         return [str(col_spec["source"])]
 
     raise ValueError("Column spec must define 'source' or 'sources'.")
-
 
 
 def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -67,10 +65,44 @@ def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df[TRACEABILITY_COLUMNS + remaining]
 
 
+def _apply_metadata_sources(
+    out: pd.DataFrame,
+    df_raw: pd.DataFrame,
+    metadata_spec: dict[str, Any],
+) -> pd.DataFrame:
+    """Populate traceability columns from an explicit YAML metadata section.
+
+    This keeps the origin of station_id/station_name/date/time configurable and
+    separate from hydraulic/data columns. It is intentionally small for PR-1:
+    sources are raw dataframe column names and are coalesced first-non-empty.
+    """
+    out = out.copy()
+
+    if not metadata_spec:
+        return out
+
+    if not isinstance(metadata_spec, dict):
+        raise ValueError("'metadata' must be a mapping/dictionary.")
+
+    for canonical_col, col_spec in metadata_spec.items():
+        if not isinstance(col_spec, dict):
+            raise ValueError(f"Invalid metadata spec for '{canonical_col}'.")
+
+        sources = _get_sources(col_spec)
+        values = _coalesce_sources(df_raw, sources)
+
+        overwrite = bool(col_spec.get("overwrite", False))
+
+        if canonical_col not in out.columns or overwrite:
+            out[canonical_col] = values
+        else:
+            out[canonical_col] = out[canonical_col].combine_first(values)
+
+    return out
+
 
 def _to_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
-
 
 
 def _apply_derived_columns(df: pd.DataFrame, derived_spec: dict[str, Any]) -> pd.DataFrame:
@@ -116,7 +148,6 @@ def _apply_derived_columns(df: pd.DataFrame, derived_spec: dict[str, Any]) -> pd
     return df
 
 
-
 def normalize_table(
     df_raw: pd.DataFrame,
     spec: dict[str, Any],
@@ -134,6 +165,12 @@ def normalize_table(
 
         sources = _get_sources(col_spec)
         out[canonical_col] = _coalesce_sources(df_raw, sources)
+
+    out = _apply_metadata_sources(
+        out,
+        df_raw,
+        spec.get("metadata", {}),
+    )
 
     for col in TRACEABILITY_COLUMNS:
         if col not in out.columns and col in df_raw.columns:
