@@ -7,10 +7,12 @@ from aforix.export.sih.config import (
     get_default_selection_file,
     load_sih_config,
 )
+from aforix.export.sih.interactive import build_interactive_selection
 from aforix.export.sih.runner import (
     SihExportRequest,
     run_sih_export,
 )
+
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -24,16 +26,20 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+
 def main(argv=None) -> int:
     args = parse_args(argv)
 
     sih_config = load_sih_config(args.sih_config)
 
-    selection_file = (
-        Path(args.selection_file)
-        if args.selection_file
-        else get_default_selection_file(sih_config)
-    )
+    if args.interactive:
+        selection_file = build_interactive_selection(sih_config)
+    else:
+        selection_file = (
+            Path(args.selection_file)
+            if args.selection_file
+            else get_default_selection_file(sih_config)
+        )
 
     request = SihExportRequest(
         sih_config_path=Path(args.sih_config),
