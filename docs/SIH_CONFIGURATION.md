@@ -41,11 +41,13 @@ inputs:
 
 | Campo | Uso actual |
 | --- | --- |
-| `normalized_input_dir` | raíz desde donde se leen tablas normalizadas `Summary` |
-| `raw_canonical_input_dir` | raíz desde donde se leen tablas raw canonical `Summary` |
+| `normalized_input_dir` | raíz desde donde se leen tablas normalizadas `Summary`; también es la fuente principal del modo interactivo |
+| `raw_canonical_input_dir` | raíz desde donde se leen tablas raw canonical `Summary` durante la exportación final |
 | `quality_input_dir` | reservado para integración futura con métricas de calidad |
 
 Actualmente el export usa `normalized_input_dir` y `raw_canonical_input_dir`. `quality_input_dir` existe en configuración, pero no se usa todavía para construir las filas SIH.
+
+En modo interactivo, `normalized_input_dir` se usa para detectar automáticamente instrumentos, estaciones y mediciones disponibles.
 
 ## 3. output
 
@@ -61,7 +63,7 @@ output:
 
 | Campo | Descripción |
 | --- | --- |
-| `output_dir` | carpeta donde se escriben los CSV SIH |
+| `output_dir` | carpeta donde se escriben los CSV SIH, la metadata y el selection CSV temporal interactivo |
 | `delimiter` | separador CSV |
 | `encoding` | encoding de salida |
 | `output_names.actuaciones` | plantilla de nombre para CSV de actuaciones |
@@ -87,7 +89,9 @@ lookup_files:
   instrumentos_rangos: configs/sih/instrumentos_rangos.csv
 ```
 
-Estos archivos son leídos por el módulo al iniciar la exportación.
+Estos archivos son leídos por el módulo al iniciar la exportación final.
+
+El modo interactivo no usa los lookups para mostrar instrumentos y estaciones. El modo interactivo detecta opciones desde normalized. Sin embargo, después de generar el selection CSV temporal, el runner batch sí carga los lookups y los usa para resolver IDs SIH.
 
 El código también define un default para:
 
@@ -116,7 +120,15 @@ datetime:
 | `filename_date_format` | formato conceptual de fecha para nombres de archivo |
 | `filename_time_format` | formato conceptual de hora para nombres de archivo |
 
-En el código actual, la construcción de fecha/hora usa directamente `measurement_date` y `measurement_time` desde la fila normalizada. El formato de salida se toma de `output_format`.
+En el código actual, la construcción de fecha/hora usa directamente `measurement_date` y `measurement_time` desde la fila normalizada o desde el selection CSV generado. El formato de salida se toma de `output_format`.
+
+El modo interactivo normaliza fechas y horas antes de escribir el selection CSV temporal:
+
+```text
+2026-01-19 -> 20260119
+14:18:00 -> 141800
+94521 -> 094521
+```
 
 ## 6. selection
 
@@ -134,7 +146,7 @@ selection:
       export_id: export_id
 ```
 
-El modo operativo actual es batch por archivo CSV.
+El modo batch usa el archivo indicado en `batch_file.path`, salvo que el usuario pase otro con `--selection-file`.
 
 El archivo indicado debe contener estas columnas reales:
 
@@ -147,6 +159,8 @@ export_id
 ```
 
 La sección `columns` documenta el mapeo esperado, pero el código actual valida los nombres literales requeridos.
+
+En modo interactivo, esta sección no define las opciones mostradas al usuario. El modo interactivo genera automáticamente un selection CSV temporal con las mismas columnas requeridas y luego lo pasa al mismo runner batch.
 
 ## 7. defaults
 
@@ -179,6 +193,8 @@ station_mapping:
 El código actual resuelve `id_estacion` leyendo directamente la columna indicada, por defecto `station_id`, desde la medición normalizada.
 
 Esto significa que el valor de `station_id` en normalized debe coincidir con el ID requerido por SIH o con el criterio definido por el usuario.
+
+El modo interactivo también usa `station_id` para listar estaciones disponibles y construir el selection CSV temporal.
 
 ## 9. lookup_tables
 
@@ -262,11 +278,13 @@ m9
 
 `m9` está configurado como `enabled: false`.
 
+El modo interactivo recorre esta sección y solo intenta cargar instrumentos con `enabled: true`.
+
 ### 10.1 Campos comunes
 
 | Campo | Descripción |
 | --- | --- |
-| `enabled` | habilita o deshabilita el instrumento |
+| `enabled` | habilita o deshabilita el instrumento; también controla si aparece en modo interactivo |
 | `normalized_name` | nombre esperado en datos normalizados |
 | `id_tipo_actuacion` | ID directo de tipo de actuación |
 | `tipo_aforo_lookup` | clave para lookup de tipos de aforo |
@@ -401,14 +419,16 @@ Para agregar un instrumento nuevo:
 
 1. Confirmar que existe en normalized y raw canonical.
 2. Agregar una entrada en `sih.instruments`.
-3. Definir `normalized_name`.
-4. Definir `id_tipo_actuacion`, `tipo_aforo_lookup` e `instrumentos_rangos_lookup`.
-5. Configurar `instrument_lookup_fields`.
-6. Configurar `raw_canonical_fields`.
-7. Configurar `normalized_fields`.
-8. Agregar filas necesarias en lookups CSV.
-9. Agregar filas de prueba en `selection_template.csv`.
-10. Ejecutar `aforix export sih` y revisar `sih_export_metadata.csv`.
+3. Definir `enabled: true` si debe aparecer en modo interactivo.
+4. Definir `normalized_name`.
+5. Definir `id_tipo_actuacion`, `tipo_aforo_lookup` e `instrumentos_rangos_lookup`.
+6. Configurar `instrument_lookup_fields`.
+7. Configurar `raw_canonical_fields`.
+8. Configurar `normalized_fields`.
+9. Agregar filas necesarias en lookups CSV.
+10. Probarlo en modo interactivo para verificar que aparece en instrumentos disponibles.
+11. Agregar filas de prueba en `selection_template.csv` para modo batch.
+12. Ejecutar `aforix export sih` y revisar `sih_export_metadata.csv`.
 
 ## 16. Recomendaciones de formato futuro
 
@@ -419,4 +439,4 @@ measurement_date -> YYYYMMDD
 measurement_time -> HHMMSS
 ```
 
-Esto aplica especialmente a `selection_template.csv` y a futuras salidas normalizadas de Aforix.
+Esto aplica especialmente a `selection_template.csv`, al selection CSV temporal generado por modo interactivo y a futuras salidas normalizadas de Aforix.
