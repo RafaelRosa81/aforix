@@ -11,6 +11,7 @@ from aforix.normalize.validators import validate_required_columns, validate_qc_r
 
 TRACEABILITY_COLUMNS = [
     "station_id",
+    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
