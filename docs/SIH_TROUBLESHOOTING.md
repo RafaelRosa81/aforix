@@ -24,7 +24,7 @@ ID_*_aforo_*.csv
 ### Revisar
 
 1. Que exista `configs/sih/sih.yaml`.
-2. Que exista `selection_template.csv`.
+2. Que exista `selection_template.csv` o que el modo interactivo haya generado un selection temporal.
 3. Que la carpeta `database/normalized` tenga datos.
 4. Que el instrumento exista en normalized.
 5. Revisar `sih_export_metadata.csv`.
@@ -52,6 +52,8 @@ export_id
 ### Solución
 
 Corregir encabezados del CSV.
+
+El modo interactivo genera automáticamente estas columnas.
 
 ## 3. No measurement found
 
@@ -91,6 +93,23 @@ Formato recomendado:
 measurement_date = 20250119
 measurement_time = 141800
 ```
+
+### Problema real detectado
+
+Durante el desarrollo se detectaron horas inconsistentes:
+
+```text
+94521
+094521
+```
+
+El modo interactivo intenta normalizar automáticamente usando zero-padding a 6 dígitos:
+
+```text
+94521 -> 094521
+```
+
+Sin embargo, si el normalized tiene formatos inconsistentes o truncados, el matching todavía puede fallar.
 
 ### Verificación rápida Python
 
@@ -322,6 +341,8 @@ instruments:
 
 Si está en `false`, el runner lo ignora.
 
+El modo interactivo tampoco mostrará el instrumento.
+
 ## 12. Problemas con fechas y horas
 
 ### Problema actual conocido
@@ -333,9 +354,33 @@ Normalized puede contener formatos mixtos:
 20250119
 14:18:00
 141800
+94521
+094521
 ```
 
 El export intenta normalizar, pero esto puede generar errores ambiguos.
+
+### Problema detectado específicamente
+
+Molinete y archivos editados manualmente pueden producir horas sin cero inicial:
+
+```text
+94521
+```
+
+mientras otros instrumentos generan:
+
+```text
+094521
+```
+
+El modo interactivo normaliza automáticamente usando:
+
+```text
+zfill(6)
+```
+
+pero la recomendación sigue siendo estandarizar desde normalize.
 
 ### Recomendación futura
 
@@ -364,7 +409,84 @@ P01
 
 Usar exactamente el mismo `station_id` presente en normalized.
 
-## 14. Problemas con lookups faltantes
+## 14. Problemas con selection CSV interactivo
+
+### Síntoma
+
+El modo interactivo muestra mediciones pero el export falla después.
+
+### Causa posible
+
+El selection CSV temporal se generó correctamente, pero el runner batch posterior falló.
+
+### Importante
+
+El modo interactivo NO tiene lógica de exportación propia.
+
+El flujo real es:
+
+```text
+interactive -> selection CSV temporal -> runner batch normal
+```
+
+Por eso:
+
+- errores de matching;
+- problemas de lookups;
+- problemas de raw canonical;
+- errores SIH;
+
+pueden aparecer después de una selección interactiva aparentemente correcta.
+
+### Revisar
+
+1. `outputs/sih/_interactive_selection_*.csv`
+2. `outputs/sih/sih_export_metadata.csv`
+3. lookups SIH.
+
+## 15. No aparecen instrumentos en modo interactivo
+
+### Causa posible
+
+Faltan columnas requeridas en normalized.
+
+Columnas mínimas:
+
+```text
+station_id
+measurement_date
+measurement_time
+```
+
+### Qué hace el interactivo
+
+El interactivo omite instrumentos inválidos automáticamente.
+
+### Solución
+
+Verificar:
+
+```python
+import pandas as pd
+
+df = pd.read_csv("database/normalized/molinete/Summary.csv")
+print(df.columns.tolist())
+```
+
+## 16. El preview interactivo queda vacío
+
+### Causa posible
+
+Los filtros eliminaron todas las mediciones.
+
+### Revisar
+
+- instrumentos seleccionados;
+- estaciones seleccionadas;
+- fecha inicial/final;
+- datos realmente disponibles.
+
+## 17. Problemas con lookups faltantes
 
 ### Síntoma
 
@@ -384,7 +506,7 @@ configs/sih/instrumentos_rangos.csv
 
 Crear los archivos y verificar rutas en `sih.yaml`.
 
-## 15. Cómo revisar rápidamente los datos disponibles
+## 18. Cómo revisar rápidamente los datos disponibles
 
 ### Normalized
 
@@ -413,7 +535,16 @@ df = pd.read_csv("outputs/sih/sih_export_metadata.csv")
 print(df)
 ```
 
-## 16. Diferencia entre errores recoverable y fatal
+### Selection interactivo generado
+
+```python
+import pandas as pd
+
+df = pd.read_csv("outputs/sih/_interactive_selection_20260506_231500.csv")
+print(df)
+```
+
+## 19. Diferencia entre errores recoverable y fatal
 
 ### Fatal
 
@@ -434,15 +565,16 @@ Afectan solo una fila:
 
 En esos casos, el runner continúa con las demás filas y registra el error en metadata.
 
-## 17. Buenas prácticas operativas
+## 20. Buenas prácticas operativas
 
 1. Ejecutar normalize antes de exportar.
 2. Verificar `database/normalized`.
 3. Verificar `database/raw_canonical`.
 4. Revisar lookups antes de exportar.
-5. Exportar primero pocas filas de prueba.
-6. Revisar `sih_export_metadata.csv`.
-7. Mantener formatos consistentes de fecha/hora.
-8. Evitar duplicados en normalized.
-9. Usar matching de instrumento específico.
-10. Versionar cambios en `sih.yaml` y lookups.
+5. Probar primero pocas mediciones en modo interactivo.
+6. Revisar `outputs/sih/_interactive_selection_*.csv`.
+7. Revisar `sih_export_metadata.csv`.
+8. Mantener formatos consistentes de fecha/hora.
+9. Evitar duplicados en normalized.
+10. Usar matching de instrumento específico.
+11. Versionar cambios en `sih.yaml` y lookups.
