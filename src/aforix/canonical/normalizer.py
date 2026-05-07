@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 
+from aforix.metadata import apply_metadata_policy
 from aforix.normalize.transforms import apply_transforms
 from aforix.normalize.validators import validate_required_columns, validate_qc_rules
 
@@ -38,6 +39,7 @@ def _coalesce_sources(df: pd.DataFrame, sources: list[str]) -> pd.Series:
     return out
 
 
+
 def _get_sources(col_spec: dict[str, Any]) -> list[str]:
     if "sources" in col_spec:
         sources = col_spec["sources"]
@@ -49,6 +51,7 @@ def _get_sources(col_spec: dict[str, Any]) -> list[str]:
         return [str(col_spec["source"])]
 
     raise ValueError("Column spec must define 'source' or 'sources'.")
+
 
 
 def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -64,8 +67,10 @@ def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df[TRACEABILITY_COLUMNS + remaining]
 
 
+
 def _to_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
+
 
 
 def _apply_derived_columns(df: pd.DataFrame, derived_spec: dict[str, Any]) -> pd.DataFrame:
@@ -111,6 +116,7 @@ def _apply_derived_columns(df: pd.DataFrame, derived_spec: dict[str, Any]) -> pd
     return df
 
 
+
 def normalize_table(
     df_raw: pd.DataFrame,
     spec: dict[str, Any],
@@ -138,6 +144,11 @@ def normalize_table(
     out = _apply_derived_columns(
         out,
         spec.get("derived", {}),
+    )
+
+    out = apply_metadata_policy(
+        out,
+        spec.get("metadata_policy", {}),
     )
 
     validate_required_columns(out, spec.get("required", []))
