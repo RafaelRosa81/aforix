@@ -20,47 +20,69 @@ Metadata normalization must be configurable by instrument. The code should avoid
 - times always already being six digits
 - metadata always coming from the same raw field for every instrument
 
-## Proposed configuration concept
+## Final PR-1 design direction
+
+The normalization YAML for each instrument/table should explicitly separate:
 
 ```yaml
-ingest:
-  flowtracker:
-    metadata_policy:
-      station_id:
-        strategy: first_non_empty
-        sources:
-          - {type: raw_field, key: station_id}
-          - {type: raw_field, key: file_name}
-          - {type: path_regex, pattern: "P(?P<value>\\d{1,4})"}
-        transforms:
-          - strip
-          - uppercase
-          - remove_prefix: "P"
-        output_format: string
+metadata:
+  station_id:
+    sources:
+      - station_id
+      - file_name
 
-      station_code:
-        strategy: build_from_field
-        source: station_id
-        prefix: "P"
+  station_name:
+    sources:
+      - station_name
+      - site_name
 
-      measurement_date:
-        strategy: datetime_parse
-        source: {type: raw_field, key: start_date_time}
-        input_formats:
-          - "%Y/%m/%d %H:%M:%S"
-          - "%Y-%m-%d %H:%M:%S"
-          - "%m/%d/%Y %H:%M:%S"
-        output_format: "%Y%m%d"
+  measurement_date:
+    sources:
+      - measurement_date
+      - start_date_time
 
-      measurement_time:
-        strategy: datetime_parse
-        source: {type: raw_field, key: start_date_time}
-        input_formats:
-          - "%Y/%m/%d %H:%M:%S"
-          - "%Y-%m-%d %H:%M:%S"
-          - "%m/%d/%Y %H:%M:%S"
-        output_format: "%H%M%S"
+  measurement_time:
+    sources:
+      - measurement_time
+      - start_date_time
 ```
+
+from:
+
+```yaml
+metadata_policy:
+  station_id:
+    remove_prefixes: ["P"]
+    digits_only: true
+
+  station_code:
+    enabled: true
+    prefix: "P"
+
+  measurement_date:
+    output_format: "%Y%m%d"
+
+  measurement_time:
+    output_format: "%H%M%S"
+```
+
+This distinction is important:
+
+- `metadata` defines where traceability fields come from.
+- `metadata_policy` defines how those fields are normalized/formatted.
+- `columns` remains focused on hydraulic and measurement variables.
+
+## Backward compatibility target
+
+PR-1 should remain compatible with existing normalization YAMLs that still define:
+
+```yaml
+columns:
+  station_id:
+    source: station_id
+```
+
+The new `metadata:` section is additive and progressively adoptable.
 
 ## Initial implementation target
 
