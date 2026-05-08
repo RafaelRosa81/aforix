@@ -31,6 +31,9 @@ database/
 crear_carpetas.py
 tree_aforix.txt
 donde_me_quedo.txt
+patch_audit.py
+patch.py
+patch_docs_pipeline.py
 # seguridad extra
 runs/**
 data/**

@@ -303,18 +303,20 @@ normalize:
 Qué grupos concatenar además de mantener salidas por archivo:
 
 ```yaml
-concat_groups:
-  - Summary
-  - Points
+normalize:
+  concat_groups:
+    - Summary
+    - Points
 ```
 
 Y qué fuentes procesar:
 
 ```yaml
-sources:
-  - flowtracker
-  - molinete
-  - nivus
+normalize:
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
 ```
 
 ## 8. database/normalized

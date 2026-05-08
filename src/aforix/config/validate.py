@@ -344,8 +344,8 @@ def _validate_normalize_section(cfg: dict[str, Any]) -> list[str]:
         )
     )
     errors.extend(_validate_optional_bool(section, key="normalize_summary", full_key="normalize.normalize_summary"))
-    write_policy = section.get("write_policy")
-    if write_policy is not None:
+    if "write_policy" in section:
+        write_policy = section.get("write_policy")
         allowed_write_policies = {"overwrite", "fail_if_exists"}
         if not isinstance(write_policy, str) or write_policy not in allowed_write_policies:
             errors.append(
@@ -394,6 +394,16 @@ def _validate_validation_section(cfg: dict[str, Any]) -> list[str]:
         errors.extend(_validate_optional_non_empty_string(section, key=key, full_key=f"validation.{key}"))
     for key in ("traceability_columns", "keys"):
         errors.extend(_validate_optional_string_list(section, key=key, full_key=f"validation.{key}", allow_empty=False))
+    for key in (
+        "checks",
+        "required_columns",
+        "completeness",
+        "hydraulic_consistency",
+        "ranges",
+    ):
+        value = section.get(key)
+        if value is not None and not isinstance(value, dict):
+            errors.append(f"'validation.{key}' must be a mapping/dictionary when provided.")
     return errors
 
 
@@ -403,7 +413,10 @@ def _validate_correlation_section(cfg: dict[str, Any]) -> list[str]:
     if not isinstance(analysis, dict):
         return errors
     correlation = analysis.get("correlation")
+    if correlation is None:
+        return errors
     if not isinstance(correlation, dict):
+        errors.append("'analysis.correlation' must be a mapping/dictionary when provided.")
         return errors
     if "default_ranking" in correlation:
         errors.extend(
@@ -426,7 +439,10 @@ def _validate_quality_metrics_section(cfg: dict[str, Any]) -> list[str]:
     if not isinstance(analysis, dict):
         return errors
     quality_metrics = analysis.get("quality_metrics")
+    if quality_metrics is None:
+        return errors
     if not isinstance(quality_metrics, dict):
+        errors.append("'analysis.quality_metrics' must be a mapping/dictionary when provided.")
         return errors
     errors.extend(_validate_optional_bool(quality_metrics, key="enabled", full_key="analysis.quality_metrics.enabled"))
     errors.extend(_validate_optional_non_empty_string(quality_metrics, key="output_root", full_key="analysis.quality_metrics.output_root"))

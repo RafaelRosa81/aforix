@@ -580,13 +580,15 @@ Riesgo: si la corrida más reciente está incompleta, puede dejar fuera datos v�
 
 Permiten controlar explícitamente qué runs usar o ignorar.
 
+Estas listas esperan IDs de corrida, no rutas completas. El ID corresponde al nombre de la carpeta final del run, por ejemplo `20260501_120000`.
+
 Ejemplo conceptual:
 
 ```yaml
 include_runs:
-  - runs/ingest_nivus/20260501_120000
+  - "20260501_120000"
 exclude_runs:
-  - runs/ingest_nivus/20260425_090000
+  - "20260425_090000"
 ```
 
 Uso recomendado:
