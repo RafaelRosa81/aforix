@@ -17,6 +17,10 @@ from aforix.ingest.discovery import (
     find_files_recursive,
 )
 from aforix.ingest.metadata import clean_station_id, clean_station_name
+from aforix.ingest.metadata_policy import (
+    MetadataExtractionContext,
+    extract_metadata,
+)
 
 
 INSTRUMENT_NAME = "nivus"
@@ -133,7 +137,7 @@ def _rows_to_dataframe(rows: list[dict[str, Any]]) -> pd.DataFrame:
 def _add_ingest_metadata(
     df: pd.DataFrame,
     *,
-    source: str,
+    instrument: str,
     station_id: str,
     station_name: str | None,
     measurement_date: str,
@@ -142,25 +146,32 @@ def _add_ingest_metadata(
     input_file: str,
     input_path: str,
     run_id: str,
+    source_run_dir: str,
 ) -> pd.DataFrame:
     """Add minimal ingest metadata to every output table."""
 
     df = df.copy()
 
     metadata = {
-        "source": source,
+        "instrument": instrument,
+        "source": instrument,
         "station_id": station_id,
         "station_name": station_name,
         "measurement_date": measurement_date,
         "measurement_time": measurement_time,
         "timezone": timezone,
+        "source_file": input_path,
+        "source_run_dir": source_run_dir,
         "input_file": input_file,
         "input_path": input_path,
         "run_id": run_id,
     }
 
     for key, value in reversed(metadata.items()):
-        df.insert(0, key, value)
+        if key in df.columns:
+            df[key] = value
+        else:
+            df.insert(0, key, value)
 
     return df
 
@@ -192,12 +203,13 @@ def _write_group_csv(
     input_file: str,
     input_path: str,
     run_id: str,
+    source_run_dir: str,
 ) -> Path:
     df = _rows_to_dataframe(rows)
 
     df = _add_ingest_metadata(
         df,
-        source=INSTRUMENT_NAME,
+        instrument=INSTRUMENT_NAME,
         station_id=station_id,
         station_name=station_name,
         measurement_date=measurement_date,
@@ -206,6 +218,7 @@ def _write_group_csv(
         input_file=input_file,
         input_path=input_path,
         run_id=run_id,
+        source_run_dir=source_run_dir,
     )
 
     outpath = output_dir / f"{station_id}_{group}_{measurement_date}_{measurement_time}.csv"
@@ -214,9 +227,55 @@ def _write_group_csv(
     return outpath
 
 
+def _extract_nivus_metadata(
+    *,
+    nivus_cfg: dict[str, Any],
+    parsed_meta: dict[str, Any],
+    item: dict[str, str],
+    xml_path: Path,
+) -> dict[str, str | None]:
+    """Resolve Nivus metadata using config policy with legacy fallbacks."""
+
+    raw_fields = dict(parsed_meta)
+    raw_fields["fallback_station_id"] = item.get("fallback_station_id", "")
+    raw_fields["filename"] = xml_path.name
+    raw_fields["stem"] = xml_path.stem
+
+    context = MetadataExtractionContext(
+        raw_fields=raw_fields,
+        source_path=xml_path,
+    )
+
+    policy = nivus_cfg.get("metadata_policy", {}) or {}
+    resolved = extract_metadata(policy, context=context)
+
+    station_id = resolved.get("station_id") or clean_station_id(
+        parsed_meta.get("station_id"),
+        fallback=item.get("fallback_station_id"),
+    )
+
+    station_name = resolved.get("station_name") or clean_station_name(
+        parsed_meta.get("station_name")
+    )
+
+    measurement_date = resolved.get("measurement_date") or parsed_meta.get("measurement_date")
+    measurement_time = resolved.get("measurement_time") or parsed_meta.get("measurement_time")
+
+    if not measurement_date or measurement_date == "unknown_date":
+        measurement_date, measurement_time = parse_datetime_from_filename(xml_path.name)
+
+    return {
+        "station_id": station_id,
+        "station_name": station_name,
+        "measurement_date": measurement_date,
+        "measurement_time": measurement_time,
+    }
+
+
 def _process_xml_file(
     item: dict[str, str],
     *,
+    nivus_cfg: dict[str, Any],
     group_dirs: dict[str, Path],
     timezone: str,
     run_dir: Path,
@@ -224,22 +283,19 @@ def _process_xml_file(
     xml_path = Path(item["xml_path"])
 
     raw_groups = parse_nivus_xml(xml_path)
-    meta = parse_nivus_metadata(xml_path)
+    parsed_meta = parse_nivus_metadata(xml_path)
 
-    station_id = clean_station_id(
-        meta.get("station_id"),
-        fallback=item.get("fallback_station_id"),
+    meta = _extract_nivus_metadata(
+        nivus_cfg=nivus_cfg,
+        parsed_meta=parsed_meta,
+        item=item,
+        xml_path=xml_path,
     )
 
-    station_name = clean_station_name(
-        meta.get("station_name")
-    )
-
-    measurement_date = meta.get("measurement_date")
-    measurement_time = meta.get("measurement_time")
-
-    if not measurement_date or measurement_date == "unknown_date":
-        measurement_date, measurement_time = parse_datetime_from_filename(xml_path.name)
+    station_id = str(meta["station_id"])
+    station_name = meta["station_name"]
+    measurement_date = str(meta["measurement_date"])
+    measurement_time = str(meta["measurement_time"])
 
     for group in GROUPS:
         rows = raw_groups.get(group, [])
@@ -256,6 +312,7 @@ def _process_xml_file(
             input_file=xml_path.name,
             input_path=str(xml_path.resolve()),
             run_id=run_dir.name,
+            source_run_dir=str(run_dir),
         )
 
         print(f"Saved: {outpath}")
@@ -303,6 +360,7 @@ def run(config_path: Path) -> Path:
         try:
             _process_xml_file(
                 item,
+                nivus_cfg=nivus_cfg,
                 group_dirs=group_dirs,
                 timezone=timezone,
                 run_dir=run_dir,

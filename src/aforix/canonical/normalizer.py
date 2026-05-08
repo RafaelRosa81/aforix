@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 
+from aforix.metadata import apply_metadata_policy
 from aforix.normalize.transforms import apply_transforms
 from aforix.normalize.validators import validate_required_columns, validate_qc_rules
 
@@ -62,6 +63,42 @@ def _ensure_traceability_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     remaining = [col for col in df.columns if col not in TRACEABILITY_COLUMNS]
     return df[TRACEABILITY_COLUMNS + remaining]
+
+
+def _apply_metadata_sources(
+    out: pd.DataFrame,
+    df_raw: pd.DataFrame,
+    metadata_spec: dict[str, Any],
+) -> pd.DataFrame:
+    """Populate traceability columns from an explicit YAML metadata section.
+
+    This keeps the origin of station_id/station_name/date/time configurable and
+    separate from hydraulic/data columns. It is intentionally small for PR-1:
+    sources are raw dataframe column names and are coalesced first-non-empty.
+    """
+    out = out.copy()
+
+    if not metadata_spec:
+        return out
+
+    if not isinstance(metadata_spec, dict):
+        raise ValueError("'metadata' must be a mapping/dictionary.")
+
+    for canonical_col, col_spec in metadata_spec.items():
+        if not isinstance(col_spec, dict):
+            raise ValueError(f"Invalid metadata spec for '{canonical_col}'.")
+
+        sources = _get_sources(col_spec)
+        values = _coalesce_sources(df_raw, sources)
+
+        overwrite = bool(col_spec.get("overwrite", False))
+
+        if canonical_col not in out.columns or overwrite:
+            out[canonical_col] = values
+        else:
+            out[canonical_col] = out[canonical_col].combine_first(values)
+
+    return out
 
 
 def _to_numeric(series: pd.Series) -> pd.Series:
@@ -129,6 +166,12 @@ def normalize_table(
         sources = _get_sources(col_spec)
         out[canonical_col] = _coalesce_sources(df_raw, sources)
 
+    out = _apply_metadata_sources(
+        out,
+        df_raw,
+        spec.get("metadata", {}),
+    )
+
     for col in TRACEABILITY_COLUMNS:
         if col not in out.columns and col in df_raw.columns:
             out[col] = df_raw[col]
@@ -138,6 +181,11 @@ def normalize_table(
     out = _apply_derived_columns(
         out,
         spec.get("derived", {}),
+    )
+
+    out = apply_metadata_policy(
+        out,
+        spec.get("metadata_policy", {}),
     )
 
     validate_required_columns(out, spec.get("required", []))

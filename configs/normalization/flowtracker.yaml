@@ -5,6 +5,67 @@ tables:
   Summary:
     canonical_name: summary
 
+    metadata:
+      station_id:
+        sources:
+          - station_id
+          - file_name
+          - input_file
+      station_name:
+        sources:
+          - station_name
+          - site_name
+      measurement_date:
+        sources:
+          - measurement_date
+          - start_date_time
+      measurement_time:
+        sources:
+          - measurement_time
+          - start_date_time
+      instrument:
+        sources:
+          - instrument
+          - source
+      source_file:
+        sources:
+          - source_file
+          - source_csv
+          - input_file
+          - input_path
+      source_run_dir:
+        sources:
+          - source_run_dir
+      run_id:
+        sources:
+          - run_id
+
+    metadata_policy:
+      station_id:
+        remove_prefixes:
+          - P
+        digits_only: true
+      station_code:
+        enabled: true
+        prefix: P
+      measurement_date:
+        input_formats:
+          - "%Y%m%d"
+          - "%Y-%m-%d"
+          - "%Y/%m/%d"
+          - "%Y-%m-%d %H:%M:%S"
+          - "%Y/%m/%d %H:%M:%S"
+          - "%m/%d/%Y %H:%M:%S"
+        output_format: "%Y%m%d"
+      measurement_time:
+        input_formats:
+          - "%H%M%S"
+          - "%H:%M:%S"
+          - "%Y-%m-%d %H:%M:%S"
+          - "%Y/%m/%d %H:%M:%S"
+          - "%m/%d/%Y %H:%M:%S"
+        output_format: "%H%M%S"
+
     columns:
       station_id:
         source: station_id
@@ -114,6 +175,67 @@ tables:
 
   Points:
     canonical_name: points
+
+    metadata:
+      station_id:
+        sources:
+          - station_id
+          - file_name
+          - input_file
+      station_name:
+        sources:
+          - station_name
+          - site_name
+      measurement_date:
+        sources:
+          - measurement_date
+          - start_date_time
+      measurement_time:
+        sources:
+          - measurement_time
+          - start_date_time
+      instrument:
+        sources:
+          - instrument
+          - source
+      source_file:
+        sources:
+          - source_file
+          - source_csv
+          - input_file
+          - input_path
+      source_run_dir:
+        sources:
+          - source_run_dir
+      run_id:
+        sources:
+          - run_id
+
+    metadata_policy:
+      station_id:
+        remove_prefixes:
+          - P
+        digits_only: true
+      station_code:
+        enabled: true
+        prefix: P
+      measurement_date:
+        input_formats:
+          - "%Y%m%d"
+          - "%Y-%m-%d"
+          - "%Y/%m/%d"
+          - "%Y-%m-%d %H:%M:%S"
+          - "%Y/%m/%d %H:%M:%S"
+          - "%m/%d/%Y %H:%M:%S"
+        output_format: "%Y%m%d"
+      measurement_time:
+        input_formats:
+          - "%H%M%S"
+          - "%H:%M:%S"
+          - "%Y-%m-%d %H:%M:%S"
+          - "%Y/%m/%d %H:%M:%S"
+          - "%m/%d/%Y %H:%M:%S"
+        output_format: "%H%M%S"
 
     columns:
       station_id:

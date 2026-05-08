@@ -61,10 +61,10 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
 }
 
 INGEST_ALLOWED_KEYS: dict[str, set[str]] = {
-    "flowtracker": {"enabled", "raw_subdir", "spec_path"},
-    "molinete": {"enabled", "raw_subdir", "sheet_name"},
-    "nivus": {"enabled", "raw_subdir"},
-    "m9": {"enabled", "raw_subdir"},
+    "flowtracker": {"enabled", "raw_subdir", "spec_path", "metadata_policy"},
+    "molinete": {"enabled", "raw_subdir", "sheet_name", "metadata_policy"},
+    "nivus": {"enabled", "raw_subdir", "metadata_policy"},
+    "m9": {"enabled", "raw_subdir", "metadata_policy"},
 }
 
 EXPORT_ALLOWED_KEYS: dict[str, set[str]] = {
@@ -86,6 +86,20 @@ PATH_KEYS_CAN_BE_CREATED = {
     "manual_stage_root",
     "run_output_root",
     "stable_output_dir",
+}
+
+METADATA_POLICY_FIELDS = {
+    "station_id",
+    "station_name",
+    "measurement_date",
+    "measurement_time",
+}
+
+METADATA_SOURCE_TYPES = {
+    "raw_field",
+    "filename_regex",
+    "path_regex",
+    "constant",
 }
 
 
@@ -180,10 +194,67 @@ def _validate_ingest_sections(cfg: dict[str, Any]) -> list[str]:
                 errors.append(f"Unknown key 'ingest.{instrument}.{key}'. Allowed keys are: {sorted(allowed)}.")
         errors.extend(_validate_optional_bool(settings, key="enabled", full_key=f"ingest.{instrument}.enabled"))
         errors.extend(_validate_optional_non_empty_string(settings, key="raw_subdir", full_key=f"ingest.{instrument}.raw_subdir"))
+        errors.extend(_validate_metadata_policy(settings.get("metadata_policy"), full_key=f"ingest.{instrument}.metadata_policy"))
         if instrument == "flowtracker":
             errors.extend(_validate_required_non_empty_string(settings, key="spec_path", full_key="ingest.flowtracker.spec_path"))
         if instrument == "molinete":
             errors.extend(_validate_optional_non_empty_string(settings, key="sheet_name", full_key="ingest.molinete.sheet_name"))
+    return errors
+
+
+def _validate_metadata_policy(policy: Any, *, full_key: str) -> list[str]:
+    errors: list[str] = []
+    if policy is None:
+        return errors
+    if not isinstance(policy, dict):
+        return [f"'{full_key}' must be a mapping/dictionary."]
+
+    for field_name, field_policy in policy.items():
+        field_key = f"{full_key}.{field_name}"
+        if field_name not in METADATA_POLICY_FIELDS:
+            errors.append(
+                f"Unknown metadata field '{field_key}'. Allowed fields are: {sorted(METADATA_POLICY_FIELDS)}."
+            )
+            continue
+        if not isinstance(field_policy, dict):
+            errors.append(f"'{field_key}' must be a mapping/dictionary.")
+            continue
+
+        strategy = field_policy.get("strategy")
+        if strategy is not None and strategy != "first_non_empty":
+            errors.append(f"Unsupported '{field_key}.strategy': {strategy}. Allowed values are: ['first_non_empty'].")
+
+        sources = field_policy.get("sources")
+        if sources is None:
+            errors.append(f"'{field_key}.sources' is required.")
+        elif not isinstance(sources, list) or not sources:
+            errors.append(f"'{field_key}.sources' must be a non-empty list.")
+        else:
+            for idx, source in enumerate(sources):
+                source_key = f"{field_key}.sources[{idx}]"
+                if not isinstance(source, dict):
+                    errors.append(f"'{source_key}' must be a mapping/dictionary.")
+                    continue
+                source_type = source.get("type", "raw_field")
+                if source_type not in METADATA_SOURCE_TYPES:
+                    errors.append(
+                        f"Unsupported '{source_key}.type': {source_type}. Allowed values are: {sorted(METADATA_SOURCE_TYPES)}."
+                    )
+                if source_type == "raw_field" and not source.get("key"):
+                    errors.append(f"'{source_key}.key' is required for raw_field sources.")
+                if source_type in {"filename_regex", "path_regex"} and not source.get("pattern"):
+                    errors.append(f"'{source_key}.pattern' is required for {source_type} sources.")
+                if source_type == "constant" and "value" not in source:
+                    errors.append(f"'{source_key}.value' is required for constant sources.")
+
+        transforms = field_policy.get("transforms")
+        if transforms is not None and not isinstance(transforms, list):
+            errors.append(f"'{field_key}.transforms' must be a list when provided.")
+
+        normalize = field_policy.get("normalize")
+        if normalize is not None and not isinstance(normalize, dict):
+            errors.append(f"'{field_key}.normalize' must be a mapping/dictionary when provided.")
+
     return errors
 
 
@@ -343,82 +414,23 @@ def _validate_quality_metrics_section(cfg: dict[str, Any]) -> list[str]:
         return errors
     if not isinstance(quality, dict):
         return ["'analysis.quality_metrics' must be a mapping/dictionary."]
-
-    allowed = {"enabled", "input_dirs", "input_dir", "output_root", "output_dir", "instruments"}
-    for key in sorted(quality):
-        if key not in allowed:
-            errors.append(f"Unknown key 'analysis.quality_metrics.{key}'. Allowed keys are: {sorted(allowed)}.")
-
     errors.extend(_validate_optional_bool(quality, key="enabled", full_key="analysis.quality_metrics.enabled"))
-    for key in ("input_dir", "output_root", "output_dir"):
-        errors.extend(_validate_optional_non_empty_string(quality, key=key, full_key=f"analysis.quality_metrics.{key}"))
-
-    input_dirs = quality.get("input_dirs")
-    if input_dirs is not None:
-        if not isinstance(input_dirs, dict):
-            errors.append("'analysis.quality_metrics.input_dirs' must be a mapping/dictionary.")
-        else:
-            allowed_input_dirs = {"normalized_root", "raw_canonical_root"}
-            for key in sorted(input_dirs):
-                if key not in allowed_input_dirs:
-                    errors.append(
-                        f"Unknown key 'analysis.quality_metrics.input_dirs.{key}'. Allowed keys are: {sorted(allowed_input_dirs)}."
-                    )
-                else:
-                    errors.extend(
-                        _validate_optional_non_empty_string(
-                            input_dirs,
-                            key=key,
-                            full_key=f"analysis.quality_metrics.input_dirs.{key}",
-                        )
-                    )
-
-    instruments = quality.get("instruments")
-    if instruments is not None:
-        if not isinstance(instruments, dict):
-            errors.append("'analysis.quality_metrics.instruments' must be a mapping/dictionary.")
-        else:
-            for instrument_name, instrument_cfg in instruments.items():
-                if not isinstance(instrument_cfg, dict):
-                    errors.append(f"'analysis.quality_metrics.instruments.{instrument_name}' must be a mapping/dictionary.")
-                    continue
-                allowed_instrument_keys = {"enabled", "tables", "columns"}
-                for key in sorted(instrument_cfg):
-                    if key not in allowed_instrument_keys:
-                        errors.append(
-                            f"Unknown key 'analysis.quality_metrics.instruments.{instrument_name}.{key}'. "
-                            f"Allowed keys are: {sorted(allowed_instrument_keys)}."
-                        )
-                errors.extend(
-                    _validate_optional_bool(
-                        instrument_cfg,
-                        key="enabled",
-                        full_key=f"analysis.quality_metrics.instruments.{instrument_name}.enabled",
-                    )
-                )
-                for nested_key in ("tables", "columns"):
-                    nested = instrument_cfg.get(nested_key)
-                    if nested is not None and not isinstance(nested, dict):
-                        errors.append(
-                            f"'analysis.quality_metrics.instruments.{instrument_name}.{nested_key}' must be a mapping/dictionary."
-                        )
+    errors.extend(_validate_optional_non_empty_string(quality, key="output_root", full_key="analysis.quality_metrics.output_root"))
+    for key in ("input_dirs", "instruments"):
+        value = quality.get(key)
+        if value is not None and not isinstance(value, dict):
+            errors.append(f"'analysis.quality_metrics.{key}' must be a mapping/dictionary.")
     return errors
 
 
 def _validate_external_sources_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    sources = cfg.get("external_sources")
-    if not isinstance(sources, dict):
+    external_sources = cfg.get("external_sources")
+    if not isinstance(external_sources, dict):
         return errors
-    for source_name in ("model", "dinagua", "manual_stage"):
-        source = sources.get(source_name)
-        if source is None:
-            continue
-        if not isinstance(source, dict):
+    for source_name, source_cfg in external_sources.items():
+        if not isinstance(source_cfg, dict):
             errors.append(f"'external_sources.{source_name}' must be a mapping/dictionary.")
-            continue
-        for key in ("raw_dir", "normalized_dir"):
-            errors.extend(_validate_optional_non_empty_string(source, key=key, full_key=f"external_sources.{source_name}.{key}"))
     return errors
 
 
@@ -428,104 +440,124 @@ def _validate_measuring_instruments_section(cfg: dict[str, Any]) -> list[str]:
     if instruments is None:
         return errors
     if not isinstance(instruments, list):
-        return errors
+        return ["'measuring_instruments' must be a list."]
     for idx, item in enumerate(instruments):
-        prefix = f"measuring_instruments[{idx}]"
         if not isinstance(item, dict):
-            errors.append(f"'{prefix}' must be a mapping/dictionary.")
+            errors.append(f"'measuring_instruments[{idx}]' must be a mapping/dictionary.")
             continue
-        for key in ("code", "subdir"):
-            errors.extend(_validate_required_non_empty_string(item, key=key, full_key=f"{prefix}.{key}"))
-        for key in ("name", "summary_format", "flow_column", "flow_unit", "flow_row_label", "time_row_label"):
-            errors.extend(_validate_optional_non_empty_string(item, key=key, full_key=f"{prefix}.{key}"))
+        for key in ("code", "name", "subdir"):
+            errors.extend(_validate_required_non_empty_string(item, key=key, full_key=f"measuring_instruments[{idx}].{key}"))
     return errors
+
+
+def _find_project_root(config_path: Path) -> Path:
+    """Find the project root used for repo-root-relative config paths."""
+    start = config_path.resolve().parent
+
+    for candidate in [start] + list(start.parents):
+        if (
+            (candidate / ".git").exists()
+            or (candidate / "pyproject.toml").exists()
+            or (candidate / "src" / "aforix").exists()
+        ):
+            return candidate
+
+    return start
 
 
 def _validate_path_values(cfg: dict[str, Any], *, config_path: Path | None) -> list[str]:
-    base_dir = _get_base_dir(config_path)
-    return _collect_path_errors(cfg, base_dir=base_dir, prefix="")
-
-
-def _collect_path_errors(value: Any, *, base_dir: Path, prefix: str) -> list[str]:
     errors: list[str] = []
-    if not isinstance(value, dict):
+    if config_path is None:
         return errors
-    for key, item in value.items():
-        full_key = f"{prefix}.{key}" if prefix else key
-        if isinstance(item, dict):
-            errors.extend(_collect_path_errors(item, base_dir=base_dir, prefix=full_key))
+
+    repo_root = _find_project_root(config_path)
+
+    def check_path(value: Any, key_path: str, *, must_exist: bool) -> None:
+        if value is None:
+            return
+        if not isinstance(value, str) or not value.strip():
+            return
+        path = Path(value)
+        if not path.is_absolute():
+            path = (repo_root / path).resolve()
+        if must_exist and not path.exists():
+            errors.append(f"Configured path does not exist: {key_path} -> {path}")
+
+    for key, value in (cfg.get("paths") or {}).items():
+        if key in PATH_KEYS_MUST_EXIST:
+            check_path(value, f"paths.{key}", must_exist=True)
+        elif key in PATH_KEYS_CAN_BE_CREATED:
+            check_path(value, f"paths.{key}", must_exist=False)
+
+    for section_name in ("build_groups", "normalize", "validation"):
+        section = cfg.get(section_name)
+        if not isinstance(section, dict):
             continue
-        if key not in PATH_KEYS_MUST_EXIST and key not in PATH_KEYS_CAN_BE_CREATED:
-            continue
-        if item is None:
-            errors.append(f"Path key '{full_key}' cannot be null.")
-            continue
-        if not isinstance(item, (str, Path)):
-            errors.append(f"Path key '{full_key}' must be a string or Path.")
-            continue
-        path = _resolve_path(item, base_dir=base_dir)
-        if key in PATH_KEYS_MUST_EXIST and not path.exists():
-            errors.append(f"Path defined in '{full_key}' does not exist: {path}")
+        for key, value in section.items():
+            if key in PATH_KEYS_MUST_EXIST:
+                check_path(value, f"{section_name}.{key}", must_exist=True)
+            elif key in PATH_KEYS_CAN_BE_CREATED:
+                check_path(value, f"{section_name}.{key}", must_exist=False)
+
+    ingest = cfg.get("ingest")
+    if isinstance(ingest, dict):
+        for instrument, section in ingest.items():
+            if not isinstance(section, dict):
+                continue
+            for key, value in section.items():
+                if key in PATH_KEYS_MUST_EXIST:
+                    check_path(value, f"ingest.{instrument}.{key}", must_exist=True)
+                elif key in PATH_KEYS_CAN_BE_CREATED:
+                    check_path(value, f"ingest.{instrument}.{key}", must_exist=False)
+
     return errors
 
 
-def _resolve_path(value: str | Path, *, base_dir: Path) -> Path:
-    path = Path(value)
-    if not path.is_absolute():
-        path = base_dir / path
-    return path.resolve()
-
-
-def _get_base_dir(config_path: Path | None) -> Path:
-    if config_path is None:
-        return Path.cwd()
-    resolved = config_path.resolve()
-    if len(resolved.parents) >= 3:
-        return resolved.parents[2]
-    return Path.cwd()
-
-
-def _get_nested(cfg: dict[str, Any], keys: list[str], default: Any = None) -> Any:
-    cur: Any = cfg
+def _get_nested(data: dict[str, Any], keys: list[str]) -> Any:
+    current: Any = data
     for key in keys:
-        if not isinstance(cur, dict) or key not in cur:
-            return default
-        cur = cur[key]
-    return cur
-
-
-def _validate_required_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    if key not in section:
-        return [f"Missing required key: '{full_key}'."]
-    return _validate_optional_non_empty_string(section, key=key, full_key=full_key)
-
-
-def _validate_optional_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    if key not in section:
-        return []
-    value = section[key]
-    if not isinstance(value, str):
-        return [f"'{full_key}' must be a string."]
-    if not value.strip():
-        return [f"'{full_key}' cannot be empty."]
-    return []
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
 
 
 def _validate_optional_bool(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    if key not in section:
+    value = section.get(key)
+    if value is not None and not isinstance(value, bool):
+        return [f"'{full_key}' must be true or false."]
+    return []
+
+
+def _validate_optional_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
+    value = section.get(key)
+    if value is None:
         return []
-    return [] if isinstance(section[key], bool) else [f"'{full_key}' must be true or false."]
+    if not isinstance(value, str) or not value.strip():
+        return [f"'{full_key}' must be a non-empty string."]
+    return []
+
+
+def _validate_required_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
+    value = section.get(key)
+    if not isinstance(value, str) or not value.strip():
+        return [f"'{full_key}' is required and must be a non-empty string."]
+    return []
 
 
 def _validate_optional_string_list(section: dict[str, Any], *, key: str, full_key: str, allow_empty: bool) -> list[str]:
-    if key not in section:
+    value = section.get(key)
+    if value is None:
         return []
-    value = section[key]
     if not isinstance(value, list):
         return [f"'{full_key}' must be a list."]
     if not value and not allow_empty:
         return [f"'{full_key}' cannot be empty."]
-    return [f"All items in '{full_key}' must be non-empty strings." for item in value if not isinstance(item, str) or not item.strip()]
+    errors: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append(f"'{full_key}' must contain only non-empty strings.")
+    return errors
 
 
 def _format_errors(errors: list[str]) -> str:

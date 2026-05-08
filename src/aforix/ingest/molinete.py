@@ -11,6 +11,10 @@ from aforix.ingest.discovery import (
     find_files_recursive,
 )
 from aforix.ingest.metadata import clean_station_id, clean_station_name
+from aforix.ingest.metadata_policy import (
+    MetadataExtractionContext,
+    extract_metadata,
+)
 
 
 INSTRUMENT_NAME = "molinete"
@@ -198,11 +202,63 @@ def _write_group_csv(
     return output_path
 
 
+def _extract_molinete_metadata(
+    *,
+    molinete_cfg: dict[str, Any],
+    extracted_meta: dict[str, Any],
+    item: dict[str, str],
+    source_path: Path,
+) -> dict[str, str | None]:
+    """Resolve Molinete metadata using config policy with legacy fallbacks.
+
+    This is intentionally conservative for PR-2: the new policy is used when
+    present, but the previous hardcoded behavior remains as fallback.
+    """
+
+    raw_fields = dict(extracted_meta)
+    raw_fields["fallback_station_id"] = item.get("fallback_station_id", "")
+    raw_fields["filename"] = source_path.name
+    raw_fields["stem"] = source_path.stem
+
+    context = MetadataExtractionContext(
+        raw_fields=raw_fields,
+        source_path=source_path,
+    )
+
+    policy = molinete_cfg.get("metadata_policy", {}) or {}
+    resolved = extract_metadata(policy, context=context)
+
+    station_id = resolved.get("station_id") or clean_station_id(
+        extracted_meta.get("station_id"),
+        fallback=item.get("fallback_station_id"),
+    )
+
+    station_name = resolved.get("station_name") or clean_station_name(
+        extracted_meta.get("station_name")
+    )
+
+    measurement_date = resolved.get("measurement_date") or _format_date_yyyymmdd(
+        extracted_meta.get("measurement_date", "")
+    )
+
+    measurement_time = resolved.get("measurement_time") or _format_time_hhmmss(
+        extracted_meta.get("measurement_time", "")
+    )
+
+    return {
+        "station_id": station_id,
+        "station_name": station_name,
+        "measurement_date": measurement_date,
+        "measurement_time": measurement_time,
+    }
+
+
 def _process_excel_file(
     item: dict[str, str],
     *,
     adapter: MolineteExcelAdapter,
     sheet_name: str,
+    molinete_cfg: dict[str, Any],
     group_dirs: dict[str, Path],
     run_dir: Path,
 ) -> None:
@@ -213,21 +269,17 @@ def _process_excel_file(
         sheet_name=sheet_name,
     )
 
-    station_id = clean_station_id(
-        res.extracted_meta.get("station_id"),
-        fallback=item.get("fallback_station_id"),
+    meta = _extract_molinete_metadata(
+        molinete_cfg=molinete_cfg,
+        extracted_meta=res.extracted_meta,
+        item=item,
+        source_path=xls_path,
     )
 
-    station_name = clean_station_name(
-        res.extracted_meta.get("station_name")
-    )
-
-    measurement_date = _format_date_yyyymmdd(
-        res.extracted_meta.get("measurement_date", "")
-    )
-    measurement_time = _format_time_hhmmss(
-        res.extracted_meta.get("measurement_time", "")
-    )
+    station_id = str(meta["station_id"])
+    station_name = meta["station_name"]
+    measurement_date = str(meta["measurement_date"])
+    measurement_time = str(meta["measurement_time"])
 
     summary_outpath = _write_group_csv(
         res.raw_groups.get("Summary"),
@@ -305,6 +357,7 @@ def run(config_path: Path) -> Path:
                 item,
                 adapter=adapter,
                 sheet_name=sheet_name,
+                molinete_cfg=molinete_cfg,
                 group_dirs=group_dirs,
                 run_dir=run_dir,
             )

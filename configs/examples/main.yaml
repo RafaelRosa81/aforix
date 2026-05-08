@@ -14,14 +14,216 @@ ingest:
     raw_subdir: FT
     spec_path: configs/specs/flowtracker.yaml
 
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: file_name
+          - type: raw_field
+            key: nombre_del_fichero
+          - type: raw_field
+            key: input_file
+          - type: raw_field
+            key: fallback_station_id
+          - type: path_regex
+            pattern: "P(?P<value>\\d{1,4})"
+        transforms:
+          - strip
+          - uppercase
+          - name: remove_prefix
+            value: "P"
+          - digits_only
+        normalize:
+          digits_only: true
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: site_name
+          - type: raw_field
+            key: station_name
+          - type: raw_field
+            key: nom_del_punto_de_aforo
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: start_date_time
+          - type: raw_field
+            key: start_date_and_time
+          - type: raw_field
+            key: fecha_y_hora_de_inicio
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: start_date_time
+          - type: raw_field
+            key: start_date_and_time
+          - type: raw_field
+            key: fecha_y_hora_de_inicio
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%H%M%S"
+
   molinete:
     enabled: true
     raw_subdir: ML
     sheet_name: CALCULO
 
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: fallback_station_id
+          - type: path_regex
+            pattern: "P(?P<value>\\d{1,4})"
+        transforms:
+          - strip
+          - uppercase
+          - name: remove_prefix
+            value: "P"
+          - digits_only
+        normalize:
+          digits_only: true
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%m/%d/%Y"
+            - "%d/%m/%Y"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%H:%M"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%H%M%S"
+
   nivus:
     enabled: true
     raw_subdir: NV
+
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: ref
+          - type: raw_field
+            key: reference
+          - type: raw_field
+            key: fallback_station_id
+          - type: path_regex
+            pattern: "P(?P<value>\\d{1,4})"
+        transforms:
+          - strip
+          - uppercase
+          - name: remove_prefix
+            value: "P"
+          - digits_only
+        normalize:
+          digits_only: true
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+          - type: raw_field
+            key: name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+          - type: raw_field
+            key: timestamp_time
+          - type: filename_regex
+            pattern: "(?P<value>\\d{8})_\\d{6}"
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+          - type: raw_field
+            key: timestamp_time
+          - type: filename_regex
+            pattern: "\\d{8}_(?P<value>\\d{6})"
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%H:%M"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%H%M%S"
 
   m9:
     enabled: true
