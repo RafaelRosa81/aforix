@@ -450,12 +450,27 @@ def _validate_measuring_instruments_section(cfg: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _find_project_root(config_path: Path) -> Path:
+    """Find the project root used for repo-root-relative config paths."""
+    start = config_path.resolve().parent
+
+    for candidate in [start] + list(start.parents):
+        if (
+            (candidate / ".git").exists()
+            or (candidate / "pyproject.toml").exists()
+            or (candidate / "src" / "aforix").exists()
+        ):
+            return candidate
+
+    return start
+
+
 def _validate_path_values(cfg: dict[str, Any], *, config_path: Path | None) -> list[str]:
     errors: list[str] = []
     if config_path is None:
         return errors
 
-    config_dir = config_path.resolve().parent
+    repo_root = _find_project_root(config_path)
 
     def check_path(value: Any, key_path: str, *, must_exist: bool) -> None:
         if value is None:
@@ -464,7 +479,7 @@ def _validate_path_values(cfg: dict[str, Any], *, config_path: Path | None) -> l
             return
         path = Path(value)
         if not path.is_absolute():
-            path = (config_dir / path).resolve()
+            path = (repo_root / path).resolve()
         if must_exist and not path.exists():
             errors.append(f"Configured path does not exist: {key_path} -> {path}")
 
