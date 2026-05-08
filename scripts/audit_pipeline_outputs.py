@@ -65,6 +65,12 @@ NORMALIZED_POINTS_REQUIRED = [
 ]
 
 KEY_COLUMNS = ["instrument", "station_id", "measurement_date", "measurement_time"]
+GROUP_KEY_CANDIDATES = {
+    "Summary": [],
+    "Points": ["point_index", "distance_m"],
+    "Sections": ["section_index", "section_id", "distance_m"],
+    "Gates": ["gate_index", "gate_id", "section_index", "point_index"],
+}
 DEFAULT_TOLERANCE_PCT = 1.0
 DEFAULT_ABS_TOL = 1e-9
 
@@ -133,6 +139,26 @@ def _expected_columns(stage: str, group: str) -> list[str]:
     if group == "Points":
         return NORMALIZED_POINTS_REQUIRED
     return TRACEABILITY_COLUMNS
+
+
+def _duplicate_key_columns(df: pd.DataFrame, group: str) -> tuple[list[str], list[str]]:
+    base_missing = [col for col in KEY_COLUMNS if col not in df.columns]
+    if base_missing:
+        return [], base_missing
+
+    key_cols = list(KEY_COLUMNS)
+    missing_group_candidates: list[str] = []
+
+    for candidate in GROUP_KEY_CANDIDATES.get(group, []):
+        if candidate in df.columns:
+            key_cols.append(candidate)
+            return key_cols, []
+        missing_group_candidates.append(candidate)
+
+    if group != "Summary" and GROUP_KEY_CANDIDATES.get(group):
+        return key_cols, missing_group_candidates
+
+    return key_cols, []
 
 
 def audit_columns(tables: Iterable[TableRef]) -> pd.DataFrame:
@@ -210,21 +236,35 @@ def audit_duplicates(normalized_root: Path) -> pd.DataFrame:
                     )
                     continue
 
-                key_cols = [col for col in KEY_COLUMNS if col in df.columns]
-                if len(key_cols) != len(KEY_COLUMNS):
+                key_cols, missing_key_columns = _duplicate_key_columns(df, group)
+                if missing_key_columns and not key_cols:
                     rows.append(
                         {
                             "instrument": instrument,
                             "group": group,
                             "path": str(path),
                             "status": "missing_key_columns",
-                            "missing_key_columns": ";".join(col for col in KEY_COLUMNS if col not in df.columns),
+                            "missing_key_columns": ";".join(missing_key_columns),
                             "n_rows": len(df),
                         }
                     )
                     continue
 
-                duplicated = df.duplicated(KEY_COLUMNS, keep=False)
+                if missing_key_columns and group != "Summary":
+                    rows.append(
+                        {
+                            "instrument": instrument,
+                            "group": group,
+                            "path": str(path),
+                            "status": "missing_group_key_columns",
+                            "missing_key_columns": ";".join(missing_key_columns),
+                            "key_columns_used": ";".join(key_cols),
+                            "n_rows": len(df),
+                        }
+                    )
+                    continue
+
+                duplicated = df.duplicated(key_cols, keep=False)
                 n_duplicated = int(duplicated.sum())
                 rows.append(
                     {
@@ -233,8 +273,9 @@ def audit_duplicates(normalized_root: Path) -> pd.DataFrame:
                         "path": str(path),
                         "status": "duplicates" if n_duplicated else "ok",
                         "n_rows": len(df),
+                        "key_columns_used": ";".join(key_cols),
                         "n_duplicated_rows": n_duplicated,
-                        "n_duplicate_keys": int(df.loc[duplicated, KEY_COLUMNS].drop_duplicates().shape[0]) if n_duplicated else 0,
+                        "n_duplicate_keys": int(df.loc[duplicated, key_cols].drop_duplicates().shape[0]) if n_duplicated else 0,
                     }
                 )
 
