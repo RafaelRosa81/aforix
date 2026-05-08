@@ -19,6 +19,67 @@ ingest:
     raw_subdir: ML
     sheet_name: CALCULO
 
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: fallback_station_id
+          - type: path_regex
+            pattern: "P(?P<value>\\d{1,4})"
+        transforms:
+          - strip
+          - uppercase
+          - name: remove_prefix
+            value: "P"
+          - digits_only
+        normalize:
+          digits_only: true
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%m/%d/%Y"
+            - "%d/%m/%Y"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%H:%M"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%H%M%S"
+
   nivus:
     enabled: true
     raw_subdir: NV
