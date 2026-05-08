@@ -266,6 +266,8 @@ normalize:
   input_dir: database/raw_canonical
   output_dir: database/normalized
 
+  write_policy: overwrite
+
   groups:
     - Summary
     - Points
