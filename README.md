@@ -30,15 +30,31 @@ Ejecutar un flujo básico:
 ```bash
 aforix config-check -c configs/examples/main.yaml
 aforix ingest flowtracker -c configs/examples/main.yaml
+aforix ingest molinete -c configs/examples/main.yaml
+aforix ingest nivus -c configs/examples/main.yaml
 aforix build-groups -c configs/examples/main.yaml
 aforix normalize run -c configs/examples/main.yaml
+python scripts/audit_pipeline_outputs.py
+aforix validate run -c configs/examples/main.yaml
+```
+
+En Windows CMD:
+
+```bat
+aforix config-check -c configs/examples/main.yaml
+aforix ingest flowtracker -c configs/examples/main.yaml
+aforix ingest molinete -c configs/examples/main.yaml
+aforix ingest nivus -c configs/examples/main.yaml
+aforix build-groups -c configs/examples/main.yaml
+aforix normalize run -c configs/examples/main.yaml
+python scripts\audit_pipeline_outputs.py
 aforix validate run -c configs/examples/main.yaml
 ```
 
 ## Pipeline
 
 ```text
-raw -> ingest -> runs -> build-groups -> database/raw_canonical -> normalize -> database/normalized -> validate/export/analysis
+raw -> ingest -> runs/.../raw_canonical -> build-groups -> database/raw_canonical -> normalize -> database/normalized -> audit/validate/export/analysis
 ```
 
 La explicación completa del flujo está en `docs/02_pipeline.md`.
@@ -46,7 +62,8 @@ La explicación completa del flujo está en `docs/02_pipeline.md`.
 ## Salidas principales
 
 - `runs/`: ejecuciones trazables del pipeline.
-- `database/raw_canonical/`: datos estructurados por instrumento.
+- `database/raw_canonical/`: datos estructurados por instrumento consolidados por `build-groups`.
+- `database/raw_canonical/_manifests/`: manifiestos de consolidación generados por `build-groups` cuando está habilitado.
 - `database/normalized/`: datos normalizados bajo esquema común.
 - `database/validation/`: reportes de validación.
 - `outputs/`: exportaciones para usuario.
@@ -77,8 +94,10 @@ Aforix está en desarrollo activo. El trabajo se organiza mediante ramas y Pull 
 Componentes disponibles actualmente:
 
 - ingesta de FlowTracker, Molinete y Nivus;
-- construcción de `database/raw_canonical`;
-- normalización mediante registry YAML;
+- extracción configurable de metadata mediante `metadata_policy`;
+- construcción configurable de `database/raw_canonical`;
+- normalización mediante registry YAML y política de escritura;
+- auditoría técnica de outputs del pipeline;
 - validación de datasets normalizados;
 - exportación de tablas;
 - exportación SIH configurable.
