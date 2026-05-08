@@ -47,6 +47,7 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "groups",
         "concat_groups",
         "sources",
+        "write_policy",
     },
     "validation": {
         "enabled",
@@ -343,6 +344,14 @@ def _validate_normalize_section(cfg: dict[str, Any]) -> list[str]:
         )
     )
     errors.extend(_validate_optional_bool(section, key="normalize_summary", full_key="normalize.normalize_summary"))
+    write_policy = section.get("write_policy")
+    if write_policy is not None:
+        allowed_write_policies = {"overwrite", "fail_if_exists"}
+        if not isinstance(write_policy, str) or write_policy not in allowed_write_policies:
+            errors.append(
+                "'normalize.write_policy' must be one of "
+                f"{sorted(allowed_write_policies)}."
+            )
     for key in ("registry_dir", "input_dir", "output_dir"):
         errors.extend(_validate_optional_non_empty_string(section, key=key, full_key=f"normalize.{key}"))
     return errors
