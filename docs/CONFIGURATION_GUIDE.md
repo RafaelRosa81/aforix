@@ -1,51 +1,60 @@
 # Guía de configuración de Aforix
 
-Esta guía explica cómo preparar los datos, configurar el sistema y ejecutar el pipeline de Aforix. Está pensada para usuarios que no conocen la estructura interna del proyecto.
+Esta guía explica cómo configurar Aforix desde cero para ejecutar el pipeline completo desde archivos raw hasta datos normalizados.
 
-## 1. Objetivo
+Está pensada para usuarios nuevos: no asume conocimiento previo del repo, de la estructura interna ni de los nombres de carpetas.
 
-Aforix procesa datos de aforos provenientes de distintos instrumentos de medición:
+## 1. Qué es Aforix
 
-- FlowTracker
-- Molinete
-- Nivus
-- M9 / ADCP, pendiente hasta analizar archivos base
+Aforix es una biblioteca y CLI en Python para procesar datos de aforos hidráulicos provenientes de instrumentos como:
 
-El objetivo es transformar archivos originales de instrumentos en tablas normalizadas, trazables y comparables entre instrumentos.
+- FlowTracker;
+- Molinete;
+- Nivus;
+- M9 / ADCP, previsto para una etapa posterior.
 
-Pipeline general:
+El objetivo es transformar archivos originales de campo en tablas trazables, consistentes y comparables entre instrumentos.
+
+Pipeline operativo:
 
 ```text
-raw -> ingest -> runs -> build-groups -> database/raw_canonical -> normalize -> database/normalized -> validate/export/analysis
+raw
+-> ingest
+-> runs/.../raw_canonical
+-> build-groups
+-> database/raw_canonical
+-> normalize
+-> database/normalized
+-> audit / validate / export / analysis
 ```
 
 ## 2. Qué debe preparar el usuario
 
-Antes de ejecutar Aforix, el usuario debe preparar:
+Antes de ejecutar Aforix, el usuario debe tener:
 
-1. Una carpeta con archivos raw de instrumentos.
-2. Un archivo de configuración YAML, normalmente `configs/examples/main.yaml`.
-3. Los archivos de normalización YAML dentro de `configs/normalization/`.
-4. Un entorno Python con Aforix instalado.
+1. El repo instalado en un entorno Python.
+2. El archivo principal de configuración: `configs/examples/main.yaml`.
+3. Los archivos raw de instrumentos dentro de `data/raw/`.
+4. Los YAML de normalización en `configs/normalization/`.
+5. Opcionalmente, archivos de configuración adicionales para exportaciones o análisis.
 
-El usuario no debería modificar el código fuente para correr un proyecto normal.
+El usuario no debería modificar código Python para ejecutar un proyecto normal. La mayoría de los cambios operativos deben hacerse en YAML.
 
-## 3. Estructura general de carpetas
+## 3. Estructura esperada de carpetas
 
-La configuración de ejemplo define:
-
-```yaml
-paths:
-  raw_data_dir: data/raw
-  runs_root: runs
-  database_root: database
-```
-
-Estructura local esperada:
+Estructura típica:
 
 ```text
 aforix/
 ├── configs/
+│   ├── examples/
+│   │   └── main.yaml
+│   ├── normalization/
+│   │   ├── flowtracker.yaml
+│   │   ├── molinete.yaml
+│   │   └── nivus.yaml
+│   └── specs/
+│       └── flowtracker.yaml
 ├── data/
 │   └── raw/
 │       ├── FT/
@@ -54,184 +63,44 @@ aforix/
 │       └── M9/
 ├── runs/
 ├── database/
+│   ├── raw_canonical/
+│   ├── normalized/
+│   └── validation/
 └── outputs/
 ```
 
-Las carpetas `data/`, `runs/`, `database/` y `outputs/` son locales o generadas por el pipeline. No deberían versionarse en Git.
+Carpetas locales o generadas:
 
-## 4. Dónde colocar los archivos raw
+```text
+data/
+runs/
+database/
+outputs/
+```
 
-La carpeta base para datos raw se define en:
+Estas carpetas no deberían versionarse en Git, salvo casos muy controlados de ejemplos pequeños.
+
+## 4. Archivo principal: configs/examples/main.yaml
+
+`main.yaml` controla rutas, instrumentos, etapas del pipeline, exportaciones y análisis.
+
+Las secciones principales actuales son:
 
 ```yaml
-paths:
-  raw_data_dir: data/raw
+project: ...
+paths: ...
+ingest: ...
+build_groups: ...
+normalize: ...
+validation: ...
+export: ...
+external_sources: ...
+analysis: ...
 ```
 
-Cada instrumento usa una subcarpeta definida en `ingest`:
+Cada sección se explica a continuación.
 
-```yaml
-ingest:
-  flowtracker:
-    raw_subdir: FT
-  molinete:
-    raw_subdir: ML
-  nivus:
-    raw_subdir: NV
-  m9:
-    raw_subdir: M9
-```
-
-Por lo tanto:
-
-```text
-data/raw/FT/   -> archivos FlowTracker
-data/raw/ML/   -> archivos Molinete
-data/raw/NV/   -> archivos Nivus
-data/raw/M9/   -> archivos M9
-```
-
-## 5. Información mínima esperada por instrumento
-
-Aforix necesita identificar cada medición mediante claves comunes:
-
-```text
-station_id
-station_name
-measurement_date
-measurement_time
-instrument
-```
-
-### 5.1 station_id
-
-`station_id` es el identificador corto y estable del punto de aforo.
-
-Ejemplos:
-
-```text
-P1
-P8
-P11
-P911
-```
-
-Debe ser consistente entre instrumentos y campañas.
-
-### 5.2 station_name
-
-`station_name` es un nombre descriptivo del punto.
-
-Ejemplos:
-
-```text
-Chamizo
-San José
-Pintado Berrondo
-```
-
-Cuando existe, se conserva para trazabilidad y salidas de usuario.
-
-### 5.3 measurement_date y measurement_time
-
-La fecha y hora normalmente se extraen automáticamente desde el archivo original del instrumento.
-
-Formato normalizado esperado:
-
-```text
-measurement_date -> YYYYMMDD
-measurement_time -> HHMMSS
-```
-
-### 5.4 Dónde cargar station_id y station_name en cada instrumento
-
-El usuario debe cargar el ID y el nombre del punto durante la medición o en la planilla propia del instrumento. Esto evita problemas de trazabilidad, duplicados y errores al unir datos entre instrumentos.
-
-| Instrumento | `station_id` / ID del punto | `station_name` / nombre del punto |
-| --- | --- | --- |
-| FlowTracker | `File_Name` / nombre del fichero | `Site_Name` / nombre del punto de aforo |
-| Molinete | `ESTACION Nº:` | `NOMBRE:` |
-| Nivus | `Número de referencia` | `Nombre del lugar de medición` |
-| M9 | Pendiente hasta analizar archivos base | Pendiente hasta analizar archivos base |
-
-Ejemplo recomendado:
-
-| Campo | Valor |
-| --- | --- |
-| ID del punto | `P11` |
-| Nombre del punto | `Arroyo San José - Punto 11` |
-
-Usar siempre el mismo identificador para el mismo punto. Evitar variantes como `P11`, `P-11`, `Punto 11` y `11` para representar el mismo sitio, porque pueden ser interpretadas como puntos distintos.
-
-## 6. Requisitos por instrumento
-
-### 6.1 FlowTracker
-
-Los archivos FlowTracker deben colocarse en:
-
-```text
-data/raw/FT/
-```
-
-Durante la ingesta, Aforix espera poder obtener:
-
-- `station_id`
-- `station_name` o `site_name`
-- fecha y hora de inicio
-- caudal total
-- área total
-- ancho total
-- velocidad media
-- profundidad media
-- temperatura, si está disponible
-
-En FlowTracker, cargar el ID del punto como `File_Name` y el nombre del punto como `Site_Name`.
-
-### 6.2 Molinete
-
-Los archivos Molinete deben colocarse en:
-
-```text
-data/raw/ML/
-```
-
-Si el archivo es Excel, la hoja esperada por defecto puede definirse en la configuración, por ejemplo:
-
-```yaml
-molinete:
-  raw_subdir: ML
-  sheet_name: CALCULO
-```
-
-En Molinete, cargar el ID del punto en `ESTACION Nº:` y el nombre del punto en `NOMBRE:`.
-
-### 6.3 Nivus
-
-Los archivos Nivus deben colocarse en:
-
-```text
-data/raw/NV/
-```
-
-En Nivus, cargar el ID del punto en `Número de referencia` y el nombre del punto en `Nombre del lugar de medición`.
-
-En Nivus, los `Points` pueden enriquecerse usando información de `Sections` para reconstruir área, caudal parcial y porcentaje del caudal total.
-
-### 6.4 M9
-
-La carpeta M9 está prevista en la configuración:
-
-```yaml
-m9:
-  enabled: true
-  raw_subdir: M9
-```
-
-La forma correcta de cargar `station_id` y `station_name` para M9 queda pendiente hasta analizar el formato de los archivos base y definir el adaptador de ingesta correspondiente.
-
-## 7. Archivo principal de configuración: main.yaml
-
-El archivo principal controla rutas, instrumentos activos y etapas del pipeline.
+## 5. project
 
 Ejemplo:
 
@@ -240,64 +109,702 @@ project:
   name: aforix
   description: Pipeline para procesamiento de datos de aforos
   timezone: America/Montevideo
+```
 
+| Campo | Qué hace | Riesgo si está mal |
+| --- | --- | --- |
+| `name` | nombre del proyecto | bajo; se usa como metadata descriptiva |
+| `description` | descripción del proyecto | bajo; sirve para documentación y claridad |
+| `timezone` | zona horaria de referencia | medio; puede afectar interpretación futura de fechas/horas |
+
+Recomendación: usar siempre una zona horaria explícita. Para Uruguay:
+
+```yaml
+timezone: America/Montevideo
+```
+
+## 6. paths
+
+Ejemplo:
+
+```yaml
 paths:
   raw_data_dir: data/raw
   runs_root: runs
   database_root: database
+```
 
+| Campo | Qué hace | Si no existe | Riesgo de configurarlo mal |
+| --- | --- | --- | --- |
+| `raw_data_dir` | carpeta base donde el usuario coloca archivos originales | la ingesta no encontrará datos | alto |
+| `runs_root` | carpeta donde se escriben corridas de ingesta | se crea o falla según etapa/permisos | medio |
+| `database_root` | raíz de la base procesada | etapas posteriores no encontrarán outputs | alto |
+
+Estructura derivada:
+
+```text
+data/raw/FT
+data/raw/ML
+data/raw/NV
+data/raw/M9
+runs/
+database/raw_canonical
+database/normalized
+database/validation
+```
+
+## 7. ingest
+
+La sección `ingest` define cómo leer archivos raw de cada instrumento.
+
+Ejemplo resumido:
+
+```yaml
 ingest:
   flowtracker:
     enabled: true
     raw_subdir: FT
+    spec_path: configs/specs/flowtracker.yaml
+
   molinete:
     enabled: true
     raw_subdir: ML
+    sheet_name: CALCULO
+
   nivus:
     enabled: true
     raw_subdir: NV
+
+  m9:
+    enabled: true
+    raw_subdir: M9
 ```
 
-### 7.1 paths
+### 7.1 enabled
 
-| Campo | Significado |
+```yaml
+enabled: true
+```
+
+Indica si el instrumento está activo en la configuración.
+
+Valores:
+
+```text
+true
+false
+```
+
+Si está en `false`, el instrumento debería omitirse en procesos que respeten esa configuración.
+
+### 7.2 raw_subdir
+
+```yaml
+raw_subdir: FT
+```
+
+Define la subcarpeta dentro de `paths.raw_data_dir`.
+
+Ejemplos:
+
+| Instrumento | `raw_subdir` | Ruta final |
+| --- | --- | --- |
+| FlowTracker | `FT` | `data/raw/FT` |
+| Molinete | `ML` | `data/raw/ML` |
+| Nivus | `NV` | `data/raw/NV` |
+| M9 | `M9` | `data/raw/M9` |
+
+Si se configura mal, Aforix no encontrará los archivos raw.
+
+### 7.3 spec_path
+
+Ejemplo FlowTracker:
+
+```yaml
+spec_path: configs/specs/flowtracker.yaml
+```
+
+Define un archivo de especificación auxiliar para la ingesta de FlowTracker.
+
+Si el instrumento no usa spec, puede no existir ese campo.
+
+### 7.4 sheet_name
+
+Ejemplo Molinete:
+
+```yaml
+sheet_name: CALCULO
+```
+
+Indica la hoja Excel a leer para Molinete.
+
+Riesgo: si se configura como una hoja inexistente, la ingesta de Molinete falla o no encuentra datos.
+
+Para los archivos actuales de Molinete, la hoja esperada es:
+
+```text
+CALCULO
+```
+
+## 8. metadata_policy
+
+`metadata_policy` define cómo extraer metadata crítica de cada medición.
+
+Campos principales:
+
+```text
+station_id
+station_name
+measurement_date
+measurement_time
+```
+
+Antes, parte de esta lógica podía estar hardcodeada en Python. Ahora se controla desde YAML.
+
+Ejemplo conceptual:
+
+```yaml
+metadata_policy:
+  station_id:
+    strategy: first_non_empty
+    sources:
+      - type: raw_field
+        key: station_id
+      - type: path_regex
+        pattern: "P(?P<value>\\d{1,4})"
+    transforms:
+      - strip
+      - uppercase
+      - name: remove_prefix
+        value: "P"
+      - digits_only
+    normalize:
+      digits_only: true
+```
+
+### 8.1 strategy
+
+Ejemplo:
+
+```yaml
+strategy: first_non_empty
+```
+
+`first_non_empty` significa que Aforix prueba las fuentes en orden y toma el primer valor no vacío.
+
+Riesgo: el orden importa. Si una fuente imprecisa aparece antes que una fuente confiable, puede elegirse una metadata incorrecta.
+
+### 8.2 sources
+
+`sources` define de dónde intentar leer el dato.
+
+Tipos usados actualmente:
+
+| Tipo | Qué hace |
 | --- | --- |
-| `raw_data_dir` | carpeta donde el usuario coloca archivos raw |
-| `runs_root` | carpeta donde se guardan ejecuciones |
-| `database_root` | carpeta donde se guarda la base procesada |
+| `raw_field` | lee un campo extraído desde el archivo raw |
+| `path_regex` | extrae información desde la ruta del archivo |
+| `filename_regex` | extrae información desde el nombre del archivo |
 
-### 7.2 ingest
+#### raw_field
 
-Define instrumentos activos y subcarpetas raw.
+```yaml
+- type: raw_field
+  key: station_id
+```
 
-### 7.3 build_groups
+Busca una clave ya extraída por el parser del instrumento.
 
-Define cómo se construye `database/raw_canonical`.
+#### path_regex
 
-### 7.4 normalize
+```yaml
+- type: path_regex
+  pattern: "P(?P<value>\\d{1,4})"
+```
 
-Define dónde están los datos raw canonical, dónde guardar normalizados y dónde buscar los YAML de normalización.
+Busca un patrón en la ruta completa.
 
-### 7.5 validation
+Debe contener un grupo llamado:
 
-Define chequeos de calidad y consistencia.
+```text
+value
+```
 
-### 7.6 export
+#### filename_regex
 
-Define salidas de tablas y Excel.
+```yaml
+- type: filename_regex
+  pattern: "(?P<value>\\d{8})_\\d{6}"
+```
 
-## 8. YAML de normalización
+Busca un patrón en el nombre del archivo.
 
-Los archivos en `configs/normalization/` definen cómo convertir columnas crudas o raw canonical a columnas normalizadas.
+También debe usar un grupo:
 
-Usar `source` cuando hay una sola columna posible:
+```text
+value
+```
+
+### 8.3 transforms
+
+Transformaciones aplicadas al valor extraído.
+
+Usadas actualmente:
+
+| Transformación | Qué hace |
+| --- | --- |
+| `strip` | elimina espacios al inicio y final |
+| `uppercase` | convierte a mayúsculas |
+| `remove_prefix` | elimina un prefijo configurado |
+| `digits_only` | conserva solo dígitos |
+
+Ejemplo:
+
+```yaml
+transforms:
+  - strip
+  - uppercase
+  - name: remove_prefix
+    value: "P"
+  - digits_only
+```
+
+Esto convierte valores como:
+
+```text
+" p011 " -> "11"
+```
+
+### 8.4 normalize
+
+Normaliza fechas, horas o IDs.
+
+Ejemplo para fecha:
+
+```yaml
+normalize:
+  input_formats:
+    - "%Y%m%d"
+    - "%Y-%m-%d"
+    - "%Y/%m/%d"
+    - "%Y-%m-%d %H:%M:%S"
+  output_format: "%Y%m%d"
+```
+
+Ejemplo para hora:
+
+```yaml
+normalize:
+  input_formats:
+    - "%H%M%S"
+    - "%H:%M:%S"
+    - "%H:%M"
+  output_format: "%H%M%S"
+```
+
+Formato recomendado final:
+
+```text
+measurement_date -> YYYYMMDD
+measurement_time -> HHMMSS
+```
+
+### 8.5 Política por instrumento
+
+#### FlowTracker
+
+`station_id` puede venir de:
+
+```text
+station_id
+file_name
+nombre_del_fichero
+input_file
+fallback_station_id
+path_regex Pxxxx
+```
+
+`station_name` puede venir de:
+
+```text
+site_name
+station_name
+nom_del_punto_de_aforo
+```
+
+`measurement_date` y `measurement_time` pueden venir de campos como:
+
+```text
+start_date_time
+start_date_and_time
+fecha_y_hora_de_inicio
+```
+
+#### Molinete
+
+`station_id` puede venir de:
+
+```text
+station_id
+fallback_station_id
+path_regex Pxxxx
+```
+
+`station_name` viene de:
+
+```text
+station_name
+```
+
+Fecha y hora vienen de:
+
+```text
+measurement_date
+measurement_time
+```
+
+#### Nivus
+
+`station_id` puede venir de:
+
+```text
+station_id
+ref
+reference
+fallback_station_id
+path_regex Pxxxx
+```
+
+Fecha y hora pueden venir de:
+
+```text
+measurement_date
+measurement_time
+timestamp_time
+filename_regex
+```
+
+## 9. Dónde cargar station_id y station_name en campo
+
+El usuario debe cargar el ID y el nombre del punto durante la medición o en la planilla del instrumento.
+
+| Instrumento | `station_id` / ID del punto | `station_name` / nombre del punto |
+| --- | --- | --- |
+| FlowTracker | `File_Name` / nombre del fichero | `Site_Name` / nombre del punto de aforo |
+| Molinete | `ESTACION Nº:` | `NOMBRE:` |
+| Nivus | `Número de referencia` | `Nombre del lugar de medición` |
+| M9 | Pendiente hasta analizar archivos base | Pendiente hasta analizar archivos base |
+
+Recomendaciones:
+
+- usar siempre el mismo ID para el mismo punto;
+- evitar variantes como `P11`, `P-11`, `Punto 11`, `11` para el mismo sitio;
+- revisar que la metadata resultante quede en `runs/.../raw_canonical` antes de consolidar.
+
+## 10. build_groups
+
+`build_groups` consolida salidas de ingesta desde `runs/` hacia:
+
+```text
+database/raw_canonical
+```
+
+Ejemplo actual:
+
+```yaml
+build_groups:
+  enabled: true
+  input_runs_root: runs
+  output_dir: database/raw_canonical
+
+  use_latest_run_only: true
+
+  deduplicate: true
+  deduplicate_by:
+    - instrument
+    - station_id
+    - measurement_date
+    - measurement_time
+    - group
+
+  manifest: true
+
+  groups:
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups:
+    - Summary
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+```
+
+### 10.1 enabled
+
+Activa o desactiva la etapa.
+
+### 10.2 input_runs_root
+
+Raíz donde se buscan corridas:
+
+```yaml
+input_runs_root: runs
+```
+
+### 10.3 output_dir
+
+Destino consolidado:
+
+```yaml
+output_dir: database/raw_canonical
+```
+
+### 10.4 use_latest_run_only
+
+```yaml
+use_latest_run_only: true
+```
+
+Cuando está en `true`, usa solo la corrida más reciente compatible por fuente/instrumento.
+
+Ventaja: evita mezclar accidentalmente corridas viejas y nuevas.
+
+Riesgo: si la corrida más reciente está incompleta, puede dejar fuera datos válidos de corridas anteriores.
+
+### 10.5 include_runs y exclude_runs
+
+Permiten controlar explícitamente qué runs usar o ignorar.
+
+Ejemplo conceptual:
+
+```yaml
+include_runs:
+  - runs/ingest_nivus/20260501_120000
+exclude_runs:
+  - runs/ingest_nivus/20260425_090000
+```
+
+Uso recomendado:
+
+- `include_runs`: cuando se quiere consolidar una lista conocida de corridas;
+- `exclude_runs`: cuando se quiere omitir una corrida defectuosa;
+- no mezclar con `use_latest_run_only` sin revisar el comportamiento esperado.
+
+### 10.6 deduplicate
+
+```yaml
+deduplicate: true
+```
+
+Activa eliminación de duplicados durante la consolidación.
+
+### 10.7 deduplicate_by
+
+Define las columnas usadas para identificar duplicados.
+
+```yaml
+deduplicate_by:
+  - instrument
+  - station_id
+  - measurement_date
+  - measurement_time
+  - group
+```
+
+Riesgo: si la clave es demasiado amplia, puede eliminar datos válidos. Si es demasiado débil, puede conservar duplicados.
+
+### 10.8 manifest
+
+```yaml
+manifest: true
+```
+
+Genera manifiestos en:
+
+```text
+database/raw_canonical/_manifests
+```
+
+Sirve para auditar qué runs y archivos participaron en la consolidación.
+
+### 10.9 groups
+
+Define grupos a consolidar:
+
+```yaml
+groups:
+  - Summary
+  - Points
+  - Sections
+  - Gates
+```
+
+### 10.10 concat_groups
+
+Define qué grupos se concatenan en un archivo consolidado:
+
+```yaml
+concat_groups:
+  - Summary
+```
+
+### 10.11 sources
+
+Define instrumentos/fuentes a incluir:
+
+```yaml
+sources:
+  - flowtracker
+  - molinete
+  - nivus
+```
+
+## 11. normalize
+
+`normalize` convierte `database/raw_canonical` en tablas bajo esquema común.
+
+Ejemplo actual:
+
+```yaml
+normalize:
+  enabled: true
+  registry_dir: configs/normalization
+  input_dir: database/raw_canonical
+  output_dir: database/normalized
+
+  write_policy: overwrite
+
+  groups:
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups:
+    - Summary
+    - Points
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+```
+
+### 11.1 registry_dir
+
+Carpeta con reglas YAML de normalización:
+
+```text
+configs/normalization
+```
+
+Archivos esperados:
+
+```text
+configs/normalization/flowtracker.yaml
+configs/normalization/molinete.yaml
+configs/normalization/nivus.yaml
+```
+
+### 11.2 input_dir
+
+Entrada de normalize:
+
+```text
+database/raw_canonical
+```
+
+### 11.3 output_dir
+
+Salida de normalize:
+
+```text
+database/normalized
+```
+
+### 11.4 write_policy
+
+```yaml
+write_policy: overwrite
+```
+
+Valores soportados:
+
+| Valor | Qué hace | Cuándo usarlo |
+| --- | --- | --- |
+| `overwrite` | sobrescribe outputs existentes e informa la acción | desarrollo, reprocesamiento controlado |
+| `fail_if_exists` | detiene la normalización si el output ya existe | producción, evitar reemplazos accidentales |
+
+### 11.5 groups
+
+Grupos que se intentan normalizar:
+
+```yaml
+groups:
+  - Summary
+  - Points
+  - Sections
+  - Gates
+```
+
+### 11.6 concat_groups
+
+Grupos para los que se generan salidas concatenadas:
+
+```yaml
+concat_groups:
+  - Summary
+  - Points
+```
+
+### 11.7 sources
+
+Instrumentos a normalizar:
+
+```yaml
+sources:
+  - flowtracker
+  - molinete
+  - nivus
+```
+
+## 12. Archivos de normalización
+
+Los YAML en `configs/normalization/` definen cómo mapear columnas de cada instrumento a un esquema común.
+
+Ubicaciones actuales:
+
+```text
+configs/normalization/flowtracker.yaml
+configs/normalization/molinete.yaml
+configs/normalization/nivus.yaml
+```
+
+También existe:
+
+```text
+configs/specs/flowtracker.yaml
+```
+
+que se usa como especificación auxiliar de ingesta FlowTracker.
+
+### 12.1 source
+
+Usar cuando hay una columna única:
 
 ```yaml
 station_id:
   source: station_id
 ```
 
-Usar `sources` cuando puede haber varias alternativas:
+### 12.2 sources
+
+Usar cuando puede haber varias columnas alternativas:
 
 ```yaml
 station_name:
@@ -306,9 +813,11 @@ station_name:
     - site_name
 ```
 
-Aforix toma la primera columna disponible con datos.
+Aforix toma la primera disponible con datos.
 
-También pueden definirse columnas derivadas, por ejemplo:
+### 12.3 columnas derivadas
+
+Ejemplo conceptual:
 
 ```yaml
 q_total_ls:
@@ -317,90 +826,387 @@ q_total_ls:
   value: 1000
 ```
 
-## 9. Pipeline de uso
+## 13. validation
 
-### 9.1 Verificar configuración
+La sección `validation` configura controles sobre `database/normalized`.
+
+Ejemplo:
+
+```yaml
+validation:
+  enabled: true
+  strict: false
+  input_dir: database/normalized
+  output_dir: database/validation
+```
+
+### 13.1 traceability_columns
+
+Columnas esperadas para trazabilidad:
+
+```yaml
+traceability_columns:
+  - station_id
+  - station_name
+  - measurement_date
+  - measurement_time
+  - instrument
+  - source_file
+  - source_run_dir
+  - run_id
+```
+
+### 13.2 keys
+
+Clave base para identificar mediciones:
+
+```yaml
+keys:
+  - instrument
+  - station_id
+  - measurement_date
+  - measurement_time
+```
+
+### 13.3 checks
+
+Chequeos activables:
+
+```yaml
+checks:
+  required_columns: true
+  duplicates: true
+  completeness: true
+  ranges: true
+  hydraulic_consistency: true
+```
+
+### 13.4 required_columns
+
+Define columnas obligatorias por grupo.
+
+Ejemplo `Summary`:
+
+```text
+station_id
+station_name
+measurement_date
+measurement_time
+instrument
+source_file
+source_run_dir
+run_id
+q_total_m3s
+q_total_ls
+area_total_m2
+```
+
+Ejemplo `Points`:
+
+```text
+station_id
+station_name
+measurement_date
+measurement_time
+instrument
+source_file
+source_run_dir
+run_id
+point_index
+distance_m
+depth_m
+area_m2
+q_m3s
+q_ls
+```
+
+### 13.5 completeness
+
+Define columnas críticas que no deberían quedar vacías.
+
+### 13.6 hydraulic_consistency
+
+Define tolerancias entre agregados de `Points` y valores de `Summary`.
+
+```yaml
+hydraulic_consistency:
+  q_tolerance_pct: 1.0
+  area_tolerance_pct: 1.0
+```
+
+### 13.7 ranges
+
+Define rangos aceptables para variables.
+
+Ejemplo:
+
+```yaml
+ranges:
+  Summary:
+    area_total_m2:
+      min: 0
+    temperature_c:
+      min: -5
+      max: 45
+```
+
+## 14. export
+
+Configura exportaciones generales.
+
+```yaml
+export:
+  tables:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/tables
+
+  excel:
+    enabled: true
+    input_dir: database/normalized
+    output_dir: outputs/excel
+```
+
+Estas salidas trabajan preferentemente sobre `database/normalized`.
+
+La exportación SIH tiene documentación específica:
+
+```text
+docs/SIH_EXPORT.md
+docs/SIH_CONFIGURATION.md
+docs/SIH_MATCHING.md
+docs/SIH_TROUBLESHOOTING.md
+```
+
+## 15. external_sources
+
+Define fuentes externas usadas por análisis.
+
+```yaml
+external_sources:
+  model:
+    raw_dir: database/external/raw/model
+    normalized_dir: database/external/normalized/model
+
+  dinagua:
+    raw_dir: database/external/raw/dinagua
+    normalized_dir: database/external/normalized/dinagua
+
+  manual_stage:
+    enabled: true
+    raw_dir: data/external/manual_stage
+    normalized_dir: database/external/normalized/manual_stage
+```
+
+### 15.1 model
+
+Datos externos de modelo hidrológico.
+
+### 15.2 dinagua
+
+Datos externos de estaciones DINAGUA.
+
+### 15.3 manual_stage
+
+Datos manuales de altura/nivel usados por análisis caudal-altura.
+
+## 16. analysis
+
+La sección `analysis` configura módulos posteriores.
+
+### 16.1 correlation
+
+```yaml
+analysis:
+  correlation:
+    output_root: runs/analysis_correlation
+    default_ranking:
+      - NV
+      - FT
+      - ML
+```
+
+Controla salidas, ranking de instrumentos y roles de variables para análisis de correlación.
+
+Guía específica:
+
+```text
+docs/CORRELATION_GUIDE.md
+```
+
+### 16.2 quality_metrics
+
+```yaml
+quality_metrics:
+  enabled: true
+  input_dirs:
+    normalized_root: database/normalized
+    raw_canonical_root: database/raw_canonical
+  output_root: runs/analysis_quality_metrics
+```
+
+Guía específica:
+
+```text
+docs/QUALITY_METRICS_GUIDE.md
+```
+
+### 16.3 section_profiles
+
+Configura análisis de perfiles de sección.
+
+Guía específica:
+
+```text
+docs/SECTION_PROFILES_ANALYSIS.md
+```
+
+### 16.4 stage_discharge
+
+Configura análisis caudal-altura.
+
+Guía específica:
+
+```text
+docs/STAGE_DISCHARGE_ANALYSIS.md
+```
+
+## 17. Auditoría del pipeline
+
+Después de normalizar, se recomienda ejecutar:
+
+```bash
+python scripts/audit_pipeline_outputs.py
+```
+
+Windows CMD:
+
+```bat
+python scripts\audit_pipeline_outputs.py
+```
+
+El audit revisa:
+
+- columnas esperadas;
+- duplicados;
+- consistencia hidráulica;
+- consistencia de unidades;
+- rangos básicos.
+
+No reemplaza `aforix validate run`; lo complementa.
+
+## 18. Flujo recomendado desde cero
 
 ```bash
 aforix config-check -c configs/examples/main.yaml
-```
-
-### 9.2 Ingestar datos
-
-```bash
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
-```
-
-### 9.3 Construir raw canonical
-
-```bash
 aforix build-groups -c configs/examples/main.yaml
-```
-
-### 9.4 Normalizar
-
-```bash
 aforix normalize run -c configs/examples/main.yaml
-```
-
-### 9.5 Validar
-
-```bash
+python scripts/audit_pipeline_outputs.py
 aforix validate run -c configs/examples/main.yaml
 ```
 
-### 9.6 Exportar tablas
+Windows CMD:
 
-```bash
-aforix export tables -c configs/examples/main.yaml --interactive
+```bat
+aforix config-check -c configs/examples/main.yaml
+aforix ingest flowtracker -c configs/examples/main.yaml
+aforix ingest molinete -c configs/examples/main.yaml
+aforix ingest nivus -c configs/examples/main.yaml
+aforix build-groups -c configs/examples/main.yaml
+aforix normalize run -c configs/examples/main.yaml
+python scripts\audit_pipeline_outputs.py
+aforix validate run -c configs/examples/main.yaml
 ```
 
-## 10. Outputs principales
+## 19. Errores frecuentes
 
-- `runs/`: registros y salidas de cada ejecución.
-- `database/raw_canonical/`: datos extraídos y organizados por instrumento.
-- `database/normalized/`: datos normalizados bajo un esquema común.
-- `database/validation/`: reportes de validación.
-- `outputs/`: salidas exportadas para usuario.
+### 19.1 Aforix no encuentra archivos raw
 
-## 11. Errores frecuentes
+Revisar:
 
-### 11.1 La configuración no encuentra los datos raw
+```text
+paths.raw_data_dir
+ingest.<instrument>.raw_subdir
+```
 
-Revisar `paths.raw_data_dir` y las subcarpetas configuradas en `ingest`.
+### 19.2 Falta station_id
 
-### 11.2 Falta station_id
+Revisar:
 
-Verificar que el ID del punto esté cargado en el campo correcto del instrumento.
+- que el ID esté cargado en el campo correcto del instrumento;
+- `metadata_policy.station_id.sources`;
+- transformaciones como `remove_prefix` o `digits_only`.
 
-### 11.3 No aparece station_name
+### 19.3 Fechas u horas incorrectas
 
-Verificar que el nombre del punto esté cargado en el campo correcto del instrumento. Si el instrumento no lo provee, lo importante es conservar un `station_id` completo y consistente.
+Revisar:
 
-### 11.4 Fechas u horas mal formateadas
+- `metadata_policy.measurement_date.normalize.input_formats`;
+- `metadata_policy.measurement_time.normalize.input_formats`;
+- que la salida final sea `YYYYMMDD` y `HHMMSS`.
 
-El formato final esperado es `YYYYMMDD` para fechas y `HHMMSS` para horas.
+### 19.4 build-groups mezcla corridas no deseadas
 
-### 11.5 Nivus no reconstruye bien Points
+Revisar:
 
-Revisar que existan `Points` y `Sections` correspondientes. Para algunos cálculos, Aforix usa `Sections` para enriquecer `Points`.
+```yaml
+use_latest_run_only
+include_runs
+exclude_runs
+```
 
-## 12. Checklist para usuario nuevo
+### 19.5 Aparecen duplicados
 
-- [ ] Instalé Aforix en el entorno Python.
-- [ ] Preparé `configs/examples/main.yaml`.
-- [ ] Coloqué archivos raw en la subcarpeta correspondiente.
+Revisar:
+
+```yaml
+deduplicate
+deduplicate_by
+```
+
+Luego ejecutar audit.
+
+### 19.6 normalize sobrescribe archivos
+
+Revisar:
+
+```yaml
+write_policy: overwrite
+```
+
+Si se quiere prevenir sobrescritura:
+
+```yaml
+write_policy: fail_if_exists
+```
+
+### 19.7 El audit marca caudales negativos
+
+No necesariamente es error. Los caudales negativos pueden representar dirección de flujo o situaciones hidráulicas específicas. Revisar caso por caso.
+
+## 20. Checklist para usuario nuevo
+
+- [ ] Instalé Aforix con `pip install -e .`.
+- [ ] Revisé `configs/examples/main.yaml`.
+- [ ] Coloqué archivos raw en `data/raw/FT`, `data/raw/ML` o `data/raw/NV`.
 - [ ] Cargué correctamente el ID del punto en el instrumento.
 - [ ] Cargué correctamente el nombre del punto en el instrumento.
+- [ ] Revisé `metadata_policy` del instrumento.
 - [ ] Ejecuté `aforix config-check`.
 - [ ] Ejecuté la ingesta correspondiente.
+- [ ] Revisé outputs en `runs/.../raw_canonical`.
 - [ ] Ejecuté `aforix build-groups`.
+- [ ] Revisé manifest en `database/raw_canonical/_manifests` si está habilitado.
 - [ ] Ejecuté `aforix normalize run`.
+- [ ] Ejecuté `python scripts/audit_pipeline_outputs.py`.
 - [ ] Ejecuté `aforix validate run`.
-- [ ] Revisé los outputs en `database/normalized` y `database/validation`.
+- [ ] Revisé `database/normalized` y `database/validation`.
 
-## 13. Recomendación final
+## 21. Recomendación final
 
-Para usuarios nuevos, se recomienda empezar con un único instrumento y pocas mediciones. Una vez validado el flujo completo, se pueden agregar más instrumentos y campañas.
+Para usuarios nuevos, se recomienda empezar con un único instrumento y pocas mediciones. Una vez validado el flujo completo, agregar más instrumentos y campañas.
+
+Cuando se cambie una política importante, como `metadata_policy`, `deduplicate_by` o `write_policy`, conviene volver a correr el pipeline completo y revisar audit/validation antes de exportar o analizar datos.
