@@ -107,6 +107,10 @@ def _to_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+def _sum_preserve_all_missing(series: pd.Series) -> float:
+    return series.sum(min_count=1)
+
+
 def _empty_report() -> pd.DataFrame:
     return pd.DataFrame()
 
@@ -413,16 +417,16 @@ def audit_hydraulic_consistency(
         points, points_rows_raw, points_rows_after_dedup = _deduplicate_points_for_hydraulic_audit(points)
         points_rows_dropped = points_rows_raw - points_rows_after_dedup
 
-        point_aggs: dict[str, tuple[str, str]] = {}
+        point_aggs: dict[str, tuple[str, object]] = {}
         if "q_m3s" in points.columns:
             points["q_m3s_num"] = _to_numeric(points["q_m3s"])
-            point_aggs["points_q_m3s_sum"] = ("q_m3s_num", "sum")
+            point_aggs["points_q_m3s_sum"] = ("q_m3s_num", _sum_preserve_all_missing)
         if "q_ls" in points.columns:
             points["q_ls_num"] = _to_numeric(points["q_ls"])
-            point_aggs["points_q_ls_sum"] = ("q_ls_num", "sum")
+            point_aggs["points_q_ls_sum"] = ("q_ls_num", _sum_preserve_all_missing)
         if "area_m2" in points.columns:
             points["area_m2_num"] = _to_numeric(points["area_m2"])
-            point_aggs["points_area_m2_sum"] = ("area_m2_num", "sum")
+            point_aggs["points_area_m2_sum"] = ("area_m2_num", _sum_preserve_all_missing)
 
         if not point_aggs:
             rows.append(

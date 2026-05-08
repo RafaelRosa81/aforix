@@ -462,6 +462,8 @@ def normalize_database(config_path: Path) -> Path:
                 else:
                     print(f"{instrument}/{group}: no input found")
 
+            except FileExistsError:
+                raise
             except Exception as exc:
                 failed.append((f"{instrument}/{group}", str(exc)))
                 print(f"ERROR normalizing {instrument}/{group}: {exc}")
