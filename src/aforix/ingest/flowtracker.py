@@ -14,6 +14,10 @@ from aforix.ingest.discovery import (
     find_files_recursive,
 )
 from aforix.ingest.metadata import clean_station_id, clean_station_name
+from aforix.ingest.metadata_policy import (
+    MetadataExtractionContext,
+    extract_metadata,
+)
 
 
 INSTRUMENT_NAME = "flowtracker"
@@ -172,6 +176,42 @@ def _extract_station_name(summary: dict[str, Any]) -> str | None:
     )
 
 
+def _extract_flowtracker_metadata(
+    *,
+    flowtracker_cfg: dict[str, Any],
+    summary: dict[str, Any],
+    dis_path: Path,
+) -> dict[str, str | None]:
+    """Resolve FlowTracker metadata using config policy with legacy fallbacks."""
+
+    raw_fields = dict(summary)
+    raw_fields["fallback_station_id"] = fallback_station_id_from_parents(dis_path) or ""
+    raw_fields["filename"] = dis_path.name
+    raw_fields["stem"] = dis_path.stem
+
+    context = MetadataExtractionContext(
+        raw_fields=raw_fields,
+        source_path=dis_path,
+    )
+
+    policy = flowtracker_cfg.get("metadata_policy", {}) or {}
+    resolved = extract_metadata(policy, context=context)
+
+    station_id = resolved.get("station_id") or _extract_station_id(summary, dis_path=dis_path)
+    station_name = resolved.get("station_name") or _extract_station_name(summary)
+
+    measurement_dt = _parse_measurement_datetime(summary, dis_path=dis_path)
+    measurement_date = resolved.get("measurement_date") or measurement_dt.strftime("%Y%m%d")
+    measurement_time = resolved.get("measurement_time") or measurement_dt.strftime("%H%M%S")
+
+    return {
+        "station_id": station_id,
+        "station_name": station_name,
+        "measurement_date": measurement_date,
+        "measurement_time": measurement_time,
+    }
+
+
 def _add_common_metadata(
     df: pd.DataFrame,
     *,
@@ -189,7 +229,7 @@ def _add_common_metadata(
     df["measurement_date"] = measurement_date
     df["measurement_time"] = measurement_time
     df["instrument"] = INSTRUMENT_NAME
-    df["source_csv"] = str(source_path)
+    df["source_file"] = str(source_path)
     df["source_run_dir"] = str(run_dir)
 
     return df
@@ -268,17 +308,22 @@ def _write_points(
 def _process_dis_file(
     dis_path: Path,
     *,
+    flowtracker_cfg: dict[str, Any],
     group_dirs: dict[str, Path],
     run_dir: Path,
 ) -> None:
     summary, points = parse_flowtracker_dis(dis_path)
 
-    station_id = _extract_station_id(summary, dis_path=dis_path)
-    station_name = _extract_station_name(summary)
+    meta = _extract_flowtracker_metadata(
+        flowtracker_cfg=flowtracker_cfg,
+        summary=summary,
+        dis_path=dis_path,
+    )
 
-    measurement_dt = _parse_measurement_datetime(summary, dis_path=dis_path)
-    measurement_date = measurement_dt.strftime("%Y%m%d")
-    measurement_time = measurement_dt.strftime("%H%M%S")
+    station_id = str(meta["station_id"])
+    station_name = meta["station_name"]
+    measurement_date = str(meta["measurement_date"])
+    measurement_time = str(meta["measurement_time"])
 
     summary_outpath = _write_summary(
         summary,
@@ -346,6 +391,7 @@ def run(config_path: Path) -> Path:
         try:
             _process_dis_file(
                 dis_path,
+                flowtracker_cfg=flowtracker_cfg,
                 group_dirs=group_dirs,
                 run_dir=run_dir,
             )
