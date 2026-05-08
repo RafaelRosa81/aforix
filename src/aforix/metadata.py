@@ -200,9 +200,9 @@ def build_station_code(station_id: Any, policy: dict[str, Any] | None = None) ->
         prefix = prefix.upper()
         suffix = suffix.upper()
 
-    if prefix and not text.startswith(prefix):
+    if prefix and text and not text.startswith(prefix):
         text = f"{prefix}{text}"
-    if suffix and not text.endswith(suffix):
+    if suffix and text and not text.endswith(suffix):
         text = f"{text}{suffix}"
 
     return text
@@ -211,7 +211,9 @@ def build_station_code(station_id: Any, policy: dict[str, Any] | None = None) ->
 def apply_metadata_policy(df: pd.DataFrame, policy: dict[str, Any] | None = None) -> pd.DataFrame:
     """Apply metadata normalization to canonical traceability columns.
 
-    This is intentionally conservative: it only changes columns that already exist.
+    This is intentionally conservative: it only changes columns that already exist,
+    except station_code when station_code.enabled=true. In that case station_code
+    is built from the normalized station_id.
     """
     policy = policy or {}
     df = df.copy()
@@ -226,12 +228,12 @@ def apply_metadata_policy(df: pd.DataFrame, policy: dict[str, Any] | None = None
             lambda value: normalize_station_id(value, station_id_policy)
         )
 
-    if "station_code" in df.columns:
-        df["station_code"] = df["station_code"].map(
+    if station_code_policy.get("enabled", False) and "station_id" in df.columns:
+        df["station_code"] = df["station_id"].map(
             lambda value: build_station_code(value, station_code_policy)
         )
-    elif station_code_policy.get("enabled", False) and "station_id" in df.columns:
-        df["station_code"] = df["station_id"].map(
+    elif "station_code" in df.columns:
+        df["station_code"] = df["station_code"].map(
             lambda value: build_station_code(value, station_code_policy)
         )
 
