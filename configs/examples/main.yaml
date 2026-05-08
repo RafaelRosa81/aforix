@@ -234,6 +234,18 @@ build_groups:
   input_runs_root: runs
   output_dir: database/raw_canonical
 
+  use_latest_run_only: true
+
+  deduplicate: true
+  deduplicate_by:
+    - instrument
+    - station_id
+    - measurement_date
+    - measurement_time
+    - group
+
+  manifest: true
+
   groups:
     - Summary
     - Points
@@ -462,31 +474,8 @@ analysis:
         - temperature_c
       chart_types:
         - scatter
-        - bar
-
-    instruments:
-      nivus:
-        enabled: true
-        code: NV
-        points_table: nivus/Points
-
-      flowtracker:
-        enabled: true
-        code: FT
-        points_table: flowtracker/Points
-
-      molinete:
-        enabled: true
-        code: ML
-        points_table: molinete/Points
-
-    excel:
-      enabled: true
-      include_summary: true
-      include_chart: true
-      chart_anchor: H2
-      sheet_name_template: "{station_id}_{measurement_date}_{instrument_code}"
-      output_name_template: "section_profile_{y_axis}_by_{x_axis}_{instrument_tag}_{points_tag}_{date_range}.xlsx"
+        - line
+        - scatter_line
 
   stage_discharge:
     enabled: true
@@ -498,107 +487,30 @@ analysis:
     output:
       run_output_root: runs/analysis_stage_discharge
       stable_output_dir: database/analysis/stage_discharge
-      write_stable_copy: true
-
-    interactive_defaults:
-      instruments:
-        - nivus
-        - flowtracker
-        - molinete
-      ranking:
-        - nivus
-        - flowtracker
-        - molinete
-      include_best_ranked: true
-      depth_mode: both
-      instrument_stage_mode: both
-      outlier_method: mad
-      z_thresh: 3.0
-      mad_thresh: 3.5
-      coherence: true
-      models:
-        - poly1
-        - poly2
-        - power
-        - power_log
+      write_stable_copy: false
 
     selection:
       points: all
       instruments: all
       start_date: null
       end_date: null
-      depth_mode: both
-      instrument_stage_mode: both
-      include_best_ranked: true
 
-    instrument_selection:
-      ranking:
-        - nivus
-        - flowtracker
-        - molinete
+    matching:
+      keys:
+        - station_id
+        - measurement_date
+      stage_sources:
+        - manual
+        - instrument
 
-    instruments:
-      nivus:
-        code: NV
-        enabled: true
-        summary_table: nivus/Summary
-        q_column: q_total_ls
-        q_unit: l/s
-        stage_sources:
-          mean:
-            column: depth_mean_m
-            enabled: true
-          max:
-            column: depth_max_m
-            enabled: false
+    columns:
+      discharge: q_total_m3s
+      stage_manual: stage_m
+      stage_instrument: stage_instrument_m
+      date: measurement_date
+      station: station_id
 
-      flowtracker:
-        code: FT
-        enabled: true
-        summary_table: flowtracker/Summary
-        q_column: q_total_ls
-        q_unit: l/s
-        stage_sources:
-          mean:
-            column: depth_mean_m
-            enabled: true
-          max:
-            column: depth_max_m
-            enabled: false
-
-      molinete:
-        code: ML
-        enabled: true
-        summary_table: molinete/Summary
-        q_column: q_total_ls
-        q_unit: l/s
-        stage_sources:
-          mean:
-            column: depth_mean_m
-            enabled: true
-          max:
-            column: depth_max_m
-            enabled: true
-
-measuring_instruments:
-  - code: NV
-    name: Nivus
-    subdir: nivus
-    summary_format: matrix
-    flow_unit: l/s
-    flow_row_label: "q [l/s]"
-    time_row_label: "etime"
-
-  - code: FT
-    name: FlowTracker
-    subdir: flowtracker
-    summary_format: wide
-    flow_column: q_total_ls
-    flow_unit: l/s
-
-  - code: ML
-    name: Molinete
-    subdir: molinete
-    summary_format: wide
-    flow_column: caudal
-    flow_unit: m3/s
+    charts:
+      x_axis: stage_m
+      y_axis: q_total_m3s
+      include_labels: true
