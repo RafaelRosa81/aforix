@@ -31,6 +31,12 @@ SECTION_ALLOWED_KEYS: dict[str, set[str]] = {
         "concat_groups",
         "sources",
         "column_aliases",
+        "use_latest_run_only",
+        "include_runs",
+        "exclude_runs",
+        "deduplicate",
+        "deduplicate_by",
+        "manifest",
     },
     "normalize": {
         "enabled",
@@ -301,15 +307,26 @@ def _validate_paths_section(cfg: dict[str, Any]) -> list[str]:
 
 
 def _validate_build_groups_section(cfg: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
     section = cfg.get("build_groups")
     if not isinstance(section, dict):
-        return []
-    return _validate_pipeline_section(
-        section,
-        section_name="build_groups",
-        source_allowed_values=set(INGEST_ALLOWED_KEYS),
-        require_sources_non_empty=True,
+        return errors
+
+    errors.extend(
+        _validate_pipeline_section(
+            section,
+            section_name="build_groups",
+            source_allowed_values=set(INGEST_ALLOWED_KEYS),
+            require_sources_non_empty=True,
+        )
     )
+    errors.extend(_validate_optional_bool(section, key="use_latest_run_only", full_key="build_groups.use_latest_run_only"))
+    errors.extend(_validate_optional_bool(section, key="deduplicate", full_key="build_groups.deduplicate"))
+    errors.extend(_validate_optional_bool(section, key="manifest", full_key="build_groups.manifest"))
+    errors.extend(_validate_optional_string_list(section, key="include_runs", full_key="build_groups.include_runs", allow_empty=False))
+    errors.extend(_validate_optional_string_list(section, key="exclude_runs", full_key="build_groups.exclude_runs", allow_empty=False))
+    errors.extend(_validate_optional_string_list(section, key="deduplicate_by", full_key="build_groups.deduplicate_by", allow_empty=False))
+    return errors
 
 
 def _validate_normalize_section(cfg: dict[str, Any]) -> list[str]:
@@ -345,32 +362,15 @@ def _validate_pipeline_section(
     errors.extend(_validate_optional_non_empty_string(section, key="output_dir", full_key=f"{section_name}.output_dir"))
     errors.extend(_validate_optional_string_list(section, key="groups", full_key=f"{section_name}.groups", allow_empty=False))
     errors.extend(_validate_optional_string_list(section, key="concat_groups", full_key=f"{section_name}.concat_groups", allow_empty=True))
-
-    sources = section.get("sources")
-    if sources is not None:
-        if not isinstance(sources, list):
-            errors.append(f"'{section_name}.sources' must be a list.")
-        elif not sources and require_sources_non_empty:
-            errors.append(f"'{section_name}.sources' cannot be empty.")
-        else:
-            for source in sources:
-                if not isinstance(source, str) or not source.strip():
-                    errors.append(f"'{section_name}.sources' must contain non-empty strings.")
-                elif source not in source_allowed_values:
-                    errors.append(
-                        f"Unknown source in '{section_name}.sources': '{source}'. Allowed sources are: {sorted(source_allowed_values)}."
-                    )
-
-    groups = section.get("groups")
-    concat_groups = section.get("concat_groups")
-    if isinstance(groups, list) and isinstance(concat_groups, list):
-        group_set = {str(g).strip() for g in groups if str(g).strip()}
-        concat_set = {str(g).strip() for g in concat_groups if str(g).strip()}
-        unknown_concat = sorted(concat_set - group_set)
-        if unknown_concat:
-            errors.append(
-                f"'{section_name}.concat_groups' contains groups not listed in '{section_name}.groups': {unknown_concat}."
-            )
+    errors.extend(
+        _validate_optional_string_list(
+            section,
+            key="sources",
+            full_key=f"{section_name}.sources",
+            allow_empty=not require_sources_non_empty,
+            allowed_values=source_allowed_values,
+        )
+    )
     return errors
 
 
@@ -385,41 +385,42 @@ def _validate_validation_section(cfg: dict[str, Any]) -> list[str]:
         errors.extend(_validate_optional_non_empty_string(section, key=key, full_key=f"validation.{key}"))
     for key in ("traceability_columns", "keys"):
         errors.extend(_validate_optional_string_list(section, key=key, full_key=f"validation.{key}", allow_empty=False))
-    for key in ("checks", "required_columns", "completeness", "hydraulic_consistency", "ranges"):
-        value = section.get(key)
-        if value is not None and not isinstance(value, dict):
-            errors.append(f"'validation.{key}' must be a mapping/dictionary.")
     return errors
 
 
 def _validate_correlation_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    correlation = _get_nested(cfg, ["analysis", "correlation"])
-    if correlation is None:
+    analysis = cfg.get("analysis")
+    if not isinstance(analysis, dict):
         return errors
+    correlation = analysis.get("correlation")
     if not isinstance(correlation, dict):
-        return ["'analysis.correlation' must be a mapping/dictionary."]
-    errors.extend(_validate_optional_non_empty_string(correlation, key="output_root", full_key="analysis.correlation.output_root"))
-    errors.extend(_validate_optional_string_list(correlation, key="default_ranking", full_key="analysis.correlation.default_ranking", allow_empty=False))
+        return errors
+    if "default_ranking" in correlation:
+        errors.extend(
+            _validate_optional_string_list(
+                correlation,
+                key="default_ranking",
+                full_key="analysis.correlation.default_ranking",
+                allow_empty=False,
+            )
+        )
     variable_roles = correlation.get("variable_roles")
     if variable_roles is not None and not isinstance(variable_roles, dict):
-        errors.append("'analysis.correlation.variable_roles' must be a mapping/dictionary.")
+        errors.append("'analysis.correlation.variable_roles' must be a mapping/dictionary when provided.")
     return errors
 
 
 def _validate_quality_metrics_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    quality = _get_nested(cfg, ["analysis", "quality_metrics"])
-    if quality is None:
+    analysis = cfg.get("analysis")
+    if not isinstance(analysis, dict):
         return errors
-    if not isinstance(quality, dict):
-        return ["'analysis.quality_metrics' must be a mapping/dictionary."]
-    errors.extend(_validate_optional_bool(quality, key="enabled", full_key="analysis.quality_metrics.enabled"))
-    errors.extend(_validate_optional_non_empty_string(quality, key="output_root", full_key="analysis.quality_metrics.output_root"))
-    for key in ("input_dirs", "instruments"):
-        value = quality.get(key)
-        if value is not None and not isinstance(value, dict):
-            errors.append(f"'analysis.quality_metrics.{key}' must be a mapping/dictionary.")
+    quality_metrics = analysis.get("quality_metrics")
+    if not isinstance(quality_metrics, dict):
+        return errors
+    errors.extend(_validate_optional_bool(quality_metrics, key="enabled", full_key="analysis.quality_metrics.enabled"))
+    errors.extend(_validate_optional_non_empty_string(quality_metrics, key="output_root", full_key="analysis.quality_metrics.output_root"))
     return errors
 
 
@@ -428,138 +429,112 @@ def _validate_external_sources_section(cfg: dict[str, Any]) -> list[str]:
     external_sources = cfg.get("external_sources")
     if not isinstance(external_sources, dict):
         return errors
-    for source_name, source_cfg in external_sources.items():
-        if not isinstance(source_cfg, dict):
-            errors.append(f"'external_sources.{source_name}' must be a mapping/dictionary.")
+
+    for source_name, settings in external_sources.items():
+        if source_name not in SECTION_ALLOWED_KEYS["external_sources"]:
+            continue
+        if not isinstance(settings, dict):
+            errors.append(f"Section 'external_sources.{source_name}' must be a mapping/dictionary.")
+            continue
+        if source_name == "manual_stage":
+            errors.extend(_validate_optional_bool(settings, key="enabled", full_key="external_sources.manual_stage.enabled"))
+        for key in ("raw_dir", "normalized_dir"):
+            errors.extend(_validate_optional_non_empty_string(settings, key=key, full_key=f"external_sources.{source_name}.{key}"))
     return errors
 
 
 def _validate_measuring_instruments_section(cfg: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     instruments = cfg.get("measuring_instruments")
-    if instruments is None:
+    if instruments is None or not isinstance(instruments, list):
         return errors
-    if not isinstance(instruments, list):
-        return ["'measuring_instruments' must be a list."]
     for idx, item in enumerate(instruments):
         if not isinstance(item, dict):
             errors.append(f"'measuring_instruments[{idx}]' must be a mapping/dictionary.")
             continue
-        for key in ("code", "name", "subdir"):
-            errors.extend(_validate_required_non_empty_string(item, key=key, full_key=f"measuring_instruments[{idx}].{key}"))
+        code = item.get("code")
+        if not isinstance(code, str) or not code.strip():
+            errors.append(f"'measuring_instruments[{idx}].code' must be a non-empty string.")
     return errors
-
-
-def _find_project_root(config_path: Path) -> Path:
-    """Find the project root used for repo-root-relative config paths."""
-    start = config_path.resolve().parent
-
-    for candidate in [start] + list(start.parents):
-        if (
-            (candidate / ".git").exists()
-            or (candidate / "pyproject.toml").exists()
-            or (candidate / "src" / "aforix").exists()
-        ):
-            return candidate
-
-    return start
 
 
 def _validate_path_values(cfg: dict[str, Any], *, config_path: Path | None) -> list[str]:
     errors: list[str] = []
     if config_path is None:
         return errors
+    config_root = config_path.resolve().parents[2]
 
-    repo_root = _find_project_root(config_path)
+    def visit(value: Any, path: str) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                child_path = f"{path}.{key}" if path else str(key)
+                if isinstance(child, str) and key in PATH_KEYS_MUST_EXIST:
+                    candidate = _resolve_path(child, config_root)
+                    if not candidate.exists():
+                        errors.append(f"Path does not exist for '{child_path}': {candidate}")
+                visit(child, child_path)
+        elif isinstance(value, list):
+            for idx, child in enumerate(value):
+                visit(child, f"{path}[{idx}]")
 
-    def check_path(value: Any, key_path: str, *, must_exist: bool) -> None:
-        if value is None:
-            return
-        if not isinstance(value, str) or not value.strip():
-            return
-        path = Path(value)
-        if not path.is_absolute():
-            path = (repo_root / path).resolve()
-        if must_exist and not path.exists():
-            errors.append(f"Configured path does not exist: {key_path} -> {path}")
-
-    for key, value in (cfg.get("paths") or {}).items():
-        if key in PATH_KEYS_MUST_EXIST:
-            check_path(value, f"paths.{key}", must_exist=True)
-        elif key in PATH_KEYS_CAN_BE_CREATED:
-            check_path(value, f"paths.{key}", must_exist=False)
-
-    for section_name in ("build_groups", "normalize", "validation"):
-        section = cfg.get(section_name)
-        if not isinstance(section, dict):
-            continue
-        for key, value in section.items():
-            if key in PATH_KEYS_MUST_EXIST:
-                check_path(value, f"{section_name}.{key}", must_exist=True)
-            elif key in PATH_KEYS_CAN_BE_CREATED:
-                check_path(value, f"{section_name}.{key}", must_exist=False)
-
-    ingest = cfg.get("ingest")
-    if isinstance(ingest, dict):
-        for instrument, section in ingest.items():
-            if not isinstance(section, dict):
-                continue
-            for key, value in section.items():
-                if key in PATH_KEYS_MUST_EXIST:
-                    check_path(value, f"ingest.{instrument}.{key}", must_exist=True)
-                elif key in PATH_KEYS_CAN_BE_CREATED:
-                    check_path(value, f"ingest.{instrument}.{key}", must_exist=False)
-
+    visit(cfg, "")
     return errors
 
 
-def _get_nested(data: dict[str, Any], keys: list[str]) -> Any:
-    current: Any = data
-    for key in keys:
-        if not isinstance(current, dict):
-            return None
-        current = current.get(key)
-    return current
+def _resolve_path(value: str, root: Path) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return (root / path).resolve()
 
 
-def _validate_optional_bool(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    value = section.get(key)
-    if value is not None and not isinstance(value, bool):
-        return [f"'{full_key}' must be true or false."]
-    return []
+def _validate_required_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
+    if key not in section:
+        return [f"Missing required key: '{full_key}'."]
+    return _validate_optional_non_empty_string(section, key=key, full_key=full_key)
 
 
 def _validate_optional_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    value = section.get(key)
-    if value is None:
+    if key not in section or section[key] is None:
         return []
+    value = section[key]
     if not isinstance(value, str) or not value.strip():
         return [f"'{full_key}' must be a non-empty string."]
     return []
 
 
-def _validate_required_non_empty_string(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
-    value = section.get(key)
-    if not isinstance(value, str) or not value.strip():
-        return [f"'{full_key}' is required and must be a non-empty string."]
+def _validate_optional_bool(section: dict[str, Any], *, key: str, full_key: str) -> list[str]:
+    if key not in section or section[key] is None:
+        return []
+    if not isinstance(section[key], bool):
+        return [f"'{full_key}' must be true or false."]
     return []
 
 
-def _validate_optional_string_list(section: dict[str, Any], *, key: str, full_key: str, allow_empty: bool) -> list[str]:
-    value = section.get(key)
-    if value is None:
+def _validate_optional_string_list(
+    section: dict[str, Any],
+    *,
+    key: str,
+    full_key: str,
+    allow_empty: bool,
+    allowed_values: set[str] | None = None,
+) -> list[str]:
+    if key not in section or section[key] is None:
         return []
+    value = section[key]
     if not isinstance(value, list):
-        return [f"'{full_key}' must be a list."]
-    if not value and not allow_empty:
-        return [f"'{full_key}' cannot be empty."]
+        return [f"'{full_key}' must be a list of strings."]
+    if not allow_empty and not value:
+        return [f"'{full_key}' must not be empty."]
     errors: list[str] = []
-    for item in value:
+    for idx, item in enumerate(value):
         if not isinstance(item, str) or not item.strip():
-            errors.append(f"'{full_key}' must contain only non-empty strings.")
+            errors.append(f"'{full_key}[{idx}]' must be a non-empty string.")
+            continue
+        if allowed_values is not None and item not in allowed_values:
+            errors.append(f"Unsupported value '{item}' in '{full_key}'. Allowed values are: {sorted(allowed_values)}.")
     return errors
 
 
 def _format_errors(errors: list[str]) -> str:
-    joined = "\n".join(f"- {error}" for error in errors)
-    return f"Invalid Aforix configuration:\n{joined}"
+    return "Invalid Aforix configuration:\n" + "\n".join(f"- {error}" for error in errors)
