@@ -31,6 +31,21 @@ def safe_sheet_name(name: str) -> str:
     return safe[:MAX_SHEET_NAME_LEN]
 
 
+def unique_sheet_name(name: str, used: set[str]) -> str:
+    base = safe_sheet_name(name)
+    if base not in used:
+        used.add(base)
+        return base
+    counter = 2
+    while True:
+        suffix = f'_{counter}'
+        candidate = safe_sheet_name(base[: MAX_SHEET_NAME_LEN - len(suffix)] + suffix)
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+        counter += 1
+
+
 def make_sheet_name(row: dict, template: str) -> str:
     values = {
         'station_id': row.get('station_id', 'unknown'),

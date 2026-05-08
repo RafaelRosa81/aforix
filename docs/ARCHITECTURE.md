@@ -172,6 +172,10 @@ Responsabilidades:
 - permitir selección de tablas, instrumentos, puntos, fechas y parámetros;
 - exportar a formatos como Excel o CSV.
 
+Submódulos relevantes:
+
+- `export/sih`: exportación configurable SIH usando normalized, raw canonical y lookups (`docs/SIH_EXPORT.md`).
+
 ### analysis
 
 Contiene análisis hidrológicos o estadísticos posteriores.
@@ -187,6 +191,7 @@ Submódulos relevantes:
 - `analysis/correlation`: correlación entre aforos, modelo y estaciones DINAGUA (`docs/CORRELATION_GUIDE.md`).
 - `analysis/quality`: métricas de calidad de medición (`docs/QUALITY_METRICS_GUIDE.md`).
 - `analysis/stage_discharge`: análisis caudal-altura (`docs/STAGE_DISCHARGE_ANALYSIS.md`).
+- `analysis/section_profiles`: perfiles de sección (`docs/SECTION_PROFILES_ANALYSIS.md`).
 
 Este módulo debe mantenerse desacoplado de formatos propios de instrumentos.
 
@@ -272,7 +277,8 @@ Componentes disponibles:
 - construcción de `database/raw_canonical/`;
 - normalización mediante registry YAML;
 - validación de datasets normalizados;
-- exportación de tablas.
+- exportación de tablas;
+- exportación SIH configurable.
 
 Componentes pendientes o en evolución:
 

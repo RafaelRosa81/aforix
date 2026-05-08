@@ -61,6 +61,11 @@ Estas carpetas son locales o generadas por el pipeline y no deberían versionars
 - Guía de análisis de correlación: `docs/CORRELATION_GUIDE.md`
 - Guía de métricas de calidad: `docs/QUALITY_METRICS_GUIDE.md`
 - Guía de análisis caudal–altura: `docs/STAGE_DISCHARGE_ANALYSIS.md`
+- Guía de perfiles de sección: `docs/SECTION_PROFILES_ANALYSIS.md`
+- Guía de exportación SIH: `docs/SIH_EXPORT.md`
+- Configuración SIH: `docs/SIH_CONFIGURATION.md`
+- Matching SIH: `docs/SIH_MATCHING.md`
+- Troubleshooting SIH: `docs/SIH_TROUBLESHOOTING.md`
 - Modelo de datos: `docs/06_data_model.md`
 - Arquitectura del proyecto: `docs/ARCHITECTURE.md`
 - Reglas para agentes y desarrollo asistido: `AGENTS.md`
@@ -75,7 +80,8 @@ Componentes disponibles actualmente:
 - construcción de `database/raw_canonical`;
 - normalización mediante registry YAML;
 - validación de datasets normalizados;
-- exportación de tablas.
+- exportación de tablas;
+- exportación SIH configurable.
 
 ## Autor
 

@@ -1,0 +1,36 @@
+SDH_ACTUACIONES_COLUMNS = [
+    "id",
+    "id_estacion",
+    "id_operador",
+    "id_tipo_actuacion",
+    "id_instrumento",
+    "fecha",
+    "pendiente",
+    "relevante",
+    "lectura_escala",
+    "observaciones",
+]
+
+
+SDH_AFOROS_COLUMNS = [
+    "ancho",
+    "caudal",
+    "escala_fin",
+    "escala_inicio",
+    "escala_media",
+    "fecha_fin",
+    "fecha_inicio",
+    "id",
+    "id_actuacion",
+    "id_estacion",
+    "id_instrumento",
+    "id_instrumentos_rangos",
+    "id_perfil",
+    "id_tipo_aforo",
+    "observaciones",
+    "profundidad",
+    "seccion",
+    "velocidad_media",
+    "radio_hidraulico",
+    "nivel_confiabilidad",
+]
