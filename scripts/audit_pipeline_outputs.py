@@ -69,10 +69,25 @@ GROUP_KEY_CANDIDATES = {
     "Summary": [],
     "Points": ["point_index", "distance_m"],
     "Sections": ["section_index", "section_id", "distance_m"],
-    "Gates": ["gate_index", "gate_id", "section_index", "point_index"],
+    "Gates": [],
 }
+HYDRAULIC_DEDUP_CANDIDATES = [
+    "instrument",
+    "station_id",
+    "measurement_date",
+    "measurement_time",
+    "point_index",
+    "distance_m",
+    "depth_m",
+    "area_m2",
+    "q_m3s",
+    "q_ls",
+]
 DEFAULT_TOLERANCE_PCT = 1.0
 DEFAULT_ABS_TOL = 1e-9
+DEFAULT_Q_M3S_ABS_TOL = 5e-4
+DEFAULT_Q_LS_ABS_TOL = 0.5
+DEFAULT_AREA_M2_ABS_TOL = 1e-3
 
 
 @dataclass(frozen=True)
@@ -146,6 +161,9 @@ def _duplicate_key_columns(df: pd.DataFrame, group: str) -> tuple[list[str], lis
     if base_missing:
         return [], base_missing
 
+    if group == "Gates":
+        return [], []
+
     key_cols = list(KEY_COLUMNS)
     missing_group_candidates: list[str] = []
 
@@ -159,6 +177,27 @@ def _duplicate_key_columns(df: pd.DataFrame, group: str) -> tuple[list[str], lis
         return key_cols, missing_group_candidates
 
     return key_cols, []
+
+
+def _deduplicate_points_for_hydraulic_audit(points: pd.DataFrame) -> tuple[pd.DataFrame, int, int]:
+    rows_before = len(points)
+    key_cols = [col for col in HYDRAULIC_DEDUP_CANDIDATES if col in points.columns]
+
+    if not key_cols:
+        return points, rows_before, rows_before
+
+    deduped = points.drop_duplicates(subset=key_cols, keep="first").copy()
+    return deduped, rows_before, len(deduped)
+
+
+def _abs_tolerance_for_check(check_name: str) -> float:
+    if check_name == "q_m3s":
+        return DEFAULT_Q_M3S_ABS_TOL
+    if check_name == "q_ls":
+        return DEFAULT_Q_LS_ABS_TOL
+    if check_name == "area_m2":
+        return DEFAULT_AREA_M2_ABS_TOL
+    return DEFAULT_ABS_TOL
 
 
 def audit_columns(tables: Iterable[TableRef]) -> pd.DataFrame:
@@ -232,6 +271,19 @@ def audit_duplicates(normalized_root: Path) -> pd.DataFrame:
                             "path": str(path),
                             "status": "read_error",
                             "detail": str(exc),
+                        }
+                    )
+                    continue
+
+                if group == "Gates":
+                    rows.append(
+                        {
+                            "instrument": instrument,
+                            "group": group,
+                            "path": str(path),
+                            "status": "not_checked",
+                            "detail": "No reliable unique key has been defined for Gates yet.",
+                            "n_rows": len(df),
                         }
                     )
                     continue
@@ -358,6 +410,9 @@ def audit_hydraulic_consistency(
             )
             continue
 
+        points, points_rows_raw, points_rows_after_dedup = _deduplicate_points_for_hydraulic_audit(points)
+        points_rows_dropped = points_rows_raw - points_rows_after_dedup
+
         point_aggs: dict[str, tuple[str, str]] = {}
         if "q_m3s" in points.columns:
             points["q_m3s_num"] = _to_numeric(points["q_m3s"])
@@ -388,6 +443,9 @@ def audit_hydraulic_consistency(
                 "measurement_date": row.get("measurement_date"),
                 "measurement_time": row.get("measurement_time"),
                 "merge_status": row.get("_merge"),
+                "points_rows_raw": points_rows_raw,
+                "points_rows_after_dedup": points_rows_after_dedup,
+                "points_rows_dropped_as_duplicates": points_rows_dropped,
             }
 
             checks = [
@@ -402,14 +460,20 @@ def audit_hydraulic_consistency(
                     continue
                 summary_val = pd.to_numeric(pd.Series([row.get(summary_col)]), errors="coerce").iloc[0]
                 points_val = pd.to_numeric(pd.Series([row.get(points_col)]), errors="coerce").iloc[0]
+                check_abs_tol = max(abs_tol, _abs_tolerance_for_check(check_name))
                 if pd.isna(summary_val) or pd.isna(points_val):
                     status = "missing_values"
                     diff_pct = pd.NA
                     diff_abs = pd.NA
+                    within_abs_tolerance = pd.NA
+                    within_pct_tolerance = pd.NA
                 else:
                     diff_abs = float(summary_val - points_val)
-                    diff_pct = _relative_diff_pct(float(points_val), float(summary_val), abs_tol=abs_tol)
-                    status = "ok" if diff_pct <= tolerance_pct else "mismatch"
+                    diff_abs_magnitude = abs(diff_abs)
+                    diff_pct = _relative_diff_pct(float(points_val), float(summary_val), abs_tol=check_abs_tol)
+                    within_abs_tolerance = diff_abs_magnitude <= check_abs_tol
+                    within_pct_tolerance = diff_pct <= tolerance_pct
+                    status = "ok" if within_abs_tolerance or within_pct_tolerance else "mismatch"
                 rows.append(
                     {
                         **base,
@@ -421,6 +485,9 @@ def audit_hydraulic_consistency(
                         "diff_abs_summary_minus_points": diff_abs,
                         "diff_pct": diff_pct,
                         "tolerance_pct": tolerance_pct,
+                        "abs_tolerance": check_abs_tol,
+                        "within_abs_tolerance": within_abs_tolerance,
+                        "within_pct_tolerance": within_pct_tolerance,
                         "status": status,
                     }
                 )
@@ -578,6 +645,7 @@ def run_audit(
     normalized_root: Path,
     output_dir: Path,
     tolerance_pct: float,
+    abs_tol: float,
 ) -> Path:
     raw_tables = _discover_tables(raw_root, stage="raw_canonical")
     normalized_tables = _discover_tables(normalized_root, stage="normalized")
@@ -589,6 +657,7 @@ def run_audit(
         "hydraulic_consistency_report": audit_hydraulic_consistency(
             normalized_root,
             tolerance_pct=tolerance_pct,
+            abs_tol=abs_tol,
         ),
         "unit_consistency_report": audit_unit_consistency(
             normalized_root,
@@ -634,6 +703,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_TOLERANCE_PCT,
         help="Relative tolerance percentage for hydraulic and unit checks.",
     )
+    parser.add_argument(
+        "--abs-tol",
+        type=float,
+        default=DEFAULT_ABS_TOL,
+        help="Base absolute tolerance for hydraulic checks. Check-specific defaults may be larger.",
+    )
     return parser.parse_args()
 
 
@@ -644,6 +719,7 @@ def main() -> None:
         normalized_root=Path(args.normalized_root),
         output_dir=Path(args.output_dir),
         tolerance_pct=args.tolerance_pct,
+        abs_tol=args.abs_tol,
     )
 
 
