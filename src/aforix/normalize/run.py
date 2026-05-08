@@ -13,6 +13,7 @@ from aforix.normalize.normalizer import normalize_table, TRACEABILITY_COLUMNS
 
 DEFAULT_GROUPS = ["Summary", "Points", "Sections", "Gates"]
 DEFAULT_CONCAT_GROUPS = ["Summary"]
+VALID_WRITE_POLICIES = {"overwrite", "fail_if_exists"}
 
 
 def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
@@ -94,6 +95,19 @@ def _get_concat_groups(cfg: dict[str, Any]) -> set[str]:
     return {str(group).strip() for group in concat_groups if str(group).strip()}
 
 
+def _get_write_policy(cfg: dict[str, Any]) -> str:
+    normalize_cfg = cfg.get("normalize", {})
+    write_policy = str(normalize_cfg.get("write_policy", "overwrite")).strip()
+
+    if write_policy not in VALID_WRITE_POLICIES:
+        raise ValueError(
+            "normalize.write_policy must be one of "
+            f"{sorted(VALID_WRITE_POLICIES)}. Got: {write_policy}"
+        )
+
+    return write_policy
+
+
 def _get_input_root(cfg: dict[str, Any], *, config_path: Path) -> Path:
     project_root = _get_project_root(config_path)
     input_dir = cfg.get("normalize", {}).get("input_dir") or "database/raw_canonical"
@@ -132,8 +146,18 @@ def _write_normalized_file(
     df: pd.DataFrame,
     *,
     output_path: Path,
+    write_policy: str,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if output_path.exists():
+        if write_policy == "fail_if_exists":
+            raise FileExistsError(
+                "Normalize output already exists and "
+                f"write_policy=fail_if_exists: {output_path}"
+            )
+        if write_policy == "overwrite":
+            print(f"Overwriting existing normalized file: {output_path}")
 
     trace_cols = [col for col in TRACEABILITY_COLUMNS if col in df.columns]
     remaining = [col for col in df.columns if col not in trace_cols]
@@ -273,6 +297,7 @@ def _normalize_concat_group(
     group: str,
     output_root: Path,
     registry: NormalizationRegistry,
+    write_policy: str,
 ) -> pd.DataFrame | None:
     if not input_path.exists():
         return None
@@ -285,7 +310,7 @@ def _normalize_concat_group(
     )
 
     outpath = output_root / instrument / f"{group}.csv"
-    _write_normalized_file(df_norm, output_path=outpath)
+    _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
 
     print(f"Normalized: {input_path} -> {outpath}")
     return df_norm
@@ -298,6 +323,7 @@ def _normalize_file_group(
     group: str,
     output_root: Path,
     registry: NormalizationRegistry,
+    write_policy: str,
 ) -> list[pd.DataFrame]:
     if not input_dir.exists():
         return []
@@ -319,7 +345,7 @@ def _normalize_file_group(
             )
 
         outpath = output_root / instrument / group / csv_path.name
-        _write_normalized_file(df_norm, output_path=outpath)
+        _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
 
         print(f"Normalized: {csv_path} -> {outpath}")
         outputs.append(df_norm)
@@ -332,6 +358,7 @@ def _write_cross_instrument_concat(
     *,
     group: str,
     output_root: Path,
+    write_policy: str,
 ) -> None:
     if not frames:
         return
@@ -339,7 +366,7 @@ def _write_cross_instrument_concat(
     merged = pd.concat(frames, ignore_index=True, sort=False)
     outpath = output_root / f"{group}.csv"
 
-    _write_normalized_file(merged, output_path=outpath)
+    _write_normalized_file(merged, output_path=outpath, write_policy=write_policy)
 
     print(f"Concatenated normalized group: {group} -> {outpath}")
 
@@ -363,6 +390,7 @@ def normalize_database(config_path: Path) -> Path:
     instruments = _get_normalize_sources(cfg)
     groups = _get_normalize_groups(cfg)
     concat_groups = _get_concat_groups(cfg)
+    write_policy = _get_write_policy(cfg)
 
     if not input_root.exists():
         raise FileNotFoundError(f"Normalize input directory not found: {input_root}")
@@ -378,6 +406,7 @@ def normalize_database(config_path: Path) -> Path:
     print(f"Instruments: {instruments}")
     print(f"Groups: {groups}")
     print(f"Concat groups: {sorted(concat_groups)}")
+    print(f"Write policy: {write_policy}")
 
     cross_instrument_frames: dict[str, list[pd.DataFrame]] = {
         group: []
@@ -406,6 +435,7 @@ def normalize_database(config_path: Path) -> Path:
                         group=group,
                         output_root=output_root,
                         registry=registry,
+                        write_policy=write_policy,
                     )
 
                     if df_norm is not None:
@@ -421,6 +451,7 @@ def normalize_database(config_path: Path) -> Path:
                         group=group,
                         output_root=output_root,
                         registry=registry,
+                        write_policy=write_policy,
                     )
 
                     normalized_count += len(frames)
@@ -440,6 +471,7 @@ def normalize_database(config_path: Path) -> Path:
             frames,
             group=group,
             output_root=output_root,
+            write_policy=write_policy,
         )
 
     print(f"Normalized outputs: {normalized_count}")
