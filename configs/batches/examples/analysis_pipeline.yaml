@@ -1,0 +1,53 @@
+version: 1
+
+batch:
+  id: analysis_pipeline
+  name: Analysis pipeline
+  description: Run Aforix analysis modules on existing normalized data.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  analysis_points: P1,P8,P13
+  analysis_instruments: NV,FT,ML
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: analyze_quality
+    command: analysis.quality
+    enabled: true
+    params:
+      config: ${main_config}
+      aggregation: daily
+      all_months: true
+
+  - id: analyze_stage_discharge
+    command: analysis.stage-discharge
+    enabled: true
+    params:
+      config: ${main_config}
+      points: ${analysis_points}
+      instruments: ${analysis_instruments}
+      plots: true
+      excel: true
+
+  - id: analyze_section_profiles
+    command: analysis.section-profiles
+    enabled: true
+    params:
+      config: ${main_config}
+      points: ${analysis_points}
+      instruments: ${analysis_instruments}

@@ -5,8 +5,24 @@ from typing import Any, List
 from aforix.analysis.correlation.types import MeasuringInstrument
 
 
+def _get_measuring_instruments_config(cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    analysis = cfg.get("analysis", {})
+    if isinstance(analysis, dict):
+        correlation = analysis.get("correlation", {})
+        if isinstance(correlation, dict):
+            nested = correlation.get("measuring_instruments")
+            if isinstance(nested, list):
+                return nested
+
+    root_level = cfg.get("measuring_instruments", [])
+    if isinstance(root_level, list):
+        return root_level
+
+    return []
+
+
 def load_instruments(cfg: dict[str, Any]) -> List[MeasuringInstrument]:
-    raw = cfg.get("measuring_instruments", [])
+    raw = _get_measuring_instruments_config(cfg)
 
     instruments: List[MeasuringInstrument] = []
     for item in raw:
@@ -34,6 +50,9 @@ def load_instruments(cfg: dict[str, Any]) -> List[MeasuringInstrument]:
         )
 
     if not instruments:
-        raise ValueError("No measuring_instruments defined in config.")
+        raise ValueError(
+            "No measuring_instruments defined in config. "
+            "Expected analysis.correlation.measuring_instruments."
+        )
 
     return instruments

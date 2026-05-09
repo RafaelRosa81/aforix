@@ -2,6 +2,7 @@ from pathlib import Path
 
 import typer
 
+from aforix.batch.cli import app as batch_app
 from aforix.config.loader import load_config
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.nivus import run as run_nivus
@@ -37,6 +38,7 @@ normalize_app = typer.Typer(help="Normalize raw grouped datasets.")
 validate_app = typer.Typer(help="Validate normalized datasets.")
 
 
+app.add_typer(batch_app, name="batch")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(analyze_app, name="analyze")
 app.add_typer(export_app, name="export")

@@ -1,0 +1,35 @@
+version: 1
+
+batch:
+  id: correlation_gauges_vs_stations
+  name: Correlation gauges vs stations
+  description: Run correlation analysis between normalized gauging points and external stations.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  timestep: daily
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: correlation_gauges_vs_stations
+    command: analysis.correlation
+    enabled: true
+    params:
+      config: ${main_config}
+      type: gauges_vs_stations
+      timestep: ${timestep}
+      all_pairs: true
