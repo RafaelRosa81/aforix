@@ -10,6 +10,7 @@ class StepManifest:
     command: str
     status: str
     duration_sec: float | None = None
+    outputs: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     metrics: dict[str, Any] = field(default_factory=dict)
