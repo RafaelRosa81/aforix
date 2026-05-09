@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
 
@@ -31,7 +31,7 @@ class BatchRunner:
         *,
         dry_run: bool = False,
     ) -> BatchManifest:
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         batch_run_id = started_at.strftime("%Y%m%d_%H%M%S")
 
         manifest = BatchManifest(
@@ -109,7 +109,7 @@ class BatchRunner:
         if manifest.status != "failed":
             manifest.status = "success"
 
-        manifest.finished_at = datetime.now(UTC).isoformat()
+        manifest.finished_at = datetime.now(timezone.utc).isoformat()
 
         if batch.execution.create_manifest:
             write_manifest(
