@@ -30,3 +30,13 @@ class BatchDefinition:
     execution: ExecutionOptions
     variables: dict[str, Any] = field(default_factory=dict)
     steps: list[BatchStep] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class CommandResult:
+    """Standard result returned by batch-registered commands."""
+
+    status: str = "success"
+    outputs: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
