@@ -44,6 +44,27 @@ def _as_tuple(value: Any) -> tuple[str, ...]:
     return (str(value),)
 
 
+def _file_size_mb(path: str | Path | None) -> float | None:
+    if not path:
+        return None
+
+    p = Path(path)
+    if not p.exists() or not p.is_file():
+        return None
+
+    return round(p.stat().st_size / (1024 * 1024), 4)
+
+
+def _paths_size_mb(paths: list[str | Path]) -> float | None:
+    sizes = [_file_size_mb(path) for path in paths]
+    valid = [size for size in sizes if size is not None]
+
+    if not valid:
+        return None
+
+    return round(sum(valid), 4)
+
+
 def _config_check(params: dict[str, Any]) -> None:
     _load_validated_config_from_params(params)
 
@@ -104,15 +125,23 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
         aggregation=str(params.get("aggregation", "mean")),
     )
 
+    input_file = Path(export_config.input_dir) / f"{request.table}.csv"
+    input_size_mb = _file_size_mb(input_file)
+
     result = run_export_tables(export_config, request)
+    output_paths = [str(result.output_file), str(result.metadata_file)]
+    output_size_mb = _paths_size_mb(output_paths)
 
     return CommandResult(
         status="success",
-        outputs=[str(result.output_file), str(result.metadata_file)],
+        outputs=output_paths,
         metrics={
             "rows_processed": result.row_count,
             "rows_exported": result.row_count,
             "files_written": 2,
+            "input_file": str(input_file),
+            "input_size_mb": input_size_mb,
+            "output_size_mb": output_size_mb,
             "table": str(table),
             "instrument": request.instrument,
             "grouping": request.grouping,
