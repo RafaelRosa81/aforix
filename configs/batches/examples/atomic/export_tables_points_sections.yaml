@@ -1,0 +1,91 @@
+# ============================================================
+# Atomic example: export.tables - Points / Sections
+# ============================================================
+#
+# Objetivo:
+#   Exportar tablas detalladas de geometría/hidráulica.
+#
+# Este ejemplo puede adaptarse para:
+#   - Points
+#   - Sections
+#   - Gates
+#
+# Parámetros reales aceptados:
+#   config, table, instrument, points, parameters, early_date, late_date,
+#   grouping, format, flat, aggregation.
+#
+# Opciones relevantes:
+#   grouping:
+#     monthly -> agrega por mes
+#     daily   -> agrega por día
+#     none    -> sin agregación
+#
+#   format:
+#     xlsx
+#     csv
+#
+#   flat:
+#     true  -> salida plana
+#     false -> puede usar pivot
+#
+#   aggregation:
+#     mean
+#     sum
+#     min
+#     max
+#     count
+
+version: 1
+
+batch:
+  id: atomic_export_points_sections
+  name: Atomic export Points/Sections
+  description: Exportar tablas Points o Sections.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: P1,P8,P13
+  early_date: 2025-01-01
+  late_date: 2026-12-31
+
+steps:
+  - id: export_points
+    command: export.tables
+    enabled: true
+    params:
+      config: ${main_config}
+
+      # Cambiar entre Points, Sections o Gates.
+      table: Points
+
+      # Filtrar por instrumento específico o usar all.
+      instrument: nivus
+
+      # Puntos.
+      points: ${points}
+
+      # Variables específicas.
+      # Ajustar según columnas realmente existentes en database/normalized.
+      parameters: q_m3s,prof_m,velocity_m_s,percent_q
+
+      early_date: ${early_date}
+      late_date: ${late_date}
+
+      # none evita agregación temporal.
+      grouping: none
+
+      format: csv
+
+      # true fuerza salida plana.
+      flat: true
+
+      # aggregation se usa si grouping != none.
+      aggregation: mean
