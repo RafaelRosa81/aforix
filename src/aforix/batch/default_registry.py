@@ -165,6 +165,24 @@ def _list_output_files(path: str | Path) -> list[str]:
     return [str(p) for p in sorted(root.rglob("*")) if p.is_file()]
 
 
+def _validation_issue_rows(summary_path: Path) -> int | None:
+    if not summary_path.exists():
+        return None
+
+    try:
+        df = pd.read_csv(summary_path)
+    except Exception:
+        return None
+
+    if "n_rows" not in df.columns:
+        return None
+
+    if "status" in df.columns:
+        df = df[df["status"].astype(str) != "ok"]
+
+    return int(pd.to_numeric(df["n_rows"], errors="coerce").fillna(0).sum())
+
+
 def _config_check(params: dict[str, Any]) -> None:
     _load_validated_config_from_params(params)
 
@@ -193,8 +211,28 @@ def _normalize_run(params: dict[str, Any]) -> None:
     normalize_database(_load_validated_config_from_params(params))
 
 
-def _validate_run(params: dict[str, Any]) -> None:
-    run_validation(_load_validated_config_from_params(params))
+def _validate_run(params: dict[str, Any]) -> CommandResult:
+    config_path = _load_validated_config_from_params(params)
+    cfg = load_config(config_path)
+    validation_cfg = cfg.get("validation", {}) or {}
+    input_dir = Path(validation_cfg.get("input_dir", "database/normalized"))
+
+    output_dir = run_validation(config_path)
+    output_files = _list_output_files(output_dir)
+    summary_path = output_dir / "validation_summary.csv"
+
+    return CommandResult(
+        status="success",
+        outputs=[str(output_dir), *output_files],
+        metrics={
+            "validation_type": "normalized",
+            "input_size_mb": _directory_size_mb(input_dir),
+            "output_size_mb": _directory_size_mb(output_dir),
+            "rows_processed": _validation_issue_rows(summary_path),
+            "files_written": _count_files(output_dir),
+            "checks_run": _count_csv_rows(summary_path),
+        },
+    )
 
 
 def _export_tables(params: dict[str, Any]) -> CommandResult:
