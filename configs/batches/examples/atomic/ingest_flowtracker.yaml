@@ -1,0 +1,43 @@
+# ============================================================
+# Atomic example: ingest FlowTracker
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar únicamente la ingesta de archivos FlowTracker.
+#
+# Requisitos:
+#   - Archivos raw en data/raw/FT/
+#   - Configuración FlowTracker habilitada en main.yaml
+#   - spec_path válido si corresponde
+#
+# Outputs esperados:
+#   runs/ingest_flowtracker/<timestamp>/outputs/raw_canonical/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/ingest_flowtracker.yaml
+#   aforix batch run -b configs/batches/examples/atomic/ingest_flowtracker.yaml
+
+version: 1
+
+batch:
+  id: atomic_ingest_flowtracker
+  name: Atomic ingest FlowTracker
+  description: Ejecutar únicamente ingest.flowtracker.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: ingest_flowtracker
+    command: ingest.flowtracker
+    enabled: true
+    params:
+      config: ${main_config}
