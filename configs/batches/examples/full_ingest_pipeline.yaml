@@ -1,0 +1,72 @@
+version: 1
+
+batch:
+  id: full_ingest_pipeline
+  name: Full ingest pipeline
+  description: End-to-end ingest, grouping, normalization and validation pipeline.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  export_format: xlsx
+  grouping: monthly
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: ingest_flowtracker
+    command: ingest.flowtracker
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: ingest_molinete
+    command: ingest.molinete
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: ingest_nivus
+    command: ingest.nivus
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: build_groups
+    command: build-groups
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: normalize
+    command: normalize.run
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: validate
+    command: validate.run
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: export_summary
+    command: export.tables
+    enabled: true
+    params:
+      config: ${main_config}
+      table: Summary
+      grouping: ${grouping}
+      format: ${export_format}
