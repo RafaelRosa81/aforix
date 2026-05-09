@@ -1,3 +1,4 @@
+import csv
 import json
 from pathlib import Path
 
@@ -71,6 +72,7 @@ class BatchReportGenerator:
 
         markdown_path = reports_dir / "batch_report.md"
         json_path = reports_dir / "batch_report.json"
+        csv_path = reports_dir / "batch_report.csv"
 
         markdown_path.write_text(
             self.generate_markdown(manifest),
@@ -85,3 +87,46 @@ class BatchReportGenerator:
             ) + "\n",
             encoding="utf-8",
         )
+
+        self._write_csv(manifest, csv_path)
+
+    def _write_csv(self, manifest: BatchManifest, path: Path) -> None:
+        fieldnames = [
+            "batch_id",
+            "batch_run_id",
+            "step_id",
+            "command",
+            "status",
+            "duration_sec",
+            "metrics_available",
+            "cpu_start_percent",
+            "cpu_end_percent",
+            "ram_start_mb",
+            "ram_end_mb",
+            "ram_peak_mb",
+            "errors",
+        ]
+
+        with path.open("w", encoding="utf-8", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for step in manifest.steps:
+                metrics = step.metrics or {}
+                writer.writerow(
+                    {
+                        "batch_id": manifest.batch_id,
+                        "batch_run_id": manifest.batch_run_id,
+                        "step_id": step.id,
+                        "command": step.command,
+                        "status": step.status,
+                        "duration_sec": step.duration_sec,
+                        "metrics_available": metrics.get("metrics_available"),
+                        "cpu_start_percent": metrics.get("cpu_start_percent"),
+                        "cpu_end_percent": metrics.get("cpu_end_percent"),
+                        "ram_start_mb": metrics.get("ram_start_mb"),
+                        "ram_end_mb": metrics.get("ram_end_mb"),
+                        "ram_peak_mb": metrics.get("ram_peak_mb"),
+                        "errors": " | ".join(step.errors),
+                    }
+                )
