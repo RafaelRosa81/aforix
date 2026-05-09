@@ -331,17 +331,26 @@ def _analysis_correlation(params: dict[str, Any]) -> CommandResult:
 
     output_files = _list_output_files(output_dir)
     csv_outputs = [path for path in output_files if str(path).lower().endswith(".csv")]
+    files_written = _count_files(output_dir)
+    warnings: list[str] = []
+
+    if not files_written:
+        warnings.append(
+            "Correlation completed but no output files were written. "
+            "Check point selection, date range, and overlap between input datasets."
+        )
 
     return CommandResult(
         status="success",
         outputs=[str(output_dir), *output_files],
+        warnings=warnings,
         metrics={
             "analysis_type": "correlation",
             "correlation_type": str(correlation_type),
             "input_size_mb": input_size_mb,
             "output_size_mb": _directory_size_mb(output_dir),
             "rows_processed": _sum_csv_rows(csv_outputs),
-            "files_written": _count_files(output_dir),
+            "files_written": files_written,
             "ranking": ranking_codes,
             "timestep": str(timestep),
             "points": points or "all",
