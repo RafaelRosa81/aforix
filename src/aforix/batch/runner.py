@@ -65,7 +65,7 @@ class BatchRunner:
                     print(f"[DRY-RUN] {step.id} -> {step.command}")
                 else:
                     print(f"[RUN] {step.id} -> {step.command}")
-                    command.callable()
+                    command.callable(step.params)
 
                 step_manifest.status = "success"
 
