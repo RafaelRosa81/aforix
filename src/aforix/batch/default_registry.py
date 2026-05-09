@@ -676,6 +676,14 @@ def _analysis_section_profiles(params: dict[str, Any]) -> CommandResult:
 
     output_dir = run_section_profiles(config_path, override_config=cfg)
     output_files = _list_output_files(output_dir)
+    files_written = _count_files(output_dir)
+    warnings: list[str] = []
+
+    if not files_written:
+        warnings.append(
+            "Section profiles analysis completed but no output files were written. "
+            "Check point selection, instrument selection, and available section/profile data."
+        )
 
     selection = cfg.get("selection", {}) or {}
     defaults = cfg.get("defaults", {}) or {}
@@ -683,12 +691,13 @@ def _analysis_section_profiles(params: dict[str, Any]) -> CommandResult:
     return CommandResult(
         status="success",
         outputs=[str(output_dir), *output_files],
+        warnings=warnings,
         metrics={
             "analysis_type": "section-profiles",
             "input_size_mb": input_size_mb,
             "output_size_mb": _directory_size_mb(output_dir),
             "rows_processed": None,
-            "files_written": _count_files(output_dir),
+            "files_written": files_written,
             "points": selection.get("points", "all"),
             "instruments": selection.get("instruments", "all"),
             "x_axis": defaults.get("x_axis", "distance_m"),
