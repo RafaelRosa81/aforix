@@ -1,0 +1,46 @@
+# ============================================================
+# Atomic example: ingest M9
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar únicamente la ingesta de archivos M9 / ADCP.
+#
+# IMPORTANTE:
+#   El estado del adaptador M9 puede ser experimental o parcial según
+#   la versión actual de Aforix.
+#
+# Requisitos:
+#   - Archivos raw en data/raw/M9/
+#   - Configuración M9 habilitada en main.yaml
+#
+# Outputs esperados:
+#   runs/ingest_m9/<timestamp>/outputs/raw_canonical/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/ingest_m9.yaml
+#   aforix batch run -b configs/batches/examples/atomic/ingest_m9.yaml
+
+version: 1
+
+batch:
+  id: atomic_ingest_m9
+  name: Atomic ingest M9
+  description: Ejecutar únicamente ingest.m9.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: ingest_m9
+    command: ingest.m9
+    enabled: true
+    params:
+      config: ${main_config}

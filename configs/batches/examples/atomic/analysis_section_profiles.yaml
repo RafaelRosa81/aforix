@@ -1,0 +1,91 @@
+# ============================================================
+# Atomic example: analysis.section-profiles
+# ============================================================
+#
+# Objetivo:
+#   Generar perfiles de sección y gráficos geométricos/hidráulicos.
+#
+# Parámetros reales aceptados:
+#   config
+#   instruments
+#   points
+#   start_date
+#   end_date
+#   x_axis
+#   y_axis
+#   chart_type
+#   interactive
+#
+# interactive:
+#   true  -> NO soportado dentro de batch.
+#   false -> comportamiento batch normal.
+#
+# Opciones típicas:
+#   chart_type:
+#     scatter
+#     line
+#
+# x_axis/y_axis:
+#   deben corresponder a columnas reales existentes en los datasets
+#   normalizados.
+#
+# Ejemplos frecuentes:
+#   x_axis:
+#     progr_m
+#     distance_m
+#
+#   y_axis:
+#     prof_m
+#     depth_m
+#     velocity_m_s
+#
+# Outputs esperados:
+#   runs/analysis_section_profiles/<timestamp>/
+
+version: 1
+
+batch:
+  id: atomic_analysis_section_profiles
+  name: Atomic section profiles analysis
+  description: Ejecutar únicamente analysis.section-profiles.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: P1,P8,P13
+  instruments: NV,FT,ML
+  start_date: 2025-01-01
+  end_date: 2026-12-31
+
+steps:
+  - id: section_profiles
+    command: analysis.section-profiles
+    enabled: true
+    params:
+      config: ${main_config}
+
+      # Instrumentos a incluir.
+      instruments: ${instruments}
+
+      # Puntos.
+      points: ${points}
+
+      # Fechas.
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+      # Eje X. Debe existir en el dataset.
+      x_axis: progr_m
+
+      # Eje Y. Debe existir en el dataset.
+      y_axis: prof_m
+
+      # Opciones: scatter, line.
+      chart_type: line

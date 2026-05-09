@@ -1,0 +1,42 @@
+# ============================================================
+# Atomic example: ingest Nivus
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar únicamente la ingesta de archivos Nivus XML.
+#
+# Requisitos:
+#   - Archivos raw en data/raw/NV/
+#   - Configuración Nivus habilitada en main.yaml
+#
+# Outputs esperados:
+#   runs/ingest_nivus/<timestamp>/outputs/raw_canonical/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/ingest_nivus.yaml
+#   aforix batch run -b configs/batches/examples/atomic/ingest_nivus.yaml
+
+version: 1
+
+batch:
+  id: atomic_ingest_nivus
+  name: Atomic ingest Nivus
+  description: Ejecutar únicamente ingest.nivus.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: ingest_nivus
+    command: ingest.nivus
+    enabled: true
+    params:
+      config: ${main_config}

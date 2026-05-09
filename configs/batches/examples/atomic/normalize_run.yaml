@@ -1,0 +1,50 @@
+# ============================================================
+# Atomic example: normalize.run
+# ============================================================
+#
+# Objetivo:
+#   Convertir database/raw_canonical en datasets normalizados bajo
+#   esquema común.
+#
+# Requisitos:
+#   - database/raw_canonical existente
+#   - configs/normalization/*.yaml válidos
+#
+# Outputs esperados:
+#   database/normalized/
+#
+# Configuración relevante:
+#   - registry_dir
+#   - groups
+#   - concat_groups
+#   - write_policy
+#   - sources
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/normalize_run.yaml
+#   aforix batch run -b configs/batches/examples/atomic/normalize_run.yaml
+
+version: 1
+
+batch:
+  id: atomic_normalize_run
+  name: Atomic normalize.run
+  description: Ejecutar únicamente normalize.run.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: normalize_run
+    command: normalize.run
+    enabled: true
+    params:
+      config: ${main_config}

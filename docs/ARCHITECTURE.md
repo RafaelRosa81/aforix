@@ -30,6 +30,7 @@ La definición canónica del pipeline está en `docs/02_pipeline.md`.
 ```text
 src/aforix/
 ├── analysis/
+├── batch/
 ├── cli/
 ├── config/
 ├── database/
@@ -64,8 +65,35 @@ Comandos relevantes:
 - `aforix validate run`
 - `aforix export ...`
 - `aforix analyze ...`
+- `aforix batch ...`
 
 La referencia de CLI está en `docs/03_cli.md`.
+
+### batch
+
+Infraestructura de orquestación batch basada en YAML.
+
+Responsabilidades:
+
+- validar archivos batch;
+- generar planes de ejecución;
+- ejecutar pipelines reproducibles;
+- reutilizar comandos existentes de Aforix;
+- registrar resultados operativos (`CommandResult`);
+- generar `manifest.json` con trazabilidad, métricas y warnings.
+
+Submódulos relevantes:
+
+- registry de comandos batch;
+- runner;
+- planner;
+- manifest/reporting;
+- métricas operativas.
+
+Documentación:
+
+- `docs/BATCH_GUIDE.md`
+- `configs/batches/examples/README.md`
 
 ### config
 
@@ -244,6 +272,10 @@ Los datos procesados deben conservar referencia a su archivo fuente, instrumento
 
 La configuración YAML debe controlar rutas, instrumentos activos, reglas de normalización, validaciones y exportaciones.
 
+### Orquestación reproducible
+
+La infraestructura batch debe permitir reproducir pipelines completos mediante YAML versionables y `manifest.json` auditables.
+
 ### Extensibilidad por instrumento
 
 Para agregar un instrumento nuevo se debe priorizar:
@@ -271,6 +303,7 @@ Los módulos de análisis deben consumir `database/normalized/`. Esto evita dupl
 Componentes disponibles:
 
 - CLI principal;
+- infraestructura batch con runner, planner y manifests;
 - ingesta FlowTracker;
 - ingesta Molinete;
 - ingesta Nivus;

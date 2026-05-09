@@ -1,0 +1,104 @@
+# ============================================================
+# Atomic example: analysis.stage-discharge
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar el análisis caudal-altura usando datos normalizados
+#   y, opcionalmente, alturas manuales externas.
+#
+# Parámetros reales aceptados por batch analysis.stage-discharge:
+#   config
+#   points
+#   start_date
+#   end_date
+#   instruments
+#   ranking
+#   depth_mode
+#   instrument_stage_mode
+#   plots
+#   excel
+#   max_plots
+#
+# Opciones:
+#   depth_mode:
+#     manual     -> usa solo alturas manuales.
+#     instrument -> usa solo alturas/profundidades del instrumento.
+#     both       -> usa ambas fuentes si existen.
+#
+#   instrument_stage_mode:
+#     mean -> usa profundidad/altura media instrumental.
+#     max  -> usa profundidad/altura máxima instrumental.
+#     both -> usa ambas.
+#
+#   plots:
+#     true  -> genera gráficos.
+#     false -> no genera gráficos.
+#
+#   excel:
+#     true  -> genera reporte Excel.
+#     false -> no genera reporte Excel.
+#
+# Requisitos:
+#   - database/normalized/Summary.csv o estructura normalizada equivalente.
+#   - Para depth_mode manual/both: database/external/normalized/manual_stage/.
+#
+# Outputs esperados:
+#   runs/analysis_stage_discharge/<timestamp>/
+
+version: 1
+
+batch:
+  id: atomic_analysis_stage_discharge
+  name: Atomic stage-discharge analysis
+  description: Ejecutar únicamente analysis.stage-discharge.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: P1,P8,P13
+  instruments: NV,FT,ML
+  ranking: NV,FT,ML
+  start_date: 2025-01-01
+  end_date: 2026-12-31
+
+steps:
+  - id: stage_discharge
+    command: analysis.stage-discharge
+    enabled: true
+    params:
+      config: ${main_config}
+
+      # Puntos a analizar. Usar IDs existentes en database/normalized.
+      points: ${points}
+
+      # Fecha inicial/final del análisis.
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+      # Instrumentos a incluir. Opciones típicas: NV, FT, ML, M9.
+      instruments: ${instruments}
+
+      # Ranking de instrumentos. El orden define prioridad.
+      ranking: ${ranking}
+
+      # Opciones: manual, instrument, both.
+      depth_mode: both
+
+      # Opciones: mean, max, both.
+      instrument_stage_mode: both
+
+      # Opciones: true, false.
+      plots: true
+
+      # Opciones: true, false.
+      excel: true
+
+      # Cantidad máxima de gráficos a generar.
+      max_plots: 20

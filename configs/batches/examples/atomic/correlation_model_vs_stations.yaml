@@ -1,0 +1,89 @@
+# ============================================================
+# Atomic example: correlation - model_vs_stations
+# ============================================================
+#
+# Objetivo:
+#   Correlacionar modelo hidrológico contra estaciones DINAGUA.
+#
+# Parámetros reales aceptados:
+#   config
+#   type
+#   ranking
+#   all_pairs
+#   pairs
+#   points
+#   timestep
+#   start_date
+#   end_date
+#   match_mode
+#   window_days
+#
+# type:
+#   model_vs_stations
+#
+# all_pairs:
+#   true  -> usa todos los pares configurables.
+#   false -> usa solamente pairs.
+#
+# pairs:
+#   Formato:
+#     "[station model_point] [station model_point]"
+#
+# Ejemplo:
+#   "[44 5] [115 11]"
+#
+# timestep:
+#   daily
+#   monthly
+#
+# Outputs esperados:
+#   runs/analysis_correlation/<timestamp>/
+
+version: 1
+
+batch:
+  id: atomic_correlation_model_vs_stations
+  name: Atomic correlation model vs stations
+  description: Correlación entre modelo hidrológico y estaciones DINAGUA.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  start_date: 2025-01-01
+  end_date: 2026-12-31
+  pairs: "[44 5] [115 11]"
+
+steps:
+  - id: correlation_model_vs_stations
+    command: analysis.correlation
+    enabled: true
+    params:
+      config: ${main_config}
+
+      type: model_vs_stations
+
+      # true usa todos los pares posibles.
+      all_pairs: false
+
+      # Pares explícitos.
+      pairs: ${pairs}
+
+      # daily o monthly.
+      timestep: monthly
+
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+      # Actualmente no es necesario para este tipo,
+      # pero se mantiene documentado para consistencia.
+      match_mode: exact
+
+      # Mantener en 0 si no se usa matching tipo window.
+      window_days: 0

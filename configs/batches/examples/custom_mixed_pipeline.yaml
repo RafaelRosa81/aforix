@@ -1,0 +1,199 @@
+# ============================================================
+# Custom mixed batch pipeline
+# ============================================================
+#
+# Este ejemplo muestra cómo combinar libremente distintos módulos de Aforix
+# en un mismo batch. Está pensado como plantilla editable para usuarios.
+#
+# Puede comentar, quitar o agregar steps según lo que necesite correr.
+#
+# Comandos recomendados antes de ejecutar:
+#
+#   aforix batch check -b configs/batches/examples/custom_mixed_pipeline.yaml
+#   aforix batch plan -b configs/batches/examples/custom_mixed_pipeline.yaml
+#   aforix batch run -b configs/batches/examples/custom_mixed_pipeline.yaml --dry-run
+#   aforix batch run -b configs/batches/examples/custom_mixed_pipeline.yaml
+#
+# Este batch asume que ya existen datos normalizados en:
+#
+#   database/normalized/
+#
+# y, para SIH, datos raw canonical y lookups SIH configurados.
+
+version: 1
+
+batch:
+  id: custom_mixed_pipeline
+  name: Custom mixed pipeline
+  description: >-
+    Ejemplo mixto para combinar validación, exportación de tablas,
+    correlaciones, análisis caudal-altura y exportación SIH.
+
+project:
+  # Configuración principal de Aforix.
+  main_config: configs/examples/main.yaml
+
+execution:
+  # Carpeta raíz donde el runner batch crea una subcarpeta por corrida.
+  output_dir: runs/batch
+
+  # Si true, escribe manifest.json con status, outputs, warnings,
+  # errores y métricas operativas por step.
+  create_manifest: true
+
+  # Si true, detiene la corrida ante el primer error.
+  stop_on_error: true
+
+  # Si false, no intenta continuar después de errores.
+  continue_on_error: false
+
+variables:
+  # Ruta común a la configuración principal.
+  main_config: configs/examples/main.yaml
+
+  # Parámetros frecuentes de filtros.
+  # Ajustar según los puntos realmente disponibles en database/normalized.
+  points: P1,P8,P13
+
+  # Para algunos comandos, los puntos se usan sin prefijo P.
+  correlation_points: 1,8,13
+
+  # Instrumentos para análisis. Usar códigos definidos en la configuración:
+  # NV = Nivus, FT = FlowTracker, ML = Molinete.
+  instruments: NV,FT,ML
+
+  # Ranking de instrumentos. El primero tiene prioridad cuando hay más de
+  # una medición para el mismo punto y día.
+  ranking: NV FT ML
+
+  # Rango temporal opcional. Ajustar o borrar si no se quiere filtrar fechas.
+  start_date: 2025-01-01
+  end_date: 2026-12-31
+
+  # Export tables.
+  export_table: Summary
+  export_format: xlsx
+  export_grouping: monthly
+  export_aggregation: mean
+
+  # Correlación gauges_vs_stations.
+  # Formato: "[station point] [station point]".
+  # Ejemplo: estación DINAGUA 44 con punto de aforo 5.
+  gauge_station_pairs: "[44 5] [115 11]"
+
+  # SIH.
+  sih_config: configs/sih/sih.yaml
+  sih_selection_file: configs/sih/selection_template.csv
+
+steps:
+
+  # ------------------------------------------------------------
+  # 1. Validar configuración general
+  # ------------------------------------------------------------
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  # ------------------------------------------------------------
+  # 2. Validar datos normalizados
+  # ------------------------------------------------------------
+  # Útil si el batch arranca desde database/normalized ya existente.
+  - id: validate_normalized
+    command: validate.run
+    enabled: true
+    params:
+      config: ${main_config}
+
+  # ------------------------------------------------------------
+  # 3. Exportar tabla Summary mensual a Excel
+  # ------------------------------------------------------------
+  # Parámetros comunes:
+  # - table: Summary, Points, Sections o Gates.
+  # - format: xlsx o csv.
+  # - grouping: none, daily, monthly.
+  # - aggregation: mean, sum u otra agregación soportada por export.
+  # - points/instrument/dates pueden agregarse si se requiere filtrar más.
+  - id: export_summary_monthly
+    command: export.tables
+    enabled: true
+    params:
+      config: ${main_config}
+      table: ${export_table}
+      grouping: ${export_grouping}
+      format: ${export_format}
+      aggregation: ${export_aggregation}
+      points: ${points}
+      early_date: ${start_date}
+      late_date: ${end_date}
+
+  # ------------------------------------------------------------
+  # 4. Correlación: aforos vs estaciones DINAGUA
+  # ------------------------------------------------------------
+  # Usa pares explícitos.
+  # En gauges_vs_stations el formato esperado es:
+  #   [station point]
+  #
+  # Si quiere usar todos los pares disponibles, cambie:
+  #   all_pairs: true
+  # y quite/comment pairs.
+  - id: correlation_gauges_vs_stations
+    command: analysis.correlation
+    enabled: true
+    params:
+      config: ${main_config}
+      type: gauges_vs_stations
+      timestep: daily
+      ranking: ${ranking}
+      all_pairs: false
+      pairs: ${gauge_station_pairs}
+      match_mode: exact
+      window_days: 0
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+  # ------------------------------------------------------------
+  # 5. Análisis caudal-altura
+  # ------------------------------------------------------------
+  # depth_mode:
+  #   manual     -> usa alturas manuales.
+  #   instrument -> usa profundidad/altura del instrumento.
+  #   both       -> usa ambas fuentes si existen.
+  #
+  # instrument_stage_mode:
+  #   mean -> usa profundidad media.
+  #   max  -> usa profundidad máxima.
+  #   both -> compara ambas.
+  - id: stage_discharge_analysis
+    command: analysis.stage-discharge
+    enabled: true
+    params:
+      config: ${main_config}
+      points: ${points}
+      instruments: ${instruments}
+      ranking: ${ranking}
+      depth_mode: both
+      instrument_stage_mode: both
+      plots: true
+      excel: true
+      max_plots: 20
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+  # ------------------------------------------------------------
+  # 6. Exportación SIH con selection file explícito
+  # ------------------------------------------------------------
+  # Requiere:
+  # - configs/sih/sih.yaml
+  # - selection_template.csv o selection_file propio.
+  # - database/normalized
+  # - database/raw_canonical, para campos que dependen del raw canonical.
+  # - lookups SIH configurados.
+  - id: export_sih
+    command: export.sih
+    enabled: true
+    params:
+      config: ${main_config}
+      sih_config: ${sih_config}
+      selection_file: ${sih_selection_file}

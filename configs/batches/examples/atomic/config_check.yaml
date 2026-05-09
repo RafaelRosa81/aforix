@@ -1,0 +1,40 @@
+# ============================================================
+# Atomic example: config-check
+# ============================================================
+#
+# Objetivo:
+#   Validar que el archivo principal de configuración de Aforix carga
+#   correctamente antes de ejecutar cualquier etapa del pipeline.
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/config_check.yaml
+#   aforix batch plan -b configs/batches/examples/atomic/config_check.yaml
+#   aforix batch run -b configs/batches/examples/atomic/config_check.yaml --dry-run
+#   aforix batch run -b configs/batches/examples/atomic/config_check.yaml
+
+version: 1
+
+batch:
+  id: atomic_config_check
+  name: Atomic config check
+  description: Validar solamente configs/examples/main.yaml.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+  continue_on_error: false
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      # Archivo principal de configuración del proyecto.
+      config: ${main_config}

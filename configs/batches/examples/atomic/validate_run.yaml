@@ -1,0 +1,48 @@
+# ============================================================
+# Atomic example: validate.run
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar validaciones sobre database/normalized.
+#
+# Requisitos:
+#   - database/normalized existente
+#
+# Validaciones típicas:
+#   - columnas requeridas
+#   - duplicados
+#   - completitud
+#   - rangos
+#   - consistencia hidráulica
+#
+# Outputs esperados:
+#   database/validation/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/validate_run.yaml
+#   aforix batch run -b configs/batches/examples/atomic/validate_run.yaml
+
+version: 1
+
+batch:
+  id: atomic_validate_run
+  name: Atomic validate.run
+  description: Ejecutar únicamente validate.run.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: validate_run
+    command: validate.run
+    enabled: true
+    params:
+      config: ${main_config}

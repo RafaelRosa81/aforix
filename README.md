@@ -59,9 +59,12 @@ raw -> ingest -> runs/.../raw_canonical -> build-groups -> database/raw_canonica
 
 La explicación completa del flujo está en `docs/02_pipeline.md`.
 
+Para ejecutar flujos reproducibles desde YAML, revisar la guía batch en `docs/BATCH_GUIDE.md` y los ejemplos en `configs/batches/examples/`.
+
 ## Salidas principales
 
 - `runs/`: ejecuciones trazables del pipeline.
+- `runs/batch/`: ejecuciones batch con `manifest.json` y reportes operativos.
 - `database/raw_canonical/`: datos estructurados por instrumento consolidados por `build-groups`.
 - `database/raw_canonical/_manifests/`: manifiestos de consolidación generados por `build-groups` cuando está habilitado.
 - `database/normalized/`: datos normalizados bajo esquema común.
@@ -74,6 +77,8 @@ Estas carpetas son locales o generadas por el pipeline y no deberían versionars
 
 - Pipeline de procesamiento: `docs/02_pipeline.md`
 - Referencia CLI: `docs/03_cli.md`
+- Guía batch: `docs/BATCH_GUIDE.md`
+- Ejemplos batch: `configs/batches/examples/README.md`
 - Guía de configuración: `docs/CONFIGURATION_GUIDE.md`
 - Guía de análisis de correlación: `docs/CORRELATION_GUIDE.md`
 - Guía de métricas de calidad: `docs/QUALITY_METRICS_GUIDE.md`
@@ -99,6 +104,7 @@ Componentes disponibles actualmente:
 - normalización mediante registry YAML y política de escritura;
 - auditoría técnica de outputs del pipeline;
 - validación de datasets normalizados;
+- infraestructura batch con YAML, `CommandResult`, `manifest.json` y métricas operativas;
 - exportación de tablas;
 - exportación SIH configurable.
 

@@ -1,0 +1,59 @@
+# ============================================================
+# Atomic example: export.sih - configuración por defecto
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar exportación SIH usando la configuración y selección por defecto.
+#
+# Parámetros reales aceptados:
+#   config
+#   sih_config
+#   selection_file
+#   interactive
+#
+# IMPORTANTE:
+#   interactive: true NO está soportado dentro de batch.
+#
+# Requisitos:
+#   - database/normalized
+#   - database/raw_canonical
+#   - configs/sih/sih.yaml
+#   - lookups SIH válidos
+#   - selection template válido
+#
+# Outputs esperados:
+#   outputs/sih/
+#   sih_export_metadata.csv
+
+version: 1
+
+batch:
+  id: atomic_export_sih_default
+  name: Atomic export SIH default
+  description: Ejecutar exportación SIH usando configuración por defecto.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  sih_config: configs/sih/sih.yaml
+
+steps:
+  - id: export_sih
+    command: export.sih
+    enabled: true
+    params:
+      # Config principal del proyecto.
+      config: ${main_config}
+
+      # Configuración específica SIH.
+      sih_config: ${sih_config}
+
+      # Si no se define selection_file,
+      # export.sih usa el default definido en sih.yaml.
