@@ -1,0 +1,40 @@
+version: 1
+
+batch:
+  id: correlation_gauges_vs_stations_pairs
+  name: Correlation gauges vs stations with explicit pairs
+  description: Run correlation analysis between selected gauging points and selected external stations.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  timestep: daily
+  # Pairs format: "[gauge_point station_id] [gauge_point station_id]"
+  # Example below compares gauge point 1 with station 44,
+  # gauge point 8 with station 117, and gauge point 13 with station 10.
+  gauge_station_pairs: "[1 44] [8 117] [13 10]"
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: correlation_gauges_vs_stations_pairs
+    command: analysis.correlation
+    enabled: true
+    params:
+      config: ${main_config}
+      type: gauges_vs_stations
+      timestep: ${timestep}
+      all_pairs: false
+      pairs: ${gauge_station_pairs}
