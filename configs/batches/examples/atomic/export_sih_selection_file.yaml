@@ -1,0 +1,54 @@
+# ============================================================
+# Atomic example: export.sih - selection file explícito
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar exportación SIH usando un selection CSV explícito.
+#
+# Parámetros reales aceptados:
+#   config
+#   sih_config
+#   selection_file
+#   interactive
+#
+# interactive:
+#   true  -> NO soportado dentro de batch
+#   false -> comportamiento normal batch
+#
+# selection_file:
+#   CSV con selección explícita de mediciones.
+#
+# Ejemplo:
+#   configs/sih/selection_template.csv
+
+version: 1
+
+batch:
+  id: atomic_export_sih_selection
+  name: Atomic export SIH selection file
+  description: Ejecutar exportación SIH usando selection CSV explícito.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  sih_config: configs/sih/sih.yaml
+  selection_file: configs/sih/selection_template.csv
+
+steps:
+  - id: export_sih_selection
+    command: export.sih
+    enabled: true
+    params:
+      config: ${main_config}
+
+      sih_config: ${sih_config}
+
+      # Selection CSV explícito.
+      selection_file: ${selection_file}
