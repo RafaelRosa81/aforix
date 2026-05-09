@@ -1,0 +1,69 @@
+# ============================================================
+# Atomic example: analysis.quality
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar análisis de métricas de calidad de medición.
+#
+# Parámetros reales aceptados:
+#   config
+#   aggregation
+#   points
+#   yyyymm
+#   all_months
+#   interactive
+#
+# aggregation:
+#   measurement -> una fila por medición
+#   daily       -> agregado diario
+#   monthly     -> agregado mensual
+#
+# interactive:
+#   true  -> NO soportado dentro de batch
+#   false -> comportamiento batch normal
+#
+# all_months:
+#   true  -> usa todos los meses disponibles
+#   false -> usa solamente yyyymm si se define
+#
+# Estado actual:
+#   Actualmente quality_metrics está implementado solamente para Nivus.
+
+version: 1
+
+batch:
+  id: atomic_analysis_quality
+  name: Atomic quality metrics analysis
+  description: Ejecutar únicamente analysis.quality.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: P1,P8,P13
+  months: 202501,202502,202503
+
+steps:
+  - id: quality_metrics
+    command: analysis.quality
+    enabled: true
+    params:
+      config: ${main_config}
+
+      # measurement, daily, monthly.
+      aggregation: monthly
+
+      # Puntos.
+      points: ${points}
+
+      # Meses YYYYMM.
+      yyyymm: ${months}
+
+      # true ignora yyyymm y usa todos los meses.
+      all_months: false
