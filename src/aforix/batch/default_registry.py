@@ -4,7 +4,12 @@ import copy
 
 import pandas as pd
 
-from aforix.analysis.correlation.cli import run_correlation
+from aforix.analysis.correlation.config import load_correlation_config, resolve_correlation_paths, get_variable_roles
+from aforix.analysis.correlation.instruments import load_instruments
+from aforix.analysis.correlation.pairs import parse_pairs, validate_pair_selection
+from aforix.analysis.correlation.workflows.gauges_vs_model import default_ranking, run_gauges_vs_model
+from aforix.analysis.correlation.workflows.gauges_vs_stations import run_gauges_vs_stations
+from aforix.analysis.correlation.workflows.model_vs_stations import run_model_vs_stations
 from aforix.analysis.quality.config import load_quality_config
 from aforix.analysis.quality.runner import run_quality_metrics
 from aforix.analysis.section_profiles.cli import _apply_cli_overrides as apply_section_profiles_overrides
@@ -62,6 +67,13 @@ def _as_csv_list(value: Any) -> list[str] | None:
         return [str(item).strip() for item in value if str(item).strip()]
     parsed = [item.strip() for item in str(value).split(",") if item.strip()]
     return parsed or None
+
+
+def _parse_points(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    normalized = str(raw).replace(",", " ").replace(";", " ")
+    return [token.replace("P", "").strip() for token in normalized.split() if token.strip()]
 
 
 def _file_size_mb(path: str | Path | None) -> float | None:
@@ -124,6 +136,17 @@ def _count_csv_rows(path: str | Path) -> int | None:
         return int(len(pd.read_csv(p)))
     except Exception:
         return None
+
+
+def _sum_csv_rows(paths: list[str | Path]) -> int | None:
+    total = 0
+    found = False
+    for path in paths:
+        rows = _count_csv_rows(path)
+        if rows is not None:
+            total += rows
+            found = True
+    return total if found else None
 
 
 def _list_output_files(path: str | Path) -> list[str]:
@@ -237,22 +260,94 @@ def _export_sih(params: dict[str, Any]) -> None:
     export_sih_main(argv)
 
 
-def _analysis_correlation(params: dict[str, Any]) -> None:
+def _analysis_correlation(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
+    cfg = load_correlation_config(config_path)
+    paths = resolve_correlation_paths(config_path)
+    instruments = load_instruments(cfg)
 
-    run_correlation(
-        config=str(config_path),
-        correlation_type=params.get("type"),
-        ranking=params.get("ranking"),
-        timestep=params.get("timestep", "daily"),
-        pairs=params.get("pairs"),
-        points=params.get("points"),
-        all_pairs=bool(params.get("all_pairs", False)),
-        match_mode=params.get("match_mode", "exact"),
-        window_days=int(params.get("window_days", 0)),
-        start_date=params.get("start_date"),
-        end_date=params.get("end_date"),
-        interactive=bool(params.get("interactive", False)),
+    correlation_type = params.get("type")
+    if not correlation_type:
+        raise ValueError("Missing required parameter for analysis.correlation: type")
+
+    ranking = params.get("ranking")
+    ranking_codes = [x.upper() for x in str(ranking).split()] if ranking else default_ranking(cfg, instruments)
+    all_pairs = bool(params.get("all_pairs", False))
+    pairs = params.get("pairs")
+    validate_pair_selection(str(correlation_type), pairs, all_pairs)
+    parsed_pairs = parse_pairs(pairs, correlation_type=str(correlation_type))
+    points = _parse_points(params.get("points"))
+    timestep = params.get("timestep", "daily")
+
+    input_size_mb = round(
+        sum(
+            value or 0
+            for value in (
+                _directory_size_mb(paths.normalized_root),
+                _directory_size_mb(paths.external_model_dir),
+                _directory_size_mb(paths.external_stations_dir),
+            )
+        ),
+        4,
+    )
+
+    if correlation_type == "gauges_vs_model":
+        output_dir = run_gauges_vs_model(
+            normalized_root=paths.normalized_root,
+            model_dir=paths.external_model_dir,
+            output_dir=paths.output_root,
+            instruments=instruments,
+            ranking_codes=ranking_codes,
+            start_date=params.get("start_date"),
+            end_date=params.get("end_date"),
+            points=points,
+            variable_roles=get_variable_roles(cfg, "gauges_vs_model"),
+        )
+    elif correlation_type == "gauges_vs_stations":
+        output_dir = run_gauges_vs_stations(
+            normalized_root=paths.normalized_root,
+            stations_dir=paths.external_stations_dir,
+            output_dir=paths.output_root,
+            instruments=instruments,
+            ranking_codes=ranking_codes,
+            timestep=str(timestep),
+            match_mode=params.get("match_mode", "exact"),
+            window_days=int(params.get("window_days", 0)),
+            pairs=parsed_pairs,
+            variable_roles=get_variable_roles(cfg, "gauges_vs_stations"),
+        )
+    elif correlation_type == "model_vs_stations":
+        output_dir = run_model_vs_stations(
+            stations_dir=paths.external_stations_dir,
+            model_dir=paths.external_model_dir,
+            output_dir=paths.output_root,
+            pairs=parsed_pairs,
+            timestep=str(timestep),
+            all_pairs=all_pairs,
+            variable_roles=get_variable_roles(cfg, "model_vs_stations"),
+        )
+    else:
+        raise ValueError(f"Unknown correlation type: {correlation_type}")
+
+    output_files = _list_output_files(output_dir)
+    csv_outputs = [path for path in output_files if str(path).lower().endswith(".csv")]
+
+    return CommandResult(
+        status="success",
+        outputs=[str(output_dir), *output_files],
+        metrics={
+            "analysis_type": "correlation",
+            "correlation_type": str(correlation_type),
+            "input_size_mb": input_size_mb,
+            "output_size_mb": _directory_size_mb(output_dir),
+            "rows_processed": _sum_csv_rows(csv_outputs),
+            "files_written": _count_files(output_dir),
+            "ranking": ranking_codes,
+            "timestep": str(timestep),
+            "points": points or "all",
+            "pairs": parsed_pairs if parsed_pairs else ("all" if all_pairs else None),
+            "all_pairs": all_pairs,
+        },
     )
 
 
