@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import yaml
 
 from aforix.batch.manifest import BatchManifest, StepManifest, write_manifest
 from aforix.batch.metrics import MetricsCollector, metrics_to_dict
@@ -31,14 +34,21 @@ class BatchRunner:
         *,
         dry_run: bool = False,
     ) -> BatchManifest:
-        started_at = datetime.now(timezone.utc)
-        batch_run_id = started_at.strftime("%Y%m%d_%H%M%S")
+        timezone_name = self._resolve_timezone(batch)
+        tzinfo = self._safe_zoneinfo(timezone_name)
+
+        started_local = datetime.now(tzinfo)
+        started_utc = started_local.astimezone(timezone.utc)
+
+        batch_run_id = started_local.strftime("%Y%m%d_%H%M%S")
 
         manifest = BatchManifest(
             batch_id=batch.batch_id,
             batch_run_id=batch_run_id,
             status="running",
-            started_at=started_at.isoformat(),
+            started_at=started_local.isoformat(),
+            timezone=timezone_name,
+            started_at_utc=started_utc.isoformat(),
         )
 
         output_dir = (
@@ -108,7 +118,11 @@ class BatchRunner:
         if manifest.status != "failed":
             manifest.status = "success"
 
-        manifest.finished_at = datetime.now(timezone.utc).isoformat()
+        finished_local = datetime.now(tzinfo)
+        finished_utc = finished_local.astimezone(timezone.utc)
+
+        manifest.finished_at = finished_local.isoformat()
+        manifest.finished_at_utc = finished_utc.isoformat()
 
         if batch.execution.create_manifest:
             write_manifest(
@@ -122,3 +136,27 @@ class BatchRunner:
         )
 
         return manifest
+
+    def _resolve_timezone(self, batch: BatchDefinition) -> str:
+        config_path = Path(batch.main_config)
+
+        if not config_path.exists():
+            return "UTC"
+
+        with config_path.open("r", encoding="utf-8") as file:
+            data = yaml.safe_load(file) or {}
+
+        project = data.get("project", {})
+
+        if isinstance(project, dict):
+            timezone_name = project.get("timezone")
+            if timezone_name:
+                return str(timezone_name)
+
+        return "UTC"
+
+    def _safe_zoneinfo(self, timezone_name: str) -> ZoneInfo:
+        try:
+            return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            return ZoneInfo("UTC")
