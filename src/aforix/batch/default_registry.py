@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any
+import copy
 
 import pandas as pd
 
@@ -7,7 +8,9 @@ from aforix.analysis.correlation.cli import run_correlation
 from aforix.analysis.quality.config import load_quality_config
 from aforix.analysis.quality.runner import run_quality_metrics
 from aforix.analysis.section_profiles.cli import run_cmd as run_section_profiles_cmd
-from aforix.analysis.stage_discharge.cli import run_cmd as run_stage_discharge_cmd
+from aforix.analysis.stage_discharge.cli import _apply_cli_overrides
+from aforix.analysis.stage_discharge.config import load_stage_discharge_config
+from aforix.analysis.stage_discharge.runner import run_stage_discharge
 from aforix.batch.models import CommandResult
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
@@ -119,6 +122,15 @@ def _count_csv_rows(path: str | Path) -> int | None:
         return int(len(pd.read_csv(p)))
     except Exception:
         return None
+
+
+def _list_output_files(path: str | Path) -> list[str]:
+    root = Path(path)
+    if not root.exists():
+        return []
+    if root.is_file():
+        return [str(root)]
+    return [str(p) for p in sorted(root.rglob("*")) if p.is_file()]
 
 
 def _config_check(params: dict[str, Any]) -> None:
@@ -293,11 +305,12 @@ def _analysis_quality(params: dict[str, Any]) -> CommandResult:
     )
 
 
-def _analysis_stage_discharge(params: dict[str, Any]) -> None:
+def _analysis_stage_discharge(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
+    cfg = copy.deepcopy(load_stage_discharge_config(config_path))
 
-    run_stage_discharge_cmd(
-        config=str(config_path),
+    _apply_cli_overrides(
+        cfg,
         points=params.get("points"),
         start_date=params.get("start_date"),
         end_date=params.get("end_date"),
@@ -308,6 +321,41 @@ def _analysis_stage_discharge(params: dict[str, Any]) -> None:
         plots=params.get("plots"),
         excel=params.get("excel"),
         max_plots=params.get("max_plots"),
+    )
+
+    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
+    manual_root = Path(cfg.get("input_dirs", {}).get("manual_stage_root", "database/external/normalized/manual_stage"))
+    input_size_mb = round(
+        sum(
+            value or 0
+            for value in (
+                _directory_size_mb(normalized_root),
+                _directory_size_mb(manual_root),
+            )
+        ),
+        4,
+    )
+
+    output_dir = run_stage_discharge(config_path, override_config=cfg)
+    output_files = _list_output_files(output_dir)
+
+    rows_processed = _count_csv_rows(output_dir / "stage_discharge_matched.csv")
+    if rows_processed is None:
+        rows_processed = _count_csv_rows(output_dir / "matched_stage_discharge.csv")
+
+    return CommandResult(
+        status="success",
+        outputs=[str(output_dir), *output_files],
+        metrics={
+            "analysis_type": "stage-discharge",
+            "input_size_mb": input_size_mb,
+            "output_size_mb": _directory_size_mb(output_dir),
+            "rows_processed": rows_processed,
+            "files_written": _count_files(output_dir),
+            "points": cfg.get("selection", {}).get("points", "all"),
+            "depth_mode": cfg.get("selection", {}).get("depth_mode", cfg.get("depth_mode")),
+            "instrument_stage_mode": cfg.get("selection", {}).get("instrument_stage_mode", cfg.get("instrument_stage_mode")),
+        },
     )
 
 
