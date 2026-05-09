@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aforix Batch Launcher
+Comment=Run an Aforix batch pipeline
+Exec=/home/user/repos/aforix/launchers/linux/run_batch_file.sh
+Path=/home/user/repos/aforix
+Terminal=true
+Categories=Science;Utility;

@@ -59,8 +59,7 @@ raw -> ingest -> runs/.../raw_canonical -> build-groups -> database/raw_canonica
 
 La explicación completa del flujo está en `docs/02_pipeline.md`.
 
-Para ejecutar flujos reproducibles desde YAML, revisar la guía batch en `docs/BATCH_GUIDE.md` y los ejemplos en `configs/batches/examples/`.
-
+Para ejecutar flujos reproducibles desde YAML, revisar la guía batch en `docs/BATCH_GUIDE.md`, los ejemplos en `configs/batches/examples/` y la guía de launchers en `docs/LAUNCHERS_GUIDE.md`.
 ## Salidas principales
 
 - `runs/`: ejecuciones trazables del pipeline.
@@ -79,6 +78,8 @@ Estas carpetas son locales o generadas por el pipeline y no deberían versionars
 - Referencia CLI: `docs/03_cli.md`
 - Guía batch: `docs/BATCH_GUIDE.md`
 - Ejemplos batch: `configs/batches/examples/README.md`
+- Guía de launchers Windows/Linux: `docs/LAUNCHERS_GUIDE.md`
+- Uso interactivo y estrategia de launchers: `docs/INTERACTIVE_USAGE.md`
 - Guía de configuración: `docs/CONFIGURATION_GUIDE.md`
 - Guía de análisis de correlación: `docs/CORRELATION_GUIDE.md`
 - Guía de métricas de calidad: `docs/QUALITY_METRICS_GUIDE.md`
@@ -107,6 +108,7 @@ Componentes disponibles actualmente:
 - infraestructura batch con YAML, `CommandResult`, `manifest.json` y métricas operativas;
 - exportación de tablas;
 - exportación SIH configurable.
+- launchers Windows/Linux para ejecutar batches predeterminados y personalizados;
 
 ## Autor
 
