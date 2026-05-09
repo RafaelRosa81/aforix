@@ -1,4 +1,6 @@
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -20,4 +22,18 @@ class BatchManifest:
     status: str
     started_at: str
     finished_at: str | None = None
+    duration_sec: float | None = None
     steps: list[StepManifest] = field(default_factory=list)
+
+
+def manifest_to_dict(manifest: BatchManifest) -> dict[str, Any]:
+    return asdict(manifest)
+
+
+def write_manifest(manifest: BatchManifest, path: str | Path) -> None:
+    manifest_path = Path(path)
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with manifest_path.open("w", encoding="utf-8") as file:
+        json.dump(manifest_to_dict(manifest), file, indent=2, ensure_ascii=False)
+        file.write("\n")
