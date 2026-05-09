@@ -221,8 +221,23 @@ def _ingest_result(
     )
 
 
-def _config_check(params: dict[str, Any]) -> None:
-    _load_validated_config_from_params(params)
+def _config_check(params: dict[str, Any]) -> CommandResult:
+    config_path = _load_validated_config_from_params(params)
+    cfg = load_config(config_path)
+
+    sections = [key for key, value in cfg.items() if isinstance(value, dict)]
+
+    return CommandResult(
+        status="success",
+        outputs=[str(config_path)],
+        metrics={
+            "check_type": "config",
+            "config_file": str(config_path),
+            "input_size_mb": _file_size_mb(config_path),
+            "sections_checked": len(sections),
+            "sections": sections,
+        },
+    )
 
 
 def _ingest_flowtracker(params: dict[str, Any]) -> CommandResult:
