@@ -1,0 +1,53 @@
+# ============================================================
+# Atomic example: build-groups
+# ============================================================
+#
+# Objetivo:
+#   Consolidar outputs raw canonical desde runs/ hacia:
+#
+#     database/raw_canonical/
+#
+# Requisitos:
+#   - Corridas ingest existentes en runs/
+#   - Configuración build_groups válida en main.yaml
+#
+# Funcionalidades relevantes:
+#   - use_latest_run_only
+#   - include_runs
+#   - exclude_runs
+#   - deduplicate
+#   - deduplicate_by
+#   - manifests
+#
+# Outputs esperados:
+#   database/raw_canonical/
+#   database/raw_canonical/_manifests/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/build_groups.yaml
+#   aforix batch run -b configs/batches/examples/atomic/build_groups.yaml
+
+version: 1
+
+batch:
+  id: atomic_build_groups
+  name: Atomic build-groups
+  description: Ejecutar únicamente build-groups.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: build_groups
+    command: build-groups
+    enabled: true
+    params:
+      config: ${main_config}
