@@ -1,0 +1,82 @@
+# ============================================================
+# Atomic example: export.tables - Summary mensual
+# ============================================================
+#
+# Objetivo:
+#   Exportar la tabla Summary desde database/normalized a Excel/CSV.
+#
+# Parámetros reales aceptados por batch export.tables:
+#   config, table, instrument, points, parameters, early_date, late_date,
+#   grouping, format, flat, aggregation.
+#
+# Opciones frecuentes:
+#   table: Summary, Points, Sections, Gates.
+#   instrument: all, flowtracker, molinete, nivus, m9.
+#   grouping: monthly, daily, none.
+#   format: xlsx, csv.
+#   flat: true, false.
+#   aggregation: mean, sum, min, max, count.
+#
+# Nota:
+#   interactive: true NO está soportado dentro de batch.
+
+version: 1
+
+batch:
+  id: atomic_export_tables_summary_monthly
+  name: Atomic export tables Summary monthly
+  description: Exportar Summary mensual desde database/normalized.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: P1,P8,P13
+  parameters: q_total_ls,area_total_m2,velocity_mean_m_s
+  early_date: 2025-01-01
+  late_date: 2026-12-31
+
+steps:
+  - id: export_summary_monthly
+    command: export.tables
+    enabled: true
+    params:
+      # Config principal del proyecto.
+      config: ${main_config}
+
+      # Tabla a exportar. Opciones típicas: Summary, Points, Sections, Gates.
+      table: Summary
+
+      # Instrumento a filtrar. Opciones típicas: all, flowtracker, molinete, nivus, m9.
+      instrument: all
+
+      # Puntos a exportar. Usar coma o espacios según convenga.
+      # Dejar vacío o quitar para exportar todos.
+      points: ${points}
+
+      # Columnas/variables a exportar. Quitar o dejar vacío para usar defaults.
+      parameters: ${parameters}
+
+      # Fecha inicial y final para filtrar mediciones.
+      early_date: ${early_date}
+      late_date: ${late_date}
+
+      # Agrupación temporal. Opciones: monthly, daily, none.
+      grouping: monthly
+
+      # Formato de salida. Opciones: xlsx, csv.
+      format: xlsx
+
+      # flat controla si se fuerza una salida plana.
+      # Opciones: true, false.
+      # false permite pivot cuando grouping es monthly o daily.
+      flat: false
+
+      # Agregación para datos agrupados. Opciones típicas: mean, sum, min, max, count.
+      aggregation: mean
