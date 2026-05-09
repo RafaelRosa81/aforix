@@ -1,0 +1,41 @@
+version: 1
+
+batch:
+  id: sih_export_with_selection
+  name: SIH export with explicit selection
+  description: Export selected Aforix measurements to SIH CSV format using a selection file.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  sih_config: configs/sih/sih.yaml
+
+  # Optional CSV file defining which actuaciones/aforos
+  # should be exported to SIH.
+  #
+  # Example:
+  # data/external/sih/selection.csv
+  selection_file: data/external/sih/selection.csv
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: export_sih
+    command: export.sih
+    enabled: true
+    params:
+      config: ${main_config}
+      sih_config: ${sih_config}
+      selection_file: ${selection_file}
