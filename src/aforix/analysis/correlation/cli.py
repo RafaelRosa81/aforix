@@ -43,7 +43,7 @@ def run_correlation(
     ),
     ranking: str = typer.Option(None, "--ranking", help="Instrument ranking, e.g. 'NV FT ML'"),
     timestep: str = typer.Option("daily", "--timestep", help="daily | monthly; gauges_vs_stations also accepts hourly later"),
-    pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 15] [117 10]"'),
+    pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 1] [117 8]"'),
     points: str = typer.Option(None, "--points", help='Points, e.g. "3 5 8" or "3,5,8"'),
     all_pairs: bool = typer.Option(False, "--all-pairs", help="Compare all available stations and model points"),
     match_mode: str = typer.Option("exact", "--match-mode", help="exact | window"),
@@ -77,7 +77,7 @@ def run_correlation(
     if interactive and correlation_type in {"gauges_vs_stations", "model_vs_stations"} and not pairs and not all_pairs:
         parsed_pairs = ask_pairs()
     else:
-        parsed_pairs = parse_pairs(pairs)
+        parsed_pairs = parse_pairs(pairs, correlation_type=correlation_type)
 
     parsed_points = _parse_points(points)
 
