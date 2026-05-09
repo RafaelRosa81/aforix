@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import typer
@@ -15,30 +14,16 @@ from aforix.analysis.correlation.interactive import (
     ask_timestep,
     ask_points,
 )
+from aforix.analysis.correlation.pairs import (
+    PairValidationError,
+    parse_pairs,
+    validate_pair_selection,
+)
 from aforix.analysis.correlation.workflows.gauges_vs_model import default_ranking, run_gauges_vs_model
 from aforix.analysis.correlation.workflows.gauges_vs_stations import run_gauges_vs_stations
 from aforix.analysis.correlation.workflows.model_vs_stations import run_model_vs_stations
 
 app = typer.Typer(help="Correlation analysis commands.")
-
-
-def _parse_pairs(raw: str | None) -> list[tuple[str, str]]:
-    if not raw:
-        return []
-    pairs: list[tuple[str, str]] = []
-    blocks = re.findall(r"\[([^\]]+)\]", raw)
-    if blocks:
-        for block in blocks:
-            parts = block.replace(",", " ").split()
-            if len(parts) == 2:
-                pairs.append((parts[0], parts[1]))
-        return pairs
-    chunks = re.split(r"[;,]+", raw)
-    for chunk in chunks:
-        parts = chunk.strip().split()
-        if len(parts) == 2:
-            pairs.append((parts[0], parts[1]))
-    return pairs
 
 
 def _parse_points(raw: str | None) -> list[str]:
@@ -58,7 +43,7 @@ def run_correlation(
     ),
     ranking: str = typer.Option(None, "--ranking", help="Instrument ranking, e.g. 'NV FT ML'"),
     timestep: str = typer.Option("daily", "--timestep", help="daily | monthly; gauges_vs_stations also accepts hourly later"),
-    pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 15] [117 10]"'),
+    pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 1] [117 8]"'),
     points: str = typer.Option(None, "--points", help='Points, e.g. "3 5 8" or "3,5,8"'),
     all_pairs: bool = typer.Option(False, "--all-pairs", help="Compare all available stations and model points"),
     match_mode: str = typer.Option("exact", "--match-mode", help="exact | window"),
@@ -74,6 +59,11 @@ def run_correlation(
     if interactive or not correlation_type:
         correlation_type = ask_correlation_type()
 
+    try:
+        validate_pair_selection(correlation_type, pairs, all_pairs)
+    except PairValidationError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
     if ranking:
         ranking_codes = [x.upper() for x in ranking.split()]
     else:
@@ -87,7 +77,7 @@ def run_correlation(
     if interactive and correlation_type in {"gauges_vs_stations", "model_vs_stations"} and not pairs and not all_pairs:
         parsed_pairs = ask_pairs()
     else:
-        parsed_pairs = _parse_pairs(pairs)
+        parsed_pairs = parse_pairs(pairs, correlation_type=correlation_type)
 
     parsed_points = _parse_points(points)
 
@@ -129,8 +119,6 @@ def run_correlation(
         return
 
     if correlation_type == "model_vs_stations":
-        if not parsed_pairs and not all_pairs:
-            raise typer.BadParameter("model_vs_stations requires --pairs unless --all-pairs is used")
         out = run_model_vs_stations(
             stations_dir=paths.external_stations_dir,
             model_dir=paths.external_model_dir,
