@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import yaml
 
 from aforix.batch.manifest import BatchManifest, StepManifest, write_manifest
 from aforix.batch.metrics import MetricsCollector, metrics_to_dict
@@ -33,7 +35,7 @@ class BatchRunner:
         dry_run: bool = False,
     ) -> BatchManifest:
         timezone_name = self._resolve_timezone(batch)
-        tzinfo = ZoneInfo(timezone_name)
+        tzinfo = self._safe_zoneinfo(timezone_name)
 
         started_local = datetime.now(tzinfo)
         started_utc = started_local.astimezone(timezone.utc)
@@ -136,9 +138,25 @@ class BatchRunner:
         return manifest
 
     def _resolve_timezone(self, batch: BatchDefinition) -> str:
-        timezone_name = batch.project.get("timezone")
+        config_path = Path(batch.main_config)
 
-        if timezone_name:
-            return str(timezone_name)
+        if not config_path.exists():
+            return "UTC"
+
+        with config_path.open("r", encoding="utf-8") as file:
+            data = yaml.safe_load(file) or {}
+
+        project = data.get("project", {})
+
+        if isinstance(project, dict):
+            timezone_name = project.get("timezone")
+            if timezone_name:
+                return str(timezone_name)
 
         return "UTC"
+
+    def _safe_zoneinfo(self, timezone_name: str) -> ZoneInfo:
+        try:
+            return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            return ZoneInfo("UTC")
