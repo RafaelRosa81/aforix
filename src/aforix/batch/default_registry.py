@@ -1,8 +1,11 @@
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from aforix.analysis.correlation.cli import run_correlation
-from aforix.analysis.quality.cli import run_quality
+from aforix.analysis.quality.config import load_quality_config
+from aforix.analysis.quality.runner import run_quality_metrics
 from aforix.analysis.section_profiles.cli import run_cmd as run_section_profiles_cmd
 from aforix.analysis.stage_discharge.cli import run_cmd as run_stage_discharge_cmd
 from aforix.batch.models import CommandResult
@@ -47,6 +50,15 @@ def _as_tuple(value: Any) -> tuple[str, ...]:
     return (str(value),)
 
 
+def _as_csv_list(value: Any) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    parsed = [item.strip() for item in str(value).split(",") if item.strip()]
+    return parsed or None
+
+
 def _file_size_mb(path: str | Path | None) -> float | None:
     if not path:
         return None
@@ -66,6 +78,47 @@ def _paths_size_mb(paths: list[str | Path]) -> float | None:
         return None
 
     return round(sum(valid), 4)
+
+
+def _directory_size_mb(path: str | Path | None) -> float | None:
+    if not path:
+        return None
+
+    root = Path(path)
+    if not root.exists():
+        return None
+
+    total = 0
+    for file_path in root.rglob("*"):
+        if file_path.is_file():
+            total += file_path.stat().st_size
+
+    return round(total / (1024 * 1024), 4)
+
+
+def _count_files(path: str | Path | None) -> int | None:
+    if not path:
+        return None
+
+    root = Path(path)
+    if not root.exists():
+        return None
+
+    if root.is_file():
+        return 1
+
+    return sum(1 for p in root.rglob("*") if p.is_file())
+
+
+def _count_csv_rows(path: str | Path) -> int | None:
+    p = Path(path)
+    if not p.exists() or not p.is_file():
+        return None
+
+    try:
+        return int(len(pd.read_csv(p)))
+    except Exception:
+        return None
 
 
 def _config_check(params: dict[str, Any]) -> None:
@@ -189,16 +242,54 @@ def _analysis_correlation(params: dict[str, Any]) -> None:
     )
 
 
-def _analysis_quality(params: dict[str, Any]) -> None:
+def _analysis_quality(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
+    qc = load_quality_config(config_path)
 
-    run_quality(
-        config=str(config_path),
-        interactive=bool(params.get("interactive", False)),
-        points=params.get("points"),
-        yyyymm=params.get("yyyymm"),
-        all_months=bool(params.get("all_months", False)),
-        aggregation=params.get("aggregation", "daily"),
+    if bool(params.get("interactive", False)):
+        raise ValueError("analysis.quality interactive mode is not supported inside batch run")
+
+    aggregation = params.get("aggregation", "daily")
+    selected_points = _as_csv_list(params.get("points"))
+    selected_months = _as_csv_list(params.get("yyyymm"))
+    all_months = bool(params.get("all_months", False))
+
+    input_size_mb = round(
+        sum(
+            value or 0
+            for value in (
+                _directory_size_mb(qc.nivus.normalized_points),
+                _directory_size_mb(qc.nivus.raw_points),
+            )
+        ),
+        4,
+    )
+
+    output_dir = run_quality_metrics(
+        config_path,
+        aggregation=aggregation,
+        points=selected_points,
+        months=selected_months,
+        all_months=all_months,
+    )
+
+    output_paths = [str(path) for path in sorted(output_dir.glob("*")) if path.is_file()]
+    output_size_mb = _directory_size_mb(output_dir)
+    rows_processed = _count_csv_rows(output_dir / "cg_measurements.csv")
+
+    return CommandResult(
+        status="success",
+        outputs=[str(output_dir), *output_paths],
+        metrics={
+            "analysis_type": "quality",
+            "aggregation": aggregation,
+            "points": selected_points or "all",
+            "months": selected_months or ("all" if all_months else None),
+            "input_size_mb": input_size_mb,
+            "output_size_mb": output_size_mb,
+            "rows_processed": rows_processed,
+            "files_written": _count_files(output_dir),
+        },
     )
 
 
