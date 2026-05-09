@@ -1,0 +1,57 @@
+version: 1
+
+batch:
+  id: full_pipeline
+  name: Full pipeline example
+  description: Complete Aforix processing pipeline
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+  continue_on_error: false
+
+variables:
+  export_format: xlsx
+  grouping: monthly
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+
+  - id: ingest_ft
+    command: ingest.flowtracker
+    enabled: true
+
+  - id: ingest_ml
+    command: ingest.molinete
+    enabled: true
+
+  - id: ingest_nv
+    command: ingest.nivus
+    enabled: true
+
+  - id: build_groups
+    command: build-groups
+    enabled: true
+
+  - id: normalize
+    command: normalize.run
+    enabled: true
+
+  - id: validate
+    command: validate.run
+    enabled: true
+
+  - id: export_summary
+    command: export.tables
+    enabled: true
+    params:
+      table: Summary
+      grouping: ${grouping}
+      format: ${export_format}
