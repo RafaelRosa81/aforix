@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 import copy
 
 import pandas as pd
@@ -183,24 +183,62 @@ def _validation_issue_rows(summary_path: Path) -> int | None:
     return int(pd.to_numeric(df["n_rows"], errors="coerce").fillna(0).sum())
 
 
+def _raw_input_dir(cfg: dict[str, Any], instrument: str) -> Path:
+    raw_root = Path(cfg.get("paths", {}).get("raw_data_dir", "data/raw"))
+    instrument_cfg = cfg.get("ingest", {}).get(instrument, {}) or {}
+    raw_subdir = instrument_cfg.get("raw_subdir")
+    if raw_subdir:
+        return raw_root / str(raw_subdir)
+    return raw_root
+
+
+def _ingest_result(
+    params: dict[str, Any],
+    *,
+    instrument: str,
+    run_callable: Callable[[Path], Path],
+) -> CommandResult:
+    config_path = _load_validated_config_from_params(params)
+    cfg = load_config(config_path)
+    input_dir = _raw_input_dir(cfg, instrument)
+
+    input_size_mb = _directory_size_mb(input_dir)
+    run_dir = run_callable(config_path)
+    output_files = _list_output_files(run_dir)
+    csv_outputs = [path for path in output_files if str(path).lower().endswith(".csv")]
+
+    return CommandResult(
+        status="success",
+        outputs=[str(run_dir), *output_files],
+        metrics={
+            "ingest_instrument": instrument,
+            "input_dir": str(input_dir),
+            "input_size_mb": input_size_mb,
+            "output_size_mb": _directory_size_mb(run_dir),
+            "rows_processed": _sum_csv_rows(csv_outputs),
+            "files_written": _count_files(run_dir),
+        },
+    )
+
+
 def _config_check(params: dict[str, Any]) -> None:
     _load_validated_config_from_params(params)
 
 
-def _ingest_flowtracker(params: dict[str, Any]) -> None:
-    run_flowtracker(_load_validated_config_from_params(params))
+def _ingest_flowtracker(params: dict[str, Any]) -> CommandResult:
+    return _ingest_result(params, instrument="flowtracker", run_callable=run_flowtracker)
 
 
-def _ingest_molinete(params: dict[str, Any]) -> None:
-    run_molinete(_load_validated_config_from_params(params))
+def _ingest_molinete(params: dict[str, Any]) -> CommandResult:
+    return _ingest_result(params, instrument="molinete", run_callable=run_molinete)
 
 
-def _ingest_nivus(params: dict[str, Any]) -> None:
-    run_nivus(_load_validated_config_from_params(params))
+def _ingest_nivus(params: dict[str, Any]) -> CommandResult:
+    return _ingest_result(params, instrument="nivus", run_callable=run_nivus)
 
 
-def _ingest_m9(params: dict[str, Any]) -> None:
-    run_m9(_load_validated_config_from_params(params))
+def _ingest_m9(params: dict[str, Any]) -> CommandResult:
+    return _ingest_result(params, instrument="m9", run_callable=run_m9)
 
 
 def _build_groups(params: dict[str, Any]) -> CommandResult:
