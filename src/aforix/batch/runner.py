@@ -54,6 +54,7 @@ class BatchRunner:
 
         for step in plan:
             command = self.registry.get(step.command)
+            result = CommandResult(status="success")
 
             metrics_collector = MetricsCollector()
             metrics_collector.start()
@@ -67,13 +68,12 @@ class BatchRunner:
             try:
                 if dry_run:
                     print(f"[DRY-RUN] {step.id} -> {step.command}")
-                    result = CommandResult(status="success")
                 else:
                     print(f"[RUN] {step.id} -> {step.command}")
-                    result = command.callable(step.params)
+                    maybe_result = command.callable(step.params)
 
-                    if result is None:
-                        result = CommandResult(status="success")
+                    if maybe_result is not None:
+                        result = maybe_result
 
                 step_manifest.status = result.status
                 step_manifest.outputs = result.outputs
@@ -82,22 +82,21 @@ class BatchRunner:
             except Exception as exc:
                 step_manifest.status = "failed"
                 step_manifest.errors.append(str(exc))
-
-                if batch.execution.stop_on_error:
-                    manifest.steps.append(step_manifest)
-                    manifest.status = "failed"
-                    break
+                manifest.status = "failed"
 
             finally:
                 metrics = metrics_collector.stop()
 
                 combined_metrics = metrics_to_dict(metrics)
-                combined_metrics.update(result.metrics if 'result' in locals() else {})
+                combined_metrics.update(result.metrics)
 
                 step_manifest.duration_sec = metrics.duration_sec
                 step_manifest.metrics = combined_metrics
 
                 manifest.steps.append(step_manifest)
+
+            if step_manifest.status == "failed" and batch.execution.stop_on_error:
+                break
 
         total_finished = perf_counter()
 
