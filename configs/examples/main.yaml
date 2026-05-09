@@ -408,6 +408,25 @@ external_sources:
 analysis:
   correlation:
     output_root: runs/analysis_correlation
+    measuring_instruments:
+      - code: NV
+        name: Nivus
+        subdir: nivus
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
+      - code: FT
+        name: FlowTracker
+        subdir: flowtracker
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
+      - code: ML
+        name: Molinete
+        subdir: molinete
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
     default_ranking:
       - NV
       - FT
