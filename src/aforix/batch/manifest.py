@@ -24,6 +24,9 @@ class BatchManifest:
     started_at: str
     finished_at: str | None = None
     duration_sec: float | None = None
+    timezone: str | None = None
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
     steps: list[StepManifest] = field(default_factory=list)
 
 
