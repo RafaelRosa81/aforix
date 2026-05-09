@@ -1,0 +1,33 @@
+version: 1
+
+batch:
+  id: sih_export_pipeline
+  name: SIH export pipeline
+  description: Export consolidated Aforix measurements to SIH CSV format.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  sih_config: configs/sih/sih.yaml
+
+steps:
+
+  - id: config_check
+    command: config-check
+    enabled: true
+    params:
+      config: ${main_config}
+
+  - id: export_sih
+    command: export.sih
+    enabled: true
+    params:
+      config: ${main_config}
+      sih_config: ${sih_config}
