@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
+from zoneinfo import ZoneInfo
 
 from aforix.batch.manifest import BatchManifest, StepManifest, write_manifest
 from aforix.batch.metrics import MetricsCollector, metrics_to_dict
@@ -31,14 +32,21 @@ class BatchRunner:
         *,
         dry_run: bool = False,
     ) -> BatchManifest:
-        started_at = datetime.now(timezone.utc)
-        batch_run_id = started_at.strftime("%Y%m%d_%H%M%S")
+        timezone_name = self._resolve_timezone(batch)
+        tzinfo = ZoneInfo(timezone_name)
+
+        started_local = datetime.now(tzinfo)
+        started_utc = started_local.astimezone(timezone.utc)
+
+        batch_run_id = started_local.strftime("%Y%m%d_%H%M%S")
 
         manifest = BatchManifest(
             batch_id=batch.batch_id,
             batch_run_id=batch_run_id,
             status="running",
-            started_at=started_at.isoformat(),
+            started_at=started_local.isoformat(),
+            timezone=timezone_name,
+            started_at_utc=started_utc.isoformat(),
         )
 
         output_dir = (
@@ -108,7 +116,11 @@ class BatchRunner:
         if manifest.status != "failed":
             manifest.status = "success"
 
-        manifest.finished_at = datetime.now(timezone.utc).isoformat()
+        finished_local = datetime.now(tzinfo)
+        finished_utc = finished_local.astimezone(timezone.utc)
+
+        manifest.finished_at = finished_local.isoformat()
+        manifest.finished_at_utc = finished_utc.isoformat()
 
         if batch.execution.create_manifest:
             write_manifest(
@@ -122,3 +134,11 @@ class BatchRunner:
         )
 
         return manifest
+
+    def _resolve_timezone(self, batch: BatchDefinition) -> str:
+        timezone_name = batch.project.get("timezone")
+
+        if timezone_name:
+            return str(timezone_name)
+
+        return "UTC"
