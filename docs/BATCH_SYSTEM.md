@@ -11,17 +11,7 @@ Aforix batch infrastructure provides declarative orchestration for:
 - export
 - analysis
 
-The batch system does not implement processing logic.
-
-Its responsibilities are:
-
-- validation
-- planning
-- execution orchestration
-- manifests
-- reporting
-- performance metrics
-- interactive workflows
+The batch system does not implement processing logic. It only validates, plans, executes registered commands, writes manifests, and generates reports.
 
 ---
 
@@ -29,36 +19,32 @@ Its responsibilities are:
 
 ## 1. No duplicated logic
 
-Batch must reuse existing:
-
-- CLI commands
-- modules
-- registries
-- analysis pipelines
+Batch must reuse existing modules and command entrypoints.
 
 The batch layer must never implement:
 
+- ingest logic
 - normalize logic
+- validation logic
 - export logic
 - analysis logic
-- ingest logic
 
 ---
 
 ## 2. Registry-driven execution
 
-All steps must resolve through a command registry.
-
-Example:
+All steps resolve through the batch command registry.
 
 ```yaml
-command: normalize.run
+steps:
+  - id: normalize
+    command: normalize.run
 ```
 
 Resolution flow:
 
 ```text
-step -> registry -> callable
+batch.yaml -> planner -> registry -> existing Aforix module
 ```
 
 ---
@@ -83,142 +69,192 @@ Core Modules
 
 ---
 
-# Batch YAML
+# Batch YAML Structure
 
-## main.yaml
+```yaml
+version: 1
 
-Describes project configuration:
+batch:
+  id: example
+  name: Example batch
+  description: Example execution recipe
 
-- paths
-- instruments
-- normalize
-- validation
-- export
-- defaults
+project:
+  main_config: configs/examples/main.yaml
 
-## batch.yaml
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
 
-Describes operational execution:
+variables:
+  main_config: configs/examples/main.yaml
 
-- steps
-- order
-- execution behavior
-- overrides
-- reports
+steps:
+  - id: config_check
+    command: config-check
+    params:
+      config: ${main_config}
+```
 
 ---
 
-# Planned Commands
+# Available Commands
+
+Typical batch commands include:
+
+```text
+config-check
+ingest.flowtracker
+ingest.molinete
+ingest.nivus
+ingest.m9
+build-groups
+normalize.run
+validate.run
+export.tables
+export.sih
+analysis.quality
+analysis.stage-discharge
+analysis.section-profiles
+analysis.correlation
+```
+
+List currently registered commands with:
 
 ```bash
-aforix batch check
-aforix batch plan
-aforix batch run
-aforix batch interactive
 aforix batch list-commands
 ```
 
 ---
 
-# Planned Features
+# CLI Usage
 
-## V1
+Validate a batch file:
 
-- sequential execution
-- batch schema validation
-- registry
-- planner
-- manifests
-- dry-run
-- launchers
-- interactive workflows
-- metrics
-- reports
+```bash
+aforix batch check -b configs/batches/examples/check_only.yaml
+```
 
-## Later phases
+Preview the execution plan:
 
-- DAG execution
-- scheduler
-- SLURM integration
-- incremental cache
-- retries
-- dashboard
-- TUI
+```bash
+aforix batch plan -b configs/batches/examples/full_ingest_pipeline.yaml
+```
+
+Dry-run a batch:
+
+```bash
+aforix batch run -b configs/batches/examples/full_ingest_pipeline.yaml --dry-run
+```
+
+Run a batch:
+
+```bash
+aforix batch run -b configs/batches/examples/full_ingest_pipeline.yaml
+```
 
 ---
 
-# Manifest
+# Example Batches
 
-Each batch run will generate:
+Examples are located in:
+
+```text
+configs/batches/examples/
+```
+
+Recommended progression:
+
+1. `check_only.yaml`
+2. `normalize_validate.yaml`
+3. `analysis_pipeline.yaml`
+4. `consolidated_data_pipeline.yaml`
+5. `correlation_gauges_vs_model.yaml`
+6. `correlation_gauges_vs_stations.yaml`
+7. `correlation_model_vs_stations.yaml`
+8. `full_ingest_pipeline.yaml`
+
+---
+
+# Manifest and Reports
+
+Each batch run generates:
 
 ```text
 runs/batch/YYYYMMDD_HHMMSS/
 ├── manifest.json
-├── batch_resolved.yaml
-├── logs/
 └── reports/
+    ├── batch_report.md
+    ├── batch_report.json
+    └── batch_report.csv
 ```
+
+The manifest records:
+
+- batch id
+- run id
+- status
+- start/end time
+- duration
+- step status
+- outputs
+- warnings
+- errors
+- metrics
 
 ---
 
-# Performance Metrics
+# Metrics
 
-Metrics planned per step:
+The batch runner collects lightweight per-step metrics.
+
+If `psutil` is available, CPU and RAM are recorded. If not, the batch still runs and reports `metrics_available: false`.
+
+Current metrics include:
 
 - duration
+- CPU start/end percent
+- RAM start/end/peak MB
+- command-reported metrics, when available
+
+Future metrics may include:
+
 - input/output files
 - input/output size
 - rows processed
-- CPU usage
-- RAM usage
-- disk usage
 - throughput
-
-Sources will distinguish:
-
-- internal sources
-- external sources
-
-Examples:
-
-- flowtracker
-- molinete
-- nivus
-- m9
-- dinagua
-- model outputs
+- internal/external source volumes
 
 ---
 
-# Interactive Layer
+# Interactive Layer and Launchers
 
-Interactive mode will:
-
-- ask questions
-- build parameters
-- optionally generate temporary batches
-- reuse the same registry and runner
-
-Examples:
-
-```bash
-aforix normalize interactive
-aforix validate interactive
-aforix export interactive
-```
-
----
-
-# Launchers
-
-Launchers are UX helpers.
+Interactive workflows and launchers are UX helpers only.
 
 They must:
 
-- open shell
-- activate conda
-- activate aforix environment
-- open interactive workflows
-- keep shell open
+- open a shell
+- activate the Aforix environment
+- call CLI commands
+- keep the shell open for debugging
 
-Launchers must never contain processing logic.
+They must not contain processing logic.
+
+---
+
+# Current Limitations
+
+The first batch version is intentionally sequential.
+
+Not included yet:
+
+- DAG execution
+- scheduler
+- SLURM integration
+- retries
+- incremental cache
+- dashboard
+- TUI
+
+These can be added later without changing the core principle: batch orchestrates registered commands and does not own domain logic.
