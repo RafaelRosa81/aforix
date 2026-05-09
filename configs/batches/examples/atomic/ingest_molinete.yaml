@@ -1,0 +1,43 @@
+# ============================================================
+# Atomic example: ingest Molinete
+# ============================================================
+#
+# Objetivo:
+#   Ejecutar únicamente la ingesta de archivos Molinete Excel.
+#
+# Requisitos:
+#   - Archivos raw en data/raw/ML/
+#   - Hoja configurada correctamente (normalmente CALCULO)
+#   - Configuración Molinete habilitada en main.yaml
+#
+# Outputs esperados:
+#   runs/ingest_molinete/<timestamp>/outputs/raw_canonical/
+#
+# Probar con:
+#   aforix batch check -b configs/batches/examples/atomic/ingest_molinete.yaml
+#   aforix batch run -b configs/batches/examples/atomic/ingest_molinete.yaml
+
+version: 1
+
+batch:
+  id: atomic_ingest_molinete
+  name: Atomic ingest Molinete
+  description: Ejecutar únicamente ingest.molinete.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+
+steps:
+  - id: ingest_molinete
+    command: ingest.molinete
+    enabled: true
+    params:
+      config: ${main_config}
