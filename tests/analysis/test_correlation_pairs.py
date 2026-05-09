@@ -8,11 +8,17 @@ from aforix.analysis.correlation.pairs import (
 
 
 def test_parse_pairs_accepts_bracketed_pairs() -> None:
-    assert parse_pairs("[1 44] [8 117]") == [("1", "44"), ("8", "117")]
+    assert parse_pairs(
+        "[44 1] [117 8]",
+        correlation_type="gauges_vs_stations",
+    ) == [("44", "1"), ("117", "8")]
 
 
 def test_parse_pairs_accepts_commas_inside_pair() -> None:
-    assert parse_pairs("[1,44] [8,117]") == [("1", "44"), ("8", "117")]
+    assert parse_pairs(
+        "[44,1] [117,8]",
+        correlation_type="gauges_vs_stations",
+    ) == [("44", "1"), ("117", "8")]
 
 
 def test_parse_pairs_empty_returns_empty_list() -> None:
@@ -22,19 +28,25 @@ def test_parse_pairs_empty_returns_empty_list() -> None:
 
 def test_parse_pairs_rejects_unbracketed_format() -> None:
     with pytest.raises(PairValidationError):
-        parse_pairs("1,44;8,117")
+        parse_pairs(
+            "44,1;117,8",
+            correlation_type="gauges_vs_stations",
+        )
 
 
 def test_parse_pairs_rejects_pair_with_too_many_values() -> None:
     with pytest.raises(PairValidationError):
-        parse_pairs("[1 44 55]")
+        parse_pairs(
+            "[44 1 extra]",
+            correlation_type="gauges_vs_stations",
+        )
 
 
 def test_validate_pair_selection_rejects_all_pairs_with_pairs() -> None:
     with pytest.raises(PairValidationError):
         validate_pair_selection(
             correlation_type="gauges_vs_stations",
-            pairs="[1 44]",
+            pairs="[44 1]",
             all_pairs=True,
         )
 
