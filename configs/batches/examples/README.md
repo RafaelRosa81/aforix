@@ -83,7 +83,7 @@ Campos principales:
 | `variables` | valores reutilizables |
 | `steps` | lista ordenada de comandos a ejecutar |
 
-## 3. Catálogo de ejemplos
+## 3. Catálogo de pipelines completos
 
 | Archivo | Cuándo usarlo | Qué ejecuta |
 | --- | --- | --- |
@@ -100,9 +100,40 @@ Campos principales:
 | `correlation_model_vs_stations.yaml` | modelo vs estaciones | analysis.correlation `model_vs_stations` |
 | `custom_mixed_pipeline.yaml` | ejemplo libre/personalizable | combinación de config-check, export, análisis y SIH |
 
-## 4. Parámetros frecuentes
+## 4. Catálogo de ejemplos atómicos
 
-### 4.1 config
+Los ejemplos atómicos están en:
+
+```text
+configs/batches/examples/atomic/
+```
+
+Cada archivo ejecuta una sola funcionalidad o un caso muy acotado. Son útiles para aprender parámetros y probar módulos de forma aislada.
+
+| Archivo | Comando batch | Qué muestra |
+| --- | --- | --- |
+| `atomic/config_check.yaml` | `config-check` | validación mínima de configuración |
+| `atomic/ingest_flowtracker.yaml` | `ingest.flowtracker` | ingesta FlowTracker |
+| `atomic/ingest_molinete.yaml` | `ingest.molinete` | ingesta Molinete Excel |
+| `atomic/ingest_nivus.yaml` | `ingest.nivus` | ingesta Nivus XML |
+| `atomic/ingest_m9.yaml` | `ingest.m9` | ingesta M9/ADCP, si está disponible |
+| `atomic/build_groups.yaml` | `build-groups` | consolidación hacia `database/raw_canonical` |
+| `atomic/normalize_run.yaml` | `normalize.run` | normalización hacia `database/normalized` |
+| `atomic/validate_run.yaml` | `validate.run` | validación de datasets normalizados |
+| `atomic/export_tables_summary_monthly.yaml` | `export.tables` | Summary mensual con todos los parámetros de export |
+| `atomic/export_tables_points_sections.yaml` | `export.tables` | Points/Sections/Gates sin agregación |
+| `atomic/export_sih_default.yaml` | `export.sih` | SIH con selection por defecto |
+| `atomic/export_sih_selection_file.yaml` | `export.sih` | SIH con `selection_file` explícito |
+| `atomic/analysis_quality.yaml` | `analysis.quality` | métricas de calidad y agregaciones |
+| `atomic/analysis_stage_discharge.yaml` | `analysis.stage-discharge` | caudal-altura con depth modes y outputs |
+| `atomic/analysis_section_profiles.yaml` | `analysis.section-profiles` | perfiles de sección y tipos de gráficos |
+| `atomic/correlation_gauges_vs_model.yaml` | `analysis.correlation` | aforos vs modelo |
+| `atomic/correlation_gauges_vs_stations.yaml` | `analysis.correlation` | aforos vs estaciones DINAGUA |
+| `atomic/correlation_model_vs_stations.yaml` | `analysis.correlation` | modelo vs estaciones DINAGUA |
+
+## 5. Parámetros frecuentes
+
+### 5.1 config
 
 Casi todos los comandos reciben:
 
@@ -116,7 +147,7 @@ Normalmente apunta a:
 configs/examples/main.yaml
 ```
 
-### 4.2 points
+### 5.2 points
 
 Lista de puntos. Según el comando puede usarse con o sin prefijo `P`.
 
@@ -127,9 +158,9 @@ points: P1,P8,P13
 points: 1,8,13
 ```
 
-Revisar la guía específica de cada módulo para el formato exacto.
+Revisar el ejemplo atómico correspondiente para el formato esperado.
 
-### 4.3 instruments
+### 5.3 instruments
 
 Lista de instrumentos.
 
@@ -139,7 +170,7 @@ Ejemplo:
 instruments: NV,FT,ML
 ```
 
-### 4.4 dates
+### 5.4 dates
 
 Rango de fechas.
 
@@ -148,30 +179,88 @@ start_date: 2025-01-01
 end_date: 2025-12-31
 ```
 
-En algunos comandos antiguos puede aparecer como:
+En `export.tables` se usan:
 
 ```yaml
 early_date: 2025-01-01
 late_date: 2025-12-31
 ```
 
-### 4.5 export.tables
+### 5.5 export.tables
 
-Parámetros frecuentes:
+Parámetros reales:
 
 ```yaml
+config: configs/examples/main.yaml
 table: Summary          # Summary, Points, Sections, Gates
-instrument: nivus       # opcional; instrumento específico
-points: P1,P8,P13       # opcional; filtra puntos
-parameters: q_total_ls  # opcional; columnas/variables
-early_date: 2025-01-01  # opcional; fecha inicial
-late_date: 2025-12-31   # opcional; fecha final
-grouping: monthly       # none, daily, monthly
-format: xlsx            # xlsx o csv
-aggregation: mean       # mean, sum u otra agregación soportada por export
+instrument: all         # all, flowtracker, molinete, nivus, m9
+points: P1,P8,P13       # opcional
+parameters: q_total_ls  # opcional
+early_date: 2025-01-01  # opcional
+late_date: 2025-12-31   # opcional
+grouping: monthly       # monthly, daily, none
+format: xlsx            # xlsx, csv
+flat: false             # true, false
+aggregation: mean       # mean, sum, min, max, count
 ```
 
-### 4.6 analysis.correlation pairs
+### 5.6 export.sih
+
+Parámetros reales:
+
+```yaml
+config: configs/examples/main.yaml
+sih_config: configs/sih/sih.yaml
+selection_file: configs/sih/selection_template.csv
+```
+
+En batch, `interactive: true` no está soportado.
+
+### 5.7 analysis.quality
+
+Parámetros reales:
+
+```yaml
+aggregation: monthly  # measurement, daily, monthly
+points: P1,P8,P13
+yyyymm: 202501,202502
+all_months: false     # true, false
+```
+
+### 5.8 analysis.stage-discharge
+
+Parámetros reales:
+
+```yaml
+points: P1,P8,P13
+start_date: 2025-01-01
+end_date: 2026-12-31
+instruments: NV,FT,ML
+ranking: NV,FT,ML
+depth_mode: both              # manual, instrument, both
+instrument_stage_mode: both   # mean, max, both
+plots: true                   # true, false
+excel: true                   # true, false
+max_plots: 20
+```
+
+### 5.9 analysis.section-profiles
+
+Parámetros reales:
+
+```yaml
+instruments: NV,FT,ML
+points: P1,P8,P13
+start_date: 2025-01-01
+end_date: 2026-12-31
+x_axis: progr_m       # columna real del dataset
+y_axis: prof_m        # columna real del dataset
+chart_type: line      # scatter, line
+```
+
+En batch, `interactive: true` no está soportado.
+
+### 5.10 analysis.correlation pairs
 
 Formato de pares:
 
@@ -191,9 +280,20 @@ En `model_vs_stations`:
 [station model_point]
 ```
 
+Opciones frecuentes:
+
+```yaml
+type: gauges_vs_stations  # gauges_vs_model, gauges_vs_stations, model_vs_stations
+timestep: daily           # daily, monthly
+match_mode: exact         # exact, window
+window_days: 3
+all_pairs: false          # true, false
+ranking: NV FT ML
+```
+
 Mantener los pares entre comillas para evitar problemas YAML.
 
-## 5. manifest.json
+## 6. manifest.json
 
 Cuando `create_manifest: true`, cada corrida escribe:
 
@@ -234,9 +334,9 @@ metadata específica del comando
 
 El manifest es el archivo principal para auditar qué ocurrió en una ejecución batch.
 
-## 6. Warnings comunes
+## 7. Warnings comunes
 
-### 6.1 Success sin archivos escritos
+### 7.1 Success sin archivos escritos
 
 Algunos análisis pueden terminar técnicamente bien pero sin outputs:
 
@@ -254,7 +354,7 @@ Casos frecuentes:
 - faltan datos externos normalizados;
 - no hay perfiles/secciones disponibles.
 
-### 6.2 correlation sin outputs
+### 7.2 correlation sin outputs
 
 Puede ocurrir en:
 
@@ -264,11 +364,11 @@ analysis.correlation
 
 Especialmente si no hay intersección entre aforos, modelo o estaciones DINAGUA.
 
-### 6.3 section-profiles sin outputs
+### 7.3 section-profiles sin outputs
 
 Puede ocurrir si no existen datos normalizados suficientes para construir perfiles con los filtros elegidos.
 
-## 7. Orden recomendado para usuarios nuevos
+## 8. Orden recomendado para usuarios nuevos
 
 ### Primera prueba
 
@@ -288,25 +388,16 @@ aforix batch run -b configs/batches/examples/full_ingest_pipeline.yaml --dry-run
 aforix batch run -b configs/batches/examples/full_ingest_pipeline.yaml
 ```
 
-### Trabajo con datos ya consolidados
+### Ejemplo atómico
 
 ```bash
-aforix batch run -b configs/batches/examples/consolidated_data_pipeline.yaml
+aforix batch check -b configs/batches/examples/atomic/export_tables_summary_monthly.yaml
+aforix batch plan -b configs/batches/examples/atomic/export_tables_summary_monthly.yaml
+aforix batch run -b configs/batches/examples/atomic/export_tables_summary_monthly.yaml --dry-run
+aforix batch run -b configs/batches/examples/atomic/export_tables_summary_monthly.yaml
 ```
 
-### Análisis solamente
-
-```bash
-aforix batch run -b configs/batches/examples/analysis_pipeline.yaml
-```
-
-### SIH
-
-```bash
-aforix batch run -b configs/batches/examples/sih_export_pipeline.yaml
-```
-
-## 8. Buenas prácticas
+## 9. Buenas prácticas
 
 - Empezar con `check_only.yaml`.
 - Usar `batch plan` antes de correr.
@@ -318,26 +409,30 @@ aforix batch run -b configs/batches/examples/sih_export_pipeline.yaml
 - Usar pocos puntos y fechas acotadas al probar.
 - Revisar warnings aunque el batch termine exitosamente.
 
-## 9. Validación rápida de todos los ejemplos
-
-Ejemplo manual:
+## 10. Validación rápida de todos los ejemplos atómicos
 
 ```bash
-aforix batch check -b configs/batches/examples/check_only.yaml
-aforix batch check -b configs/batches/examples/normalize_validate.yaml
-aforix batch check -b configs/batches/examples/full_ingest_pipeline.yaml
-aforix batch check -b configs/batches/examples/consolidated_data_pipeline.yaml
-aforix batch check -b configs/batches/examples/analysis_pipeline.yaml
-aforix batch check -b configs/batches/examples/sih_export_pipeline.yaml
-aforix batch check -b configs/batches/examples/sih_export_with_selection.yaml
-aforix batch check -b configs/batches/examples/correlation_gauges_vs_model.yaml
-aforix batch check -b configs/batches/examples/correlation_gauges_vs_stations.yaml
-aforix batch check -b configs/batches/examples/correlation_gauges_vs_stations_pairs.yaml
-aforix batch check -b configs/batches/examples/correlation_model_vs_stations.yaml
-aforix batch check -b configs/batches/examples/custom_mixed_pipeline.yaml
+aforix batch check -b configs/batches/examples/atomic/config_check.yaml
+aforix batch check -b configs/batches/examples/atomic/ingest_flowtracker.yaml
+aforix batch check -b configs/batches/examples/atomic/ingest_molinete.yaml
+aforix batch check -b configs/batches/examples/atomic/ingest_nivus.yaml
+aforix batch check -b configs/batches/examples/atomic/ingest_m9.yaml
+aforix batch check -b configs/batches/examples/atomic/build_groups.yaml
+aforix batch check -b configs/batches/examples/atomic/normalize_run.yaml
+aforix batch check -b configs/batches/examples/atomic/validate_run.yaml
+aforix batch check -b configs/batches/examples/atomic/export_tables_summary_monthly.yaml
+aforix batch check -b configs/batches/examples/atomic/export_tables_points_sections.yaml
+aforix batch check -b configs/batches/examples/atomic/export_sih_default.yaml
+aforix batch check -b configs/batches/examples/atomic/export_sih_selection_file.yaml
+aforix batch check -b configs/batches/examples/atomic/analysis_quality.yaml
+aforix batch check -b configs/batches/examples/atomic/analysis_stage_discharge.yaml
+aforix batch check -b configs/batches/examples/atomic/analysis_section_profiles.yaml
+aforix batch check -b configs/batches/examples/atomic/correlation_gauges_vs_model.yaml
+aforix batch check -b configs/batches/examples/atomic/correlation_gauges_vs_stations.yaml
+aforix batch check -b configs/batches/examples/atomic/correlation_model_vs_stations.yaml
 ```
 
-## 10. Pruebas del proyecto
+## 11. Pruebas del proyecto
 
 Después de modificar ejemplos batch o documentación relacionada:
 
