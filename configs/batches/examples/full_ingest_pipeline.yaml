@@ -3,7 +3,7 @@ version: 1
 batch:
   id: full_ingest_pipeline
   name: Full ingest pipeline
-  description: End-to-end ingest, grouping, normalization and validation pipeline.
+  description: End-to-end ingest, grouping, normalization, validation, export and analysis pipeline.
 
 project:
   main_config: configs/examples/main.yaml
@@ -17,6 +17,8 @@ variables:
   main_config: configs/examples/main.yaml
   export_format: xlsx
   grouping: monthly
+  analysis_points: P1,P8,P13
+  analysis_instruments: NV,FT,ML
 
 steps:
 
@@ -70,3 +72,29 @@ steps:
       table: Summary
       grouping: ${grouping}
       format: ${export_format}
+
+  - id: analyze_quality
+    command: analysis.quality
+    enabled: true
+    params:
+      config: ${main_config}
+      aggregation: daily
+      all_months: true
+
+  - id: analyze_stage_discharge
+    command: analysis.stage-discharge
+    enabled: true
+    params:
+      config: ${main_config}
+      points: ${analysis_points}
+      instruments: ${analysis_instruments}
+      plots: true
+      excel: true
+
+  - id: analyze_section_profiles
+    command: analysis.section-profiles
+    enabled: true
+    params:
+      config: ${main_config}
+      points: ${analysis_points}
+      instruments: ${analysis_instruments}
