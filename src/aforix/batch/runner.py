@@ -4,7 +4,7 @@ from time import perf_counter
 
 from aforix.batch.manifest import BatchManifest, StepManifest, write_manifest
 from aforix.batch.metrics import MetricsCollector, metrics_to_dict
-from aforix.batch.models import BatchDefinition
+from aforix.batch.models import BatchDefinition, CommandResult
 from aforix.batch.planner import BatchPlanner
 from aforix.batch.registry import CommandRegistry
 from aforix.batch.report import BatchReportGenerator
@@ -67,11 +67,17 @@ class BatchRunner:
             try:
                 if dry_run:
                     print(f"[DRY-RUN] {step.id} -> {step.command}")
+                    result = CommandResult(status="success")
                 else:
                     print(f"[RUN] {step.id} -> {step.command}")
-                    command.callable(step.params)
+                    result = command.callable(step.params)
 
-                step_manifest.status = "success"
+                    if result is None:
+                        result = CommandResult(status="success")
+
+                step_manifest.status = result.status
+                step_manifest.outputs = result.outputs
+                step_manifest.warnings.extend(result.warnings)
 
             except Exception as exc:
                 step_manifest.status = "failed"
@@ -85,8 +91,11 @@ class BatchRunner:
             finally:
                 metrics = metrics_collector.stop()
 
+                combined_metrics = metrics_to_dict(metrics)
+                combined_metrics.update(result.metrics if 'result' in locals() else {})
+
                 step_manifest.duration_sec = metrics.duration_sec
-                step_manifest.metrics = metrics_to_dict(metrics)
+                step_manifest.metrics = combined_metrics
 
                 manifest.steps.append(step_manifest)
 
