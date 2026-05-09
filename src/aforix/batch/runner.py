@@ -79,6 +79,9 @@ class BatchRunner:
                 step_manifest.outputs = result.outputs
                 step_manifest.warnings.extend(result.warnings)
 
+                if result.status == "failed":
+                    manifest.status = "failed"
+
             except Exception as exc:
                 step_manifest.status = "failed"
                 step_manifest.errors.append(str(exc))
