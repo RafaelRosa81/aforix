@@ -7,7 +7,9 @@ import pandas as pd
 from aforix.analysis.correlation.cli import run_correlation
 from aforix.analysis.quality.config import load_quality_config
 from aforix.analysis.quality.runner import run_quality_metrics
-from aforix.analysis.section_profiles.cli import run_cmd as run_section_profiles_cmd
+from aforix.analysis.section_profiles.cli import _apply_cli_overrides as apply_section_profiles_overrides
+from aforix.analysis.section_profiles.config import load_section_profiles_config
+from aforix.analysis.section_profiles.runner import run_section_profiles
 from aforix.analysis.stage_discharge.cli import _apply_cli_overrides
 from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.runner import run_stage_discharge
@@ -339,9 +341,13 @@ def _analysis_stage_discharge(params: dict[str, Any]) -> CommandResult:
     output_dir = run_stage_discharge(config_path, override_config=cfg)
     output_files = _list_output_files(output_dir)
 
-    rows_processed = _count_csv_rows(output_dir / "stage_discharge_matched.csv")
+    rows_processed = _count_csv_rows(output_dir / "stage_discharge_matched_pairs.csv")
+    if rows_processed is None:
+        rows_processed = _count_csv_rows(output_dir / "stage_discharge_matched.csv")
     if rows_processed is None:
         rows_processed = _count_csv_rows(output_dir / "matched_stage_discharge.csv")
+
+    selection = cfg.get("selection", {}) or {}
 
     return CommandResult(
         status="success",
@@ -352,19 +358,22 @@ def _analysis_stage_discharge(params: dict[str, Any]) -> CommandResult:
             "output_size_mb": _directory_size_mb(output_dir),
             "rows_processed": rows_processed,
             "files_written": _count_files(output_dir),
-            "points": cfg.get("selection", {}).get("points", "all"),
-            "depth_mode": cfg.get("selection", {}).get("depth_mode", cfg.get("depth_mode")),
-            "instrument_stage_mode": cfg.get("selection", {}).get("instrument_stage_mode", cfg.get("instrument_stage_mode")),
+            "points": selection.get("points", "all"),
+            "depth_mode": selection.get("depth_mode", cfg.get("depth_mode", "both")),
+            "instrument_stage_mode": selection.get("instrument_stage_mode", cfg.get("instrument_stage_mode", "both")),
         },
     )
 
 
-def _analysis_section_profiles(params: dict[str, Any]) -> None:
+def _analysis_section_profiles(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
+    cfg = copy.deepcopy(load_section_profiles_config(config_path))
 
-    run_section_profiles_cmd(
-        config=str(config_path),
-        interactive=bool(params.get("interactive", False)),
+    if bool(params.get("interactive", False)):
+        raise ValueError("analysis.section-profiles interactive mode is not supported inside batch run")
+
+    apply_section_profiles_overrides(
+        cfg,
         instruments=params.get("instruments"),
         points=params.get("points"),
         start_date=params.get("start_date"),
@@ -372,6 +381,32 @@ def _analysis_section_profiles(params: dict[str, Any]) -> None:
         x_axis=params.get("x_axis"),
         y_axis=params.get("y_axis"),
         chart_type=params.get("chart_type"),
+    )
+
+    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
+    input_size_mb = _directory_size_mb(normalized_root)
+
+    output_dir = run_section_profiles(config_path, override_config=cfg)
+    output_files = _list_output_files(output_dir)
+
+    selection = cfg.get("selection", {}) or {}
+    defaults = cfg.get("defaults", {}) or {}
+
+    return CommandResult(
+        status="success",
+        outputs=[str(output_dir), *output_files],
+        metrics={
+            "analysis_type": "section-profiles",
+            "input_size_mb": input_size_mb,
+            "output_size_mb": _directory_size_mb(output_dir),
+            "rows_processed": None,
+            "files_written": _count_files(output_dir),
+            "points": selection.get("points", "all"),
+            "instruments": selection.get("instruments", "all"),
+            "x_axis": defaults.get("x_axis", "distance_m"),
+            "y_axis": defaults.get("y_axis", "depth_m"),
+            "chart_type": defaults.get("chart_type", "scatter"),
+        },
     )
 
 
