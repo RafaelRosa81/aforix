@@ -203,8 +203,37 @@ def _ingest_m9(params: dict[str, Any]) -> None:
     run_m9(_load_validated_config_from_params(params))
 
 
-def _build_groups(params: dict[str, Any]) -> None:
-    run_build_groups(_load_validated_config_from_params(params))
+def _build_groups(params: dict[str, Any]) -> CommandResult:
+    config_path = _load_validated_config_from_params(params)
+    cfg = load_config(config_path)
+    build_cfg = cfg.get("build_groups", {}) or {}
+    paths_cfg = cfg.get("paths", {}) or {}
+
+    input_dir = Path(build_cfg.get("input_runs_root") or paths_cfg.get("runs_root") or "runs")
+    output_dir = Path(build_cfg.get("output_dir", "database/raw_canonical"))
+
+    input_size_mb = _directory_size_mb(input_dir)
+    run_dir = run_build_groups(config_path)
+
+    output_files = _list_output_files(output_dir)
+    run_files = _list_output_files(run_dir)
+    csv_outputs = [path for path in output_files if str(path).lower().endswith(".csv")]
+
+    return CommandResult(
+        status="success",
+        outputs=[str(run_dir), str(output_dir), *output_files, *run_files],
+        metrics={
+            "build_type": "raw_canonical_groups",
+            "input_dir": str(input_dir),
+            "output_dir": str(output_dir),
+            "input_size_mb": input_size_mb,
+            "output_size_mb": _directory_size_mb(output_dir),
+            "run_output_size_mb": _directory_size_mb(run_dir),
+            "rows_processed": _sum_csv_rows(csv_outputs),
+            "files_written": _count_files(output_dir),
+            "run_files_written": _count_files(run_dir),
+        },
+    )
 
 
 def _normalize_run(params: dict[str, Any]) -> CommandResult:
