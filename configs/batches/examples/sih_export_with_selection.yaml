@@ -20,9 +20,9 @@ variables:
   # Optional CSV file defining which actuaciones/aforos
   # should be exported to SIH.
   #
-  # Example:
-  # data/external/sih/selection.csv
-  selection_file: data/external/sih/selection.csv
+  # Example/template shipped with the repository:
+  # configs/sih/selection_template.csv
+  selection_file: configs/sih/selection_template.csv
 
 steps:
 
