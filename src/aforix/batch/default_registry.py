@@ -5,10 +5,12 @@ from aforix.analysis.correlation.cli import run_correlation
 from aforix.analysis.quality.cli import run_quality
 from aforix.analysis.section_profiles.cli import run_cmd as run_section_profiles_cmd
 from aforix.analysis.stage_discharge.cli import run_cmd as run_stage_discharge_cmd
+from aforix.batch.models import CommandResult
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
 from aforix.export.sih.cli import main as export_sih_main
-from aforix.export.tables.cli import main as export_tables_main
+from aforix.export.tables.config import load_config as load_export_tables_config
+from aforix.export.tables.runner import ExportRequest, run_export_tables
 from aforix.groups.build import run as run_build_groups
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.m9 import run as run_m9
@@ -32,17 +34,14 @@ def _load_validated_config_from_params(params: dict[str, Any]) -> Path:
     return config_path
 
 
-def _extend_if_present(argv: list[str], params: dict[str, Any], key: str, option: str) -> None:
-    value = params.get(key)
+def _as_tuple(value: Any) -> tuple[str, ...]:
     if value is None:
-        return
-
+        return ()
     if isinstance(value, (list, tuple)):
-        argv.append(option)
-        argv.extend(str(item) for item in value)
-        return
-
-    argv.extend([option, str(value)])
+        return tuple(str(item) for item in value)
+    if isinstance(value, str):
+        return tuple(item for item in value.replace(",", " ").split() if item)
+    return (str(value),)
 
 
 def _config_check(params: dict[str, Any]) -> None:
@@ -77,27 +76,50 @@ def _validate_run(params: dict[str, Any]) -> None:
     run_validation(_load_validated_config_from_params(params))
 
 
-def _export_tables(params: dict[str, Any]) -> None:
+def _export_tables(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
-    argv = ["-c", str(config_path)]
 
     if params.get("interactive"):
-        argv.append("--interactive")
-    else:
-        _extend_if_present(argv, params, "table", "--table")
-        _extend_if_present(argv, params, "instrument", "--instrument")
-        _extend_if_present(argv, params, "points", "--points")
-        _extend_if_present(argv, params, "parameters", "--parameters")
-        _extend_if_present(argv, params, "early_date", "--early-date")
-        _extend_if_present(argv, params, "late_date", "--late-date")
-        _extend_if_present(argv, params, "grouping", "--grouping")
-        _extend_if_present(argv, params, "format", "--format")
-        _extend_if_present(argv, params, "aggregation", "--aggregation")
+        raise ValueError("export.tables interactive mode is not supported inside batch run")
 
-        if params.get("flat"):
-            argv.append("--flat")
+    table = params.get("table")
+    if not table:
+        raise ValueError("Missing required parameter for export.tables: table")
 
-    export_tables_main(argv)
+    export_config = load_export_tables_config(str(config_path))
+    grouping = params.get("grouping", "monthly")
+    fmt = params.get("format", "xlsx")
+    flat = bool(params.get("flat", False))
+
+    request = ExportRequest(
+        table=str(table),
+        instrument=str(params.get("instrument", "all")),
+        points=_as_tuple(params.get("points")),
+        parameters=_as_tuple(params.get("parameters")),
+        early_date=params.get("early_date"),
+        late_date=params.get("late_date"),
+        grouping=str(grouping),
+        fmt=str(fmt),
+        pivot=False if flat else grouping in {"monthly", "daily"},
+        aggregation=str(params.get("aggregation", "mean")),
+    )
+
+    result = run_export_tables(export_config, request)
+
+    return CommandResult(
+        status="success",
+        outputs=[str(result.output_file), str(result.metadata_file)],
+        metrics={
+            "rows_processed": result.row_count,
+            "rows_exported": result.row_count,
+            "files_written": 2,
+            "table": str(table),
+            "instrument": request.instrument,
+            "grouping": request.grouping,
+            "format": request.fmt,
+            "aggregation": request.aggregation,
+        },
+    )
 
 
 def _export_sih(params: dict[str, Any]) -> None:
