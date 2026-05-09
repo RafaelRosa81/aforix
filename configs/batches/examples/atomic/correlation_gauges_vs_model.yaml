@@ -1,0 +1,91 @@
+# ============================================================
+# Atomic example: correlation - gauges_vs_model
+# ============================================================
+#
+# Objetivo:
+#   Correlacionar aforos medidos contra datos de modelo hidrológico.
+#
+# Parámetros reales aceptados:
+#   config
+#   type
+#   ranking
+#   all_pairs
+#   pairs
+#   points
+#   timestep
+#   start_date
+#   end_date
+#   match_mode
+#   window_days
+#
+# type:
+#   gauges_vs_model
+#   gauges_vs_stations
+#   model_vs_stations
+#
+# timestep:
+#   daily
+#   monthly
+#
+# match_mode:
+#   exact  -> matching exacto de fechas.
+#   window -> matching usando ventana temporal.
+#
+# window_days:
+#   cantidad de días para matching tipo window.
+#
+# ranking:
+#   orden de prioridad instrumental.
+#
+# Outputs esperados:
+#   runs/analysis_correlation/<timestamp>/
+
+version: 1
+
+batch:
+  id: atomic_correlation_gauges_vs_model
+  name: Atomic correlation gauges vs model
+  description: Correlación entre aforos y modelo hidrológico.
+
+project:
+  main_config: configs/examples/main.yaml
+
+execution:
+  output_dir: runs/batch
+  create_manifest: true
+  stop_on_error: true
+
+variables:
+  main_config: configs/examples/main.yaml
+  points: 1,8,13
+  ranking: NV FT ML
+  start_date: 2025-01-01
+  end_date: 2026-12-31
+
+steps:
+  - id: correlation_gauges_vs_model
+    command: analysis.correlation
+    enabled: true
+    params:
+      config: ${main_config}
+
+      # Tipo de correlación.
+      type: gauges_vs_model
+
+      # Ranking instrumental.
+      ranking: ${ranking}
+
+      # Puntos de aforo/modelo.
+      points: ${points}
+
+      # daily o monthly.
+      timestep: daily
+
+      start_date: ${start_date}
+      end_date: ${end_date}
+
+      # exact o window.
+      match_mode: exact
+
+      # Usado solamente si match_mode = window.
+      window_days: 0
