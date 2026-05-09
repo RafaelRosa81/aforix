@@ -3,9 +3,11 @@ from pathlib import Path
 from time import perf_counter
 
 from aforix.batch.manifest import BatchManifest, StepManifest, write_manifest
+from aforix.batch.metrics import MetricsCollector, metrics_to_dict
 from aforix.batch.models import BatchDefinition
 from aforix.batch.planner import BatchPlanner
 from aforix.batch.registry import CommandRegistry
+from aforix.batch.report import BatchReportGenerator
 
 
 class BatchRunner:
@@ -21,6 +23,7 @@ class BatchRunner:
     ) -> None:
         self.registry = registry
         self.planner = planner or BatchPlanner()
+        self.report_generator = BatchReportGenerator()
 
     def run(
         self,
@@ -52,7 +55,8 @@ class BatchRunner:
         for step in plan:
             command = self.registry.get(step.command)
 
-            step_started = perf_counter()
+            metrics_collector = MetricsCollector()
+            metrics_collector.start()
 
             step_manifest = StepManifest(
                 id=step.id,
@@ -79,11 +83,10 @@ class BatchRunner:
                     break
 
             finally:
-                step_finished = perf_counter()
-                step_manifest.duration_sec = round(
-                    step_finished - step_started,
-                    4,
-                )
+                metrics = metrics_collector.stop()
+
+                step_manifest.duration_sec = metrics.duration_sec
+                step_manifest.metrics = metrics_to_dict(metrics)
 
                 manifest.steps.append(step_manifest)
 
@@ -104,5 +107,10 @@ class BatchRunner:
                 manifest,
                 output_dir / "manifest.json",
             )
+
+        self.report_generator.write_reports(
+            manifest,
+            output_dir,
+        )
 
         return manifest
