@@ -21,7 +21,14 @@ from aforix.analysis.stage_discharge.runner import run_stage_discharge
 from aforix.batch.models import CommandResult
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
-from aforix.export.sih.cli import main as export_sih_main
+from aforix.export.sih.config import (
+    get_default_selection_file,
+    get_lookup_file_paths,
+    get_normalized_input_dir,
+    get_raw_canonical_input_dir,
+    load_sih_config,
+)
+from aforix.export.sih.runner import SihExportRequest, run_sih_export
 from aforix.export.tables.config import (
     get_normalized_root,
     load_config as load_export_tables_config,
@@ -244,20 +251,50 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
     )
 
 
-def _export_sih(params: dict[str, Any]) -> None:
-    config_path = _load_validated_config_from_params(params)
-    sih_config = params.get("sih_config", "configs/sih/sih.yaml")
+def _export_sih(params: dict[str, Any]) -> CommandResult:
+    _load_validated_config_from_params(params)
+    sih_config_path = Path(params.get("sih_config", "configs/sih/sih.yaml"))
+    sih_config = load_sih_config(sih_config_path)
 
-    argv = ["-c", str(config_path), "--sih-config", str(sih_config)]
+    if bool(params.get("interactive", False)):
+        raise ValueError("export.sih interactive mode is not supported inside batch run")
 
-    selection_file = params.get("selection_file")
-    if selection_file:
-        argv.extend(["--selection-file", str(selection_file)])
+    selection_file = (
+        Path(params["selection_file"])
+        if params.get("selection_file")
+        else get_default_selection_file(sih_config)
+    )
 
-    if params.get("interactive"):
-        argv.append("--interactive")
+    input_paths: list[Path] = [selection_file]
+    input_paths.append(get_normalized_input_dir(sih_config))
+    input_paths.append(get_raw_canonical_input_dir(sih_config))
+    input_paths.extend(get_lookup_file_paths(sih_config).values())
 
-    export_sih_main(argv)
+    result = run_sih_export(
+        SihExportRequest(
+            sih_config_path=sih_config_path,
+            selection_file=selection_file,
+            interactive=False,
+        )
+    )
+
+    output_paths = [str(path) for path in result.exported_files]
+    metadata_path = result.output_dir / "sih_export_metadata.csv"
+    metadata_rows = _count_csv_rows(metadata_path)
+
+    return CommandResult(
+        status="success",
+        outputs=[str(result.output_dir), *output_paths],
+        metrics={
+            "export_type": "sih",
+            "selection_file": str(selection_file),
+            "input_size_mb": round(sum(_file_size_mb(p) or _directory_size_mb(p) or 0 for p in input_paths), 4),
+            "output_size_mb": _directory_size_mb(result.output_dir),
+            "rows_processed": metadata_rows,
+            "rows_exported": metadata_rows,
+            "files_written": len(result.exported_files),
+        },
+    )
 
 
 def _analysis_correlation(params: dict[str, Any]) -> CommandResult:
