@@ -9,7 +9,10 @@ from aforix.batch.models import CommandResult
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
 from aforix.export.sih.cli import main as export_sih_main
-from aforix.export.tables.config import load_config as load_export_tables_config
+from aforix.export.tables.config import (
+    get_normalized_root,
+    load_config as load_export_tables_config,
+)
 from aforix.export.tables.runner import ExportRequest, run_export_tables
 from aforix.groups.build import run as run_build_groups
 from aforix.ingest.flowtracker import run as run_flowtracker
@@ -125,7 +128,7 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
         aggregation=str(params.get("aggregation", "mean")),
     )
 
-    input_file = Path(export_config.input_dir) / f"{request.table}.csv"
+    input_file = get_normalized_root(export_config) / f"{request.table}.csv"
     input_size_mb = _file_size_mb(input_file)
 
     result = run_export_tables(export_config, request)
