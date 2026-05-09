@@ -6,6 +6,7 @@ from aforix.batch.config import load_batch_yaml
 from aforix.batch.factory import batch_definition_from_dict
 from aforix.batch.planner import BatchPlanner
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
+from aforix.batch.runner import BatchRunner
 from aforix.batch.schema import BatchSchemaValidator
 from aforix.batch.validators import RegistryValidator
 
@@ -99,6 +100,37 @@ def batch_plan(
 
         if step.params:
             typer.echo(f"     params: {step.params}")
+
+
+@app.command("run")
+def batch_run(
+    batch: str = typer.Option(..., "--batch", "-b", help="Path to batch YAML"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Do not execute commands"),
+):
+    """Execute a batch pipeline."""
+
+    data = load_batch_yaml(batch)
+
+    schema = BatchSchemaValidator()
+    schema.validate(data)
+
+    registry = build_default_registry()
+
+    registry_validator = RegistryValidator()
+    registry_validator.validate_commands(data["steps"], registry)
+
+    batch_definition = batch_definition_from_dict(data)
+
+    runner = BatchRunner(registry=registry)
+
+    manifest = runner.run(
+        batch_definition,
+        dry_run=dry_run,
+    )
+
+    typer.echo(f"Batch completed with status: {manifest.status}")
+    typer.echo(f"Batch run id: {manifest.batch_run_id}")
+    typer.echo(f"Duration: {manifest.duration_sec} sec")
 
 
 @app.command("list-commands")
