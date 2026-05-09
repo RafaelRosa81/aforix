@@ -28,6 +28,19 @@ def _load_validated_config_from_params(params: dict[str, Any]) -> Path:
     return config_path
 
 
+def _extend_if_present(argv: list[str], params: dict[str, Any], key: str, option: str) -> None:
+    value = params.get(key)
+    if value is None:
+        return
+
+    if isinstance(value, list | tuple):
+        argv.append(option)
+        argv.extend(str(item) for item in value)
+        return
+
+    argv.extend([option, str(value)])
+
+
 def _config_check(params: dict[str, Any]) -> None:
     _load_validated_config_from_params(params)
 
@@ -66,6 +79,19 @@ def _export_tables(params: dict[str, Any]) -> None:
 
     if params.get("interactive"):
         argv.append("--interactive")
+    else:
+        _extend_if_present(argv, params, "table", "--table")
+        _extend_if_present(argv, params, "instrument", "--instrument")
+        _extend_if_present(argv, params, "points", "--points")
+        _extend_if_present(argv, params, "parameters", "--parameters")
+        _extend_if_present(argv, params, "early_date", "--early-date")
+        _extend_if_present(argv, params, "late_date", "--late-date")
+        _extend_if_present(argv, params, "grouping", "--grouping")
+        _extend_if_present(argv, params, "format", "--format")
+        _extend_if_present(argv, params, "aggregation", "--aggregation")
+
+        if params.get("flat"):
+            argv.append("--flat")
 
     export_tables_main(argv)
 
