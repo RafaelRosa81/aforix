@@ -3,48 +3,15 @@ from pathlib import Path
 import typer
 
 from aforix.batch.config import load_batch_yaml
+from aforix.batch.default_registry import build_default_registry
 from aforix.batch.factory import batch_definition_from_dict
 from aforix.batch.planner import BatchPlanner
-from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.batch.runner import BatchRunner
 from aforix.batch.schema import BatchSchemaValidator
 from aforix.batch.validators import RegistryValidator
 
 
 app = typer.Typer(help="Batch orchestration commands.")
-
-
-def build_default_registry() -> CommandRegistry:
-    registry = CommandRegistry()
-
-    placeholder = lambda: None
-
-    commands = [
-        "config-check",
-        "ingest.flowtracker",
-        "ingest.molinete",
-        "ingest.nivus",
-        "ingest.m9",
-        "build-groups",
-        "normalize.run",
-        "validate.run",
-        "export.tables",
-        "export.sih",
-        "analysis.correlation",
-        "analysis.quality",
-        "analysis.stage-discharge",
-        "analysis.section-profiles",
-    ]
-
-    for command_name in commands:
-        registry.register(
-            RegisteredCommand(
-                name=command_name,
-                callable=placeholder,
-            )
-        )
-
-    return registry
 
 
 @app.command("check")
