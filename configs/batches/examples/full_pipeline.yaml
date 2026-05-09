@@ -15,6 +15,7 @@ execution:
   continue_on_error: false
 
 variables:
+  main_config: configs/examples/main.yaml
   export_format: xlsx
   grouping: monthly
 
@@ -23,35 +24,50 @@ steps:
   - id: config_check
     command: config-check
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: ingest_ft
     command: ingest.flowtracker
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: ingest_ml
     command: ingest.molinete
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: ingest_nv
     command: ingest.nivus
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: build_groups
     command: build-groups
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: normalize
     command: normalize.run
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: validate
     command: validate.run
     enabled: true
+    params:
+      config: ${main_config}
 
   - id: export_summary
     command: export.tables
     enabled: true
     params:
+      config: ${main_config}
       table: Summary
       grouping: ${grouping}
       format: ${export_format}
