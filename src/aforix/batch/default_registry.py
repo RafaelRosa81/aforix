@@ -1,6 +1,11 @@
 from pathlib import Path
 from typing import Any
 
+from aforix.analysis.correlation.cli import run_correlation
+from aforix.analysis.quality.cli import run_quality
+from aforix.analysis.section_profiles.cli import run_cmd as run_section_profiles_cmd
+from aforix.analysis.stage_discharge.cli import run_cmd as run_stage_discharge_cmd
+from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
 from aforix.export.sih.cli import main as export_sih_main
 from aforix.export.tables.cli import main as export_tables_main
@@ -11,7 +16,6 @@ from aforix.ingest.molinete import run as run_molinete
 from aforix.ingest.nivus import run as run_nivus
 from aforix.normalize.run import normalize_database
 from aforix.validation.run import run_validation
-from aforix.batch.registry import CommandRegistry, RegisteredCommand
 
 
 def _config_path(params: dict[str, Any]) -> Path:
@@ -33,7 +37,7 @@ def _extend_if_present(argv: list[str], params: dict[str, Any], key: str, option
     if value is None:
         return
 
-    if isinstance(value, list | tuple):
+    if isinstance(value, (list, tuple)):
         argv.append(option)
         argv.extend(str(item) for item in value)
         return
@@ -112,6 +116,72 @@ def _export_sih(params: dict[str, Any]) -> None:
     export_sih_main(argv)
 
 
+def _analysis_correlation(params: dict[str, Any]) -> None:
+    config_path = _load_validated_config_from_params(params)
+
+    run_correlation(
+        config=str(config_path),
+        correlation_type=params.get("type"),
+        ranking=params.get("ranking"),
+        timestep=params.get("timestep", "daily"),
+        pairs=params.get("pairs"),
+        points=params.get("points"),
+        all_pairs=bool(params.get("all_pairs", False)),
+        match_mode=params.get("match_mode", "exact"),
+        window_days=int(params.get("window_days", 0)),
+        start_date=params.get("start_date"),
+        end_date=params.get("end_date"),
+        interactive=bool(params.get("interactive", False)),
+    )
+
+
+def _analysis_quality(params: dict[str, Any]) -> None:
+    config_path = _load_validated_config_from_params(params)
+
+    run_quality(
+        config=str(config_path),
+        interactive=bool(params.get("interactive", False)),
+        points=params.get("points"),
+        yyyymm=params.get("yyyymm"),
+        all_months=bool(params.get("all_months", False)),
+        aggregation=params.get("aggregation", "daily"),
+    )
+
+
+def _analysis_stage_discharge(params: dict[str, Any]) -> None:
+    config_path = _load_validated_config_from_params(params)
+
+    run_stage_discharge_cmd(
+        config=str(config_path),
+        points=params.get("points"),
+        start_date=params.get("start_date"),
+        end_date=params.get("end_date"),
+        instruments=params.get("instruments"),
+        ranking=params.get("ranking"),
+        depth_mode=params.get("depth_mode"),
+        instrument_stage_mode=params.get("instrument_stage_mode"),
+        plots=params.get("plots"),
+        excel=params.get("excel"),
+        max_plots=params.get("max_plots"),
+    )
+
+
+def _analysis_section_profiles(params: dict[str, Any]) -> None:
+    config_path = _load_validated_config_from_params(params)
+
+    run_section_profiles_cmd(
+        config=str(config_path),
+        interactive=bool(params.get("interactive", False)),
+        instruments=params.get("instruments"),
+        points=params.get("points"),
+        start_date=params.get("start_date"),
+        end_date=params.get("end_date"),
+        x_axis=params.get("x_axis"),
+        y_axis=params.get("y_axis"),
+        chart_type=params.get("chart_type"),
+    )
+
+
 def build_default_registry() -> CommandRegistry:
     registry = CommandRegistry()
 
@@ -126,6 +196,10 @@ def build_default_registry() -> CommandRegistry:
         RegisteredCommand("validate.run", _validate_run, "Validate normalized datasets", "validation"),
         RegisteredCommand("export.tables", _export_tables, "Export normalized tables", "export"),
         RegisteredCommand("export.sih", _export_sih, "Export SIH files", "export"),
+        RegisteredCommand("analysis.correlation", _analysis_correlation, "Run correlation analysis", "analysis"),
+        RegisteredCommand("analysis.quality", _analysis_quality, "Run quality metrics analysis", "analysis"),
+        RegisteredCommand("analysis.stage-discharge", _analysis_stage_discharge, "Run stage-discharge analysis", "analysis"),
+        RegisteredCommand("analysis.section-profiles", _analysis_section_profiles, "Run section profiles analysis", "analysis"),
     ]
 
     for command in commands:
