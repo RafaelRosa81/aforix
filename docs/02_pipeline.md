@@ -39,7 +39,7 @@ Subcarpetas esperadas según `configs/examples/main.yaml`:
 data/raw/FT   # FlowTracker
 data/raw/ML   # Molinete
 data/raw/NV   # Nivus
-data/raw/M9   # M9, previsto o experimental
+data/raw/M9   # M9 / ADCP, fuera del alcance de producción actual
 ```
 
 Aforix no debería modificar directamente estos archivos. Son la fuente primaria de trazabilidad.
@@ -54,8 +54,9 @@ Comandos:
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
-aforix ingest m9 -c configs/examples/main.yaml
 ```
+
+El comando `aforix ingest m9` puede existir en el registry o como trabajo experimental, pero no forma parte del flujo de producción actual.
 
 En Windows CMD:
 
@@ -63,7 +64,6 @@ En Windows CMD:
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
-aforix ingest m9 -c configs/examples/main.yaml
 ```
 
 ### 2.1 Metadata configurable
