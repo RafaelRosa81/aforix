@@ -9,6 +9,15 @@ dependencies = [
     "numpy",
     "pyyaml",
     "openpyxl",
+    "matplotlib",
+    "scipy",
+    "scikit-learn",
+    "psutil",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
 ]
 
 [project.scripts]
@@ -21,3 +30,4 @@ build-backend = "setuptools.build_meta"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+pythonpath = ["src"]
