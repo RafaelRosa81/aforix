@@ -1,21 +1,21 @@
-# Aforix production release checklist
+# Checklist de liberación a producción de Aforix
 
-This checklist defines the minimum go/no-go checks before using Aforix in production.
+Esta checklist define las verificaciones mínimas GO/NO-GO antes de usar Aforix en producción.
 
-Scope for this release:
+Alcance de esta liberación:
 
-- FlowTracker, Molinete and Nivus are in scope.
-- M9 is out of scope for this production release and will be addressed in a later stabilization cycle.
-- Checks that require local, non-versioned hydrological data are manual checks and should not be treated as mandatory CI jobs.
+- FlowTracker, Molinete y Nivus están dentro del alcance.
+- M9 queda fuera del alcance de esta liberación de producción y se abordará en un ciclo posterior de estabilización.
+- Las verificaciones que requieren datos hidrológicos locales no versionados son verificaciones manuales y no deben tratarse como trabajos obligatorios de CI.
 
-## 1. Clean installation
+## 1. Instalación limpia
 
-Objective: verify that Aforix can be installed from a clean environment.
+Objetivo: verificar que Aforix pueda instalarse desde un entorno limpio.
 
-Go criteria:
+Criterios GO:
 
-- Editable installation completes without dependency errors.
-- Runtime and development dependencies install from `pyproject.toml`.
+- La instalación editable finaliza sin errores de dependencias.
+- Las dependencias de runtime y desarrollo se instalan desde `pyproject.toml`.
 
 Windows CMD:
 
@@ -26,20 +26,20 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Expected result:
+Resultado esperado:
 
-- Installation finishes successfully.
-- No `ModuleNotFoundError` or dependency resolution errors.
+- La instalación finaliza correctamente.
+- No aparecen errores `ModuleNotFoundError` ni errores de resolución de dependencias.
 
-No-go if:
+NO-GO si:
 
-- Installation fails.
-- `.[dev]` is not recognized.
-- Required runtime dependencies are missing.
+- La instalación falla.
+- `.[dev]` no es reconocido.
+- Faltan dependencias runtime requeridas.
 
-## 2. Critical runtime imports
+## 2. Imports runtime críticos
 
-Objective: verify that core analysis and batch dependencies are available after installation.
+Objetivo: verificar que las dependencias principales de análisis y batch estén disponibles después de la instalación.
 
 Windows CMD:
 
@@ -47,19 +47,19 @@ Windows CMD:
 python -c "import sklearn, scipy, matplotlib, psutil; print('OK')"
 ```
 
-Expected result:
+Resultado esperado:
 
 ```text
 OK
 ```
 
-No-go if:
+NO-GO si:
 
-- Any import fails.
+- Cualquier import falla.
 
-## 3. CLI smoke test
+## 3. Smoke test del CLI
 
-Objective: verify that the CLI and main subcommands load successfully.
+Objetivo: verificar que el CLI y los subcomandos principales carguen correctamente.
 
 Windows CMD:
 
@@ -74,20 +74,20 @@ aforix batch --help
 aforix external --help
 ```
 
-Expected result:
+Resultado esperado:
 
-- Typer help is displayed for each command.
-- No import errors.
-- No unexpected traceback.
+- Se muestra la ayuda de Typer para cada comando.
+- No hay errores de importación.
+- No hay traceback inesperado.
 
-No-go if:
+NO-GO si:
 
-- The root CLI does not start.
-- Any production subcommand fails to load.
+- El CLI raíz no inicia.
+- Algún subcomando de producción no carga.
 
-## 4. Configuration check
+## 4. Verificación de configuración
 
-Objective: verify that the example project configuration is structurally valid.
+Objetivo: verificar que la configuración de ejemplo del proyecto sea estructuralmente válida.
 
 Windows CMD:
 
@@ -95,20 +95,20 @@ Windows CMD:
 aforix config-check -c configs/examples/main.yaml
 ```
 
-Expected result:
+Resultado esperado:
 
-- Configuration loads successfully.
-- No validation errors.
+- La configuración carga correctamente.
+- No hay errores de validación.
 
-No-go if:
+NO-GO si:
 
-- The YAML cannot be read.
-- Required sections are missing.
-- Config validation fails.
+- El YAML no puede leerse.
+- Faltan secciones requeridas.
+- Falla la validación de configuración.
 
-## 5. Test suite
+## 5. Suite de tests
 
-Objective: verify the current regression baseline.
+Objetivo: verificar la línea base actual de regresión.
 
 Windows CMD:
 
@@ -116,19 +116,19 @@ Windows CMD:
 pytest -q
 ```
 
-Expected result:
+Resultado esperado:
 
-- All tests pass.
+- Todos los tests pasan.
 
-No-go if:
+NO-GO si:
 
-- Tests fail.
-- Tests cannot be collected.
-- `aforix` cannot be imported from tests.
+- Algún test falla.
+- Los tests no pueden colectarse.
+- `aforix` no puede importarse desde los tests.
 
-## 6. Compile check
+## 6. Verificación de compilación
 
-Objective: verify that Python files in source and scripts compile.
+Objetivo: verificar que los archivos Python en `src` y `scripts` compilen correctamente.
 
 Windows CMD:
 
@@ -136,17 +136,17 @@ Windows CMD:
 python -m compileall src scripts
 ```
 
-Expected result:
+Resultado esperado:
 
-- No syntax errors.
+- No hay errores de sintaxis.
 
-No-go if:
+NO-GO si:
 
-- Any source or script file fails to compile.
+- Algún archivo fuente o script falla al compilar.
 
-## 7. Batch smoke test
+## 7. Smoke test de batch
 
-Objective: verify that batch orchestration can validate, plan and dry-run a minimal batch.
+Objetivo: verificar que la orquestación batch pueda validar, planificar y ejecutar un dry-run mínimo.
 
 Windows CMD:
 
@@ -156,21 +156,21 @@ aforix batch plan -b configs/batches/examples/check_only.yaml
 aforix batch run -b configs/batches/examples/check_only.yaml --dry-run
 ```
 
-Expected result:
+Resultado esperado:
 
-- Batch validation succeeds.
-- Execution plan is printed.
-- Dry-run completes without executing domain processing.
+- La validación batch finaliza correctamente.
+- El plan de ejecución se imprime.
+- El dry-run finaliza sin ejecutar procesamiento de dominio.
 
-No-go if:
+NO-GO si:
 
-- Batch YAML cannot be loaded.
-- A registered command is missing.
-- Dry-run fails.
+- El YAML batch no puede cargarse.
+- Falta un comando registrado.
+- El dry-run falla.
 
-## 8. Local production pipeline smoke test
+## 8. Smoke test local del pipeline de producción
 
-Objective: verify the real local data pipeline. This check depends on local, non-versioned data and is not suitable for CI.
+Objetivo: verificar el pipeline real con datos locales. Esta verificación depende de datos locales no versionados y no es adecuada para CI.
 
 Windows CMD:
 
@@ -185,21 +185,21 @@ python scripts\audit_pipeline_outputs.py
 aforix validate run -c configs/examples/main.yaml
 ```
 
-Expected result:
+Resultado esperado:
 
-- Each stage completes successfully.
-- Normalized outputs are generated in `database/normalized`.
-- Audit and validation reports do not show blocking inconsistencies.
+- Cada etapa finaliza correctamente.
+- Las salidas normalizadas se generan en `database/normalized`.
+- Los reportes de auditoría y validación no muestran inconsistencias bloqueantes.
 
-No-go if:
+NO-GO si:
 
-- Any production instrument in scope fails unexpectedly.
-- Normalized outputs are missing or inconsistent.
-- Validation reports blocking errors that affect results.
+- Algún instrumento de producción dentro del alcance falla inesperadamente.
+- Faltan salidas normalizadas o son inconsistentes.
+- La validación reporta errores bloqueantes que afectan los resultados.
 
-## 9. SIH export smoke test
+## 9. Smoke test de exportación SIH
 
-Objective: verify that SIH export commands and configuration load correctly.
+Objetivo: verificar que los comandos y la configuración de exportación SIH carguen correctamente.
 
 Windows CMD:
 
@@ -208,27 +208,27 @@ aforix export sih --help
 aforix config-check -c configs/examples/main.yaml
 ```
 
-Manual check with local normalized data:
+Verificación manual con datos normalizados locales:
 
 ```bat
 aforix export sih -c configs/examples/main.yaml --sih-config configs/sih/sih.yaml
 ```
 
-Expected result:
+Resultado esperado:
 
-- SIH help loads.
-- SIH config can be used when normalized data exists.
-- Exported files follow the expected SIH structure.
+- La ayuda de SIH carga correctamente.
+- La configuración SIH puede usarse cuando existen datos normalizados.
+- Los archivos exportados siguen la estructura SIH esperada.
 
-No-go if:
+NO-GO si:
 
-- SIH command fails to load.
-- Required SIH config files or templates are missing.
-- Exported files are structurally invalid.
+- El comando SIH no carga.
+- Faltan archivos de configuración o plantillas SIH requeridas.
+- Los archivos exportados son estructuralmente inválidos.
 
-## 10. Git ignore and versioned assets
+## 10. `.gitignore` y activos versionados
 
-Objective: verify that generated data are ignored without hiding versioned configs or templates.
+Objetivo: verificar que los datos generados estén ignorados sin ocultar configuraciones o plantillas versionadas.
 
 Windows CMD:
 
@@ -240,21 +240,21 @@ git check-ignore -v runs\demo.csv
 git check-ignore -v database\demo.csv
 ```
 
-Expected result:
+Resultado esperado:
 
-- Files under `configs/` should not be ignored.
-- Generated output paths such as `outputs/`, `runs/` and `database/` should be ignored.
+- Los archivos dentro de `configs/` no deberían estar ignorados.
+- Las rutas de salida generada, como `outputs/`, `runs/` y `database/`, deberían estar ignoradas.
 
-No-go if:
+NO-GO si:
 
-- Required templates or example configs are hidden by `.gitignore`.
-- Generated data directories are not ignored.
+- Plantillas o configuraciones de ejemplo requeridas quedan ocultas por `.gitignore`.
+- Los directorios de datos generados no están ignorados.
 
-## 11. Documentation release check
+## 11. Verificación de documentación de liberación
 
-Objective: verify that documentation matches the current production scope.
+Objetivo: verificar que la documentación coincida con el alcance actual de producción.
 
-Manual review:
+Revisión manual:
 
 ```bat
 type README.md
@@ -264,39 +264,39 @@ type docs\BATCH_GUIDE.md
 type docs\CONFIGURATION_GUIDE.md
 ```
 
-Expected result:
+Resultado esperado:
 
-- Installation instructions are current.
-- CLI commands match implemented commands.
-- Batch usage is documented.
-- M9 is not presented as production-ready in this release.
+- Las instrucciones de instalación están actualizadas.
+- Los comandos CLI coinciden con los comandos implementados.
+- El uso de batch está documentado.
+- M9 no se presenta como listo para producción en esta liberación.
 
-No-go if:
+NO-GO si:
 
-- Documentation instructs users to run commands that no longer exist.
-- Documentation presents experimental functionality as production-ready.
-- Required release checks are not documented.
+- La documentación indica ejecutar comandos que ya no existen.
+- La documentación presenta funcionalidad experimental como lista para producción.
+- Las verificaciones requeridas de liberación no están documentadas.
 
-## Final go/no-go summary
+## Resumen final GO/NO-GO
 
-Go if:
+GO si:
 
-- Clean installation succeeds.
-- Critical imports pass.
-- CLI smoke tests pass.
-- `config-check` passes.
-- Tests pass.
-- Compile check passes.
-- Batch smoke test passes.
-- Local production pipeline succeeds with real data.
-- SIH export is verified when SIH delivery is in scope.
-- Versioned configs/templates are not hidden by `.gitignore`.
+- La instalación limpia finaliza correctamente.
+- Los imports críticos pasan.
+- Los smoke tests del CLI pasan.
+- `config-check` pasa.
+- Los tests pasan.
+- La verificación de compilación pasa.
+- El smoke test de batch pasa.
+- El pipeline local de producción funciona con datos reales.
+- La exportación SIH se verifica cuando la entrega SIH está dentro del alcance.
+- Las configuraciones y plantillas versionadas no quedan ocultas por `.gitignore`.
 
-No-go if:
+NO-GO si:
 
-- A clean install cannot run `aforix --help`.
-- Any required runtime dependency is missing.
-- Tests cannot be collected or executed.
-- Batch orchestration cannot validate/plan/dry-run.
-- Normalization or validation produces blocking data-quality errors.
-- Documentation contradicts the actual supported production scope.
+- Una instalación limpia no puede ejecutar `aforix --help`.
+- Falta alguna dependencia runtime requerida.
+- Los tests no pueden colectarse o ejecutarse.
+- La orquestación batch no puede validar, planificar o ejecutar dry-run.
+- Normalización o validación producen errores bloqueantes de calidad de datos.
+- La documentación contradice el alcance real soportado en producción.
