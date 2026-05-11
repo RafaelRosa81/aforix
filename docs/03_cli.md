@@ -104,7 +104,7 @@ aforix ingest nivus -c configs/examples/main.yaml
 aforix ingest m9 -c configs/examples/main.yaml
 ```
 
-M9 está previsto para una etapa posterior o puede considerarse experimental según el estado del proyecto.
+M9 / ADCP queda fuera del alcance de producción actual y puede considerarse experimental según el estado del proyecto.
 
 ## build-groups
 
@@ -328,7 +328,7 @@ Este comando es más específico que `build-groups` y puede ser útil para flujo
 
 ## Flujo recomendado
 
-Ejemplo completo con los instrumentos actuales:
+Ejemplo completo con los instrumentos actualmente considerados estables:
 
 ```bash
 aforix config-check -c configs/examples/main.yaml
@@ -360,7 +360,9 @@ Para múltiples instrumentos, ejecutar primero las ingestas necesarias y luego c
 
 ## Notas
 
-- Los comandos deben ejecutarse desde un entorno donde el paquete esté instalado, por ejemplo con `pip install -e .`.
+- Los comandos deben ejecutarse desde un entorno donde el paquete esté instalado, por ejemplo con `python -m pip install -e .`.
+- Para desarrollo y testing, usar `python -m pip install -e ".[dev]"`.
+- Revisar `docs/RELEASE_CHECKLIST.md` antes de una liberación o uso en producción.
 - La configuración se centraliza en un archivo YAML.
 - Las salidas locales se escriben principalmente en `runs/`, `database/` y `outputs/`.
 - No modificar manualmente los archivos normalizados salvo para inspección o depuración controlada.
