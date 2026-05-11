@@ -1,0 +1,40 @@
+name: CI smoke tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    name: Install, import, compile and test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Aforix with dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Check critical runtime imports
+        run: python -c "import sklearn, scipy, matplotlib, psutil; print('OK')"
+
+      - name: Compile source and scripts
+        run: python -m compileall src scripts
+
+      - name: Run tests
+        run: pytest -q
