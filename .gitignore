@@ -21,25 +21,33 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Aforix
+# Aforix generated data and outputs
 runs/
 outputs/
 data/
-borrar/
 database/
-#Archivos
+borrar/
+
+# Temporary local helper files
 crear_carpetas.py
 tree_aforix.txt
 donde_me_quedo.txt
 patch_audit.py
 patch.py
 patch_docs_pipeline.py
-# seguridad extra
-runs/**
-data/**
-database/**
 
-# por si acaso
-*.csv
-*.xlsx
-*.parquet 
+# Generated tabular outputs inside generated-data folders.
+# Do not ignore *.csv, *.xlsx or *.parquet globally because configs,
+# templates and test fixtures may legitimately use those extensions.
+runs/**/*.csv
+runs/**/*.xlsx
+runs/**/*.parquet
+outputs/**/*.csv
+outputs/**/*.xlsx
+outputs/**/*.parquet
+data/**/*.csv
+data/**/*.xlsx
+data/**/*.parquet
+database/**/*.csv
+database/**/*.xlsx
+database/**/*.parquet
