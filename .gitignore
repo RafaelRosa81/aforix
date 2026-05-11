@@ -22,11 +22,26 @@ dist/
 Thumbs.db
 
 # Aforix generated data and outputs
-runs/
-outputs/
-data/
-database/
+runs/*
+outputs/*
+data/*
+database/*
 borrar/
+
+# Keep local project folder skeleton
+data/raw/
+data/raw/*
+!data/raw/FT/
+!data/raw/ML/
+!data/raw/NV/
+!data/raw/M9/
+!data/raw/FT/.gitkeep
+!data/raw/ML/.gitkeep
+!data/raw/NV/.gitkeep
+!data/raw/M9/.gitkeep
+!database/.gitkeep
+!outputs/.gitkeep
+!runs/.gitkeep
 
 # Temporary local helper files
 crear_carpetas.py
