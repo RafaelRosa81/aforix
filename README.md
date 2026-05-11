@@ -9,14 +9,20 @@ El objetivo es transformar archivos originales de campo en datasets consistentes
 - FlowTracker
 - Molinete
 - Nivus
-- M9 / ADCP, previsto para una etapa posterior
+- M9 / ADCP queda fuera del alcance de producción actual y se abordará en una etapa posterior.
 
 ## Quickstart
 
-Instalar desde la raíz del repositorio:
+Instalar desde la raíz del repositorio para uso normal:
 
 ```bash
-pip install -e .
+python -m pip install -e .
+```
+
+Para desarrollo, tests y validaciones de release:
+
+```bash
+python -m pip install -e ".[dev]"
 ```
 
 Verificar el CLI:
@@ -60,6 +66,9 @@ raw -> ingest -> runs/.../raw_canonical -> build-groups -> database/raw_canonica
 La explicación completa del flujo está en `docs/02_pipeline.md`.
 
 Para ejecutar flujos reproducibles desde YAML, revisar la guía batch en `docs/BATCH_GUIDE.md`, los ejemplos en `configs/batches/examples/` y la guía de launchers en `docs/LAUNCHERS_GUIDE.md`.
+
+Antes de liberar o usar Aforix en producción, revisar la checklist GO/NO-GO en `docs/RELEASE_CHECKLIST.md`.
+
 ## Salidas principales
 
 - `runs/`: ejecuciones trazables del pipeline.
@@ -76,6 +85,7 @@ Estas carpetas son locales o generadas por el pipeline y no deberían versionars
 
 - Pipeline de procesamiento: `docs/02_pipeline.md`
 - Referencia CLI: `docs/03_cli.md`
+- Checklist de liberación a producción: `docs/RELEASE_CHECKLIST.md`
 - Guía batch: `docs/BATCH_GUIDE.md`
 - Ejemplos batch: `configs/batches/examples/README.md`
 - Guía de launchers Windows/Linux: `docs/LAUNCHERS_GUIDE.md`
@@ -107,8 +117,12 @@ Componentes disponibles actualmente:
 - validación de datasets normalizados;
 - infraestructura batch con YAML, `CommandResult`, `manifest.json` y métricas operativas;
 - exportación de tablas;
-- exportación SIH configurable.
-- launchers Windows/Linux para ejecutar batches predeterminados y personalizados;
+- exportación SIH configurable;
+- launchers Windows/Linux para ejecutar batches predeterminados y personalizados.
+
+Fuera del alcance de producción actual:
+
+- ingesta M9 / ADCP completa.
 
 ## Autor
 
