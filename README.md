@@ -81,6 +81,8 @@ Antes de liberar o usar Aforix en producción, revisar la checklist GO/NO-GO en 
 
 Estas carpetas son locales o generadas por el pipeline y no deberían versionarse en Git.
 
+La estructura base de carpetas locales se conserva en el repositorio mediante archivos `.gitkeep`, de modo que un usuario que clone Aforix ya encontrará las carpetas necesarias (`data/raw/FT`, `data/raw/ML`, `data/raw/NV`, `data/raw/M9`, `database`, `outputs` y `runs`). Los datos reales, bases procesadas y outputs siguen ignorados por Git y no deben subirse al repositorio.
+
 ## Documentación
 
 - Pipeline de procesamiento: `docs/02_pipeline.md`
