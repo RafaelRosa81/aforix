@@ -16,7 +16,7 @@ app = typer.Typer(help="Quality metrics analysis.")
 def run_quality(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
     interactive: bool = typer.Option(False, "--interactive", help="Run interactive quality metrics menu"),
-    points: str | None = typer.Option(None, "--points", help="Comma-separated points, e.g. 1,2,21"),
+    points: str | None = typer.Option(None, "--points", help="Comma-separated points, e.g. 1,2,21 or 7001,7002"),
     yyyymm: str | None = typer.Option(None, "--yyyymm", help="Comma-separated months, e.g. 202412,202501"),
     all_months: bool = typer.Option(False, "--all-months", help="Use all available months"),
     aggregation: str = typer.Option("daily", "--aggregation", help="measurement | daily | monthly"),
@@ -27,7 +27,7 @@ def run_quality(
         available_points, available_months = discover_available_filters(config_path)
 
         typer.echo("Interactive quality metrics mode")
-        typer.echo(f"Available points: {', '.join('P' + p for p in available_points) or '(none found)'}")
+        typer.echo(f"Available points: {', '.join(available_points) or '(none found)'}")
         point_input = typer.prompt(
             "Select points, comma-separated, empty = all",
             default="",
