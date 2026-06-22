@@ -6,7 +6,10 @@ from typing import Dict
 
 import pandas as pd
 
-FILENAME_RE = re.compile(r"(?P<station>P\d+)_Points_(?P<date>\d{8})(?:_(?P<time>\d{6}))?", re.IGNORECASE)
+FILENAME_RE = re.compile(
+    r"(?P<station>P?\d+)_Points_(?P<date>\d{8})(?:_(?P<time>\d{6}))?",
+    re.IGNORECASE,
+)
 
 
 def load_points_by_instrument(normalized_root: Path, instruments_cfg: Dict) -> pd.DataFrame:
@@ -64,14 +67,26 @@ def _metadata_from_filename(path: Path) -> dict[str, str | None]:
     }
 
 
+def _parse_measurement_date(series: pd.Series) -> pd.Series:
+    raw = series.astype("string").str.strip()
+    compact = raw.str.extract(r"^(\d{8})(?:\.0+)?$")[0]
+    parsed = pd.to_datetime(compact, format="%Y%m%d", errors="coerce")
+
+    remaining = parsed.isna()
+    if remaining.any():
+        parsed.loc[remaining] = pd.to_datetime(raw.loc[remaining], errors="coerce")
+
+    return parsed.dt.strftime("%Y-%m-%d")
+
+
 def _standardize(df: pd.DataFrame, *, meta: dict[str, str | None]) -> pd.DataFrame:
     out = df.copy()
 
     parsed_date = None
     if "measurement_date" in out.columns:
-        parsed_date = pd.to_datetime(out["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        parsed_date = _parse_measurement_date(out["measurement_date"])
     elif "date" in out.columns:
-        parsed_date = pd.to_datetime(out["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        parsed_date = _parse_measurement_date(out["date"])
 
     if parsed_date is not None:
         out["measurement_date"] = parsed_date
