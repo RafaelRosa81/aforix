@@ -38,12 +38,10 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
     for inst, cfg in instruments_cfg.items():
         if not cfg.get("enabled", False):
             continue
-
         subdir = cfg.get("summary_table")
         path = normalized_root / subdir
         if not path.exists():
             continue
-
         files = [path] if path.is_file() else sorted(path.glob("*.csv"))
         for f in files:
             df = pd.read_csv(f)
@@ -56,34 +54,25 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
 
     if not dfs:
         return pd.DataFrame()
-
     return pd.concat(dfs, ignore_index=True)
 
 
 def load_points_max_stage(normalized_root: Path, instruments_cfg: dict) -> pd.DataFrame:
-    """Compute instrument max stage/depth from normalized Points.csv.
-
-    Uses depth_m when available and groups by measurement identity.
-    """
+    """Compute instrument max stage/depth from normalized Points.csv."""
     points_file = normalized_root / "Points.csv"
     enabled_instruments = {name for name, cfg in instruments_cfg.items() if cfg.get("enabled", False)}
-
     if not points_file.exists():
         return pd.DataFrame(columns=KEYS + ["instrument_stage_max_m", "points_source_table"])
 
-    df = pd.read_csv(points_file)
-    df = _standardize_dates_ids_instrument(df)
-
+    df = _standardize_dates_ids_instrument(pd.read_csv(points_file))
     if "instrument" in df.columns and enabled_instruments:
         df = df[df["instrument"].isin(enabled_instruments)].copy()
-
     if "depth_m" not in df.columns:
         return pd.DataFrame(columns=KEYS + ["instrument_stage_max_m", "points_source_table"])
 
     for key in KEYS:
         if key not in df.columns:
             df[key] = pd.NA
-
     df["depth_m"] = pd.to_numeric(df["depth_m"], errors="coerce")
     out = (
         df.dropna(subset=["station_id", "measurement_date", "instrument", "depth_m"])
@@ -98,11 +87,9 @@ def load_points_max_stage(normalized_root: Path, instruments_cfg: dict) -> pd.Da
 def add_points_max_stage(df_summary: pd.DataFrame, df_points_max: pd.DataFrame) -> pd.DataFrame:
     if df_summary.empty or df_points_max.empty:
         return df_summary
-
     join_keys = [k for k in KEYS if k in df_summary.columns and k in df_points_max.columns]
     if not join_keys:
         return df_summary
-
     return df_summary.merge(df_points_max, on=join_keys, how="left")
 
 
@@ -112,37 +99,27 @@ def _standardize_dates_ids_instrument(df: pd.DataFrame) -> pd.DataFrame:
         df["measurement_date"] = _normalize_measurement_date(df["measurement_date"])
     elif "date" in df.columns:
         df["measurement_date"] = _normalize_measurement_date(df["date"])
-
     if "station_id" in df.columns:
         df["station_id"] = df["station_id"].map(_normalize_station_id)
     elif "point" in df.columns:
         df["station_id"] = df["point"].map(_normalize_station_id)
-
     if "instrument" in df.columns:
         df["instrument"] = df["instrument"].astype(str).str.lower().str.strip()
-
     return df
 
 
 def _normalize_measurement_date(values: pd.Series) -> pd.Series:
-    """Return ISO dates while preserving compact YYYYMMDD identifiers.
-
-    Pandas interprets numeric values such as 20251217 as nanoseconds from the
-    Unix epoch unless an explicit format is supplied. Normalized Aforix tables
-    commonly use that compact form, so parse it before generic date parsing.
-    """
+    """Return ISO dates without misreading compact YYYYMMDD values as epochs."""
     raw = values.astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
-    out = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns]")
 
-    compact_mask = raw.str.fullmatch(r"\d{8}", na=False)
-    if compact_mask.any():
-        out.loc[compact_mask] = pd.to_datetime(raw.loc[compact_mask], format="%Y%m%d", errors="coerce")
+    def parse_one(value):
+        if value is None or pd.isna(value) or value == "":
+            return pd.NaT
+        if len(value) == 8 and value.isdigit():
+            return pd.to_datetime(value, format="%Y%m%d", errors="coerce")
+        return pd.to_datetime(value, errors="coerce")
 
-    other_mask = ~compact_mask & raw.notna() & raw.ne("")
-    if other_mask.any():
-        out.loc[other_mask] = pd.to_datetime(raw.loc[other_mask], errors="coerce")
-
-    return out.dt.strftime("%Y-%m-%d")
+    return raw.map(parse_one).dt.strftime("%Y-%m-%d")
 
 
 def _normalize_station_id(value) -> str | None:
