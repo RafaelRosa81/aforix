@@ -498,6 +498,22 @@ analysis:
         - line
         - scatter_line
 
+    instruments:
+      nivus:
+        enabled: true
+        code: NV
+        points_table: nivus/Points
+
+      flowtracker:
+        enabled: true
+        code: FT
+        points_table: flowtracker/Points
+
+      molinete:
+        enabled: true
+        code: ML
+        points_table: molinete/Points
+
   stage_discharge:
     enabled: true
 
