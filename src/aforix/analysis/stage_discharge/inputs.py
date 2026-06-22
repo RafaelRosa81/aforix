@@ -12,7 +12,7 @@ def load_manual_stage(manual_dir: Path) -> pd.DataFrame:
         return pd.DataFrame()
     df = pd.read_csv(f)
     if "measurement_date" in df.columns:
-        df["measurement_date"] = pd.to_datetime(df["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        df["measurement_date"] = _normalize_measurement_date(df["measurement_date"])
     if "station_id" in df.columns:
         df["station_id"] = df["station_id"].map(_normalize_station_id)
     df["manual_stage_source_table"] = str(f)
@@ -109,9 +109,9 @@ def add_points_max_stage(df_summary: pd.DataFrame, df_points_max: pd.DataFrame) 
 def _standardize_dates_ids_instrument(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "measurement_date" in df.columns:
-        df["measurement_date"] = pd.to_datetime(df["measurement_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        df["measurement_date"] = _normalize_measurement_date(df["measurement_date"])
     elif "date" in df.columns:
-        df["measurement_date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        df["measurement_date"] = _normalize_measurement_date(df["date"])
 
     if "station_id" in df.columns:
         df["station_id"] = df["station_id"].map(_normalize_station_id)
@@ -122,6 +122,27 @@ def _standardize_dates_ids_instrument(df: pd.DataFrame) -> pd.DataFrame:
         df["instrument"] = df["instrument"].astype(str).str.lower().str.strip()
 
     return df
+
+
+def _normalize_measurement_date(values: pd.Series) -> pd.Series:
+    """Return ISO dates while preserving compact YYYYMMDD identifiers.
+
+    Pandas interprets numeric values such as 20251217 as nanoseconds from the
+    Unix epoch unless an explicit format is supplied. Normalized Aforix tables
+    commonly use that compact form, so parse it before generic date parsing.
+    """
+    raw = values.astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
+    out = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns]")
+
+    compact_mask = raw.str.fullmatch(r"\d{8}", na=False)
+    if compact_mask.any():
+        out.loc[compact_mask] = pd.to_datetime(raw.loc[compact_mask], format="%Y%m%d", errors="coerce")
+
+    other_mask = ~compact_mask & raw.notna() & raw.ne("")
+    if other_mask.any():
+        out.loc[other_mask] = pd.to_datetime(raw.loc[other_mask], errors="coerce")
+
+    return out.dt.strftime("%Y-%m-%d")
 
 
 def _normalize_station_id(value) -> str | None:
