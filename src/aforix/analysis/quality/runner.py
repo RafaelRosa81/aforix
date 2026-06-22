@@ -12,7 +12,7 @@ from aforix.analysis.quality.config import load_quality_config
 from aforix.analysis.quality.metrics import compute_cg_from_weights, find_tq_column
 
 FILE_RE = re.compile(
-    r"^P(?P<point>\d+)_Points_(?P<date>\d{8})(?:_(?P<time>\d{6}))?\.csv$",
+    r"^(?P<point>(?:P)?\d+)_Points_(?P<date>\d{8})(?:_(?P<time>\d{6}))?\.csv$",
     re.IGNORECASE,
 )
 
@@ -53,6 +53,7 @@ def run_quality_metrics(
             continue
 
         point_id = _normalize_point(meta["point"])
+        point_label = _format_point_label(meta["point"])
         month_id = meta["date"][:6]
 
         if wanted_points and point_id not in wanted_points:
@@ -85,7 +86,7 @@ def run_quality_metrics(
 
             records.append(
                 {
-                    "point": f"P{point_id}",
+                    "point": point_label,
                     "date": meta["date"],
                     "time": meta["time"],
                     "period": period,
@@ -97,7 +98,7 @@ def run_quality_metrics(
                 {
                     "file": norm_file.name,
                     "status": "ok",
-                    "point": f"P{point_id}",
+                    "point": point_label,
                     "date": meta["date"],
                     "time": meta["time"],
                     "tq_column": tq_col,
@@ -110,7 +111,7 @@ def run_quality_metrics(
                 {
                     "file": norm_file.name,
                     "status": "error",
-                    "point": f"P{point_id}",
+                    "point": point_label,
                     "date": meta["date"],
                     "time": meta["time"],
                     "error": str(exc),
@@ -131,7 +132,7 @@ def run_quality_metrics(
             aggfunc="mean",
         )
         cg_table = cg_table.reindex(sorted(cg_table.columns), axis=1)
-        cg_table = cg_table.sort_index(key=lambda idx: idx.str.replace("P", "", regex=False).astype(int))
+        cg_table = cg_table.sort_index(key=lambda idx: idx.map(_sort_key))
     else:
         cg_table = pd.DataFrame()
 
@@ -157,10 +158,10 @@ def discover_available_filters(config_path: str | Path) -> tuple[list[str], list
         meta = _parse_measurement_filename(norm_file.name)
         if meta is None:
             continue
-        points.add(_normalize_point(meta["point"]))
+        points.add(_format_point_label(meta["point"]))
         months.add(meta["date"][:6])
 
-    return sorted(points, key=int), sorted(months)
+    return sorted(points, key=_sort_key), sorted(months)
 
 
 def _write_excel_report(
@@ -245,6 +246,15 @@ def _period_from_meta(meta: dict[str, str], aggregation: str) -> str:
 
 def _normalize_point(value: str) -> str:
     return str(value).strip().upper().replace("P", "")
+
+
+def _format_point_label(value: str) -> str:
+    value = str(value).strip().upper()
+    return value if value.startswith("P") else value
+
+
+def _sort_key(value: object) -> int:
+    return int(_normalize_point(str(value)))
 
 
 def _normalize_month(value: str) -> str:
