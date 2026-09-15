@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-PAIR_FORMAT_EXAMPLE = "[44 1] [117 8]"
+PAIR_FORMAT_EXAMPLE = "[44 7001] [117 7008]"
 
 
 class PairValidationError(ValueError):
@@ -13,13 +13,14 @@ class PairValidationError(ValueError):
 def pair_format_hint(correlation_type: str | None = None) -> str:
     if correlation_type == "gauges_vs_stations":
         return (
-            "Expected bracketed pairs like '[station_id gauge_point]'. "
+            "Expected bracketed pairs like '[external_station_id aforix_point_id]'. "
+            "Aforix points should use canonical 7xxx IDs; legacy Pxx IDs are also accepted. "
             f"Example: '{PAIR_FORMAT_EXAMPLE}'."
         )
 
     if correlation_type == "model_vs_stations":
         return (
-            "Expected bracketed pairs like '[station_id model_id]'. "
+            "Expected bracketed pairs like '[external_station_id model_id]'. "
             "Example: '[44 model_point_1] [117 model_point_8]'."
         )
 
