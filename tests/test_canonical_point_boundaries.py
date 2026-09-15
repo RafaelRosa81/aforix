@@ -23,6 +23,12 @@ def test_canonical_station_id_legacy_and_canonical_are_equivalent(raw: str, expe
     assert canonical_station_id(raw) == expected
 
 
+@pytest.mark.parametrize("raw", ["1", "44", "71", "101", "117"])
+def test_canonical_station_id_preserves_unprefixed_external_numeric_ids(raw: str) -> None:
+    """Bare numeric IDs are not enough evidence that an ID belongs to Aforix."""
+    assert canonical_station_id(raw) == raw
+
+
 def test_batch_point_parser_canonicalizes_legacy_and_preserves_canonical_ids() -> None:
     assert _parse_points("P1 P71 P101 7001 7071 7101") == [
         "7001",
