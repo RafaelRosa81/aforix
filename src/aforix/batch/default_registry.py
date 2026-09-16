@@ -4,6 +4,7 @@ import copy
 
 import pandas as pd
 
+from aforix.metadata import canonical_station_id
 from aforix.analysis.correlation.config import load_correlation_config, resolve_correlation_paths, get_variable_roles
 from aforix.analysis.correlation.instruments import load_instruments
 from aforix.analysis.correlation.pairs import parse_pairs, validate_pair_selection
@@ -80,7 +81,7 @@ def _parse_points(raw: str | None) -> list[str]:
     if not raw:
         return []
     normalized = str(raw).replace(",", " ").replace(";", " ")
-    return [token.replace("P", "").strip() for token in normalized.split() if token.strip()]
+    return [canonical_station_id(token) for token in normalized.split() if token.strip()]
 
 
 def _file_size_mb(path: str | Path | None) -> float | None:
