@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 import yaml
 
 from aforix.canonical.normalizer import normalize_table
@@ -91,3 +92,38 @@ def test_flowtracker_summary_preserves_canonical_area_total_m2():
     out = normalize_table(df_raw, spec)
 
     assert out.loc[0, "area_total_m2"] == 4.188
+
+
+@pytest.mark.parametrize(
+    ("raw_column", "canonical_column", "raw_value", "expected"),
+    [
+        ("ancho_total_m", "width_total_m", "2.9", 2.9),
+        ("velocidad_media_m_s", "velocity_mean_m_s", "0.1168", 0.1168),
+        ("calado_medido_m", "depth_mean_m", "0.135", 0.135),
+        ("temp_promedio_degc", "temperature_c", "24.77", 24.77),
+    ],
+)
+def test_flowtracker_summary_preserves_spanish_hydraulic_aliases(
+    raw_column, canonical_column, raw_value, expected
+):
+    with open("configs/normalization/flowtracker.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20260122",
+                "measurement_time": "142258",
+                "instrument": "flowtracker",
+                "total_discharge_m3_s": "0.0458",
+                raw_column: raw_value,
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, canonical_column] == expected
