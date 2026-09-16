@@ -1,4 +1,5 @@
 import pandas as pd
+import yaml
 
 from aforix.canonical.normalizer import normalize_table
 
@@ -66,3 +67,27 @@ def test_normalize_table_uses_metadata_sources_and_policy():
     assert out.loc[0, "instrument"] == "molinete"
     assert out.loc[0, "source_file"] == "P11.xlsx"
     assert out.loc[0, "q_total_m3s"] == 0.082686
+
+
+def test_flowtracker_summary_preserves_canonical_area_total_m2():
+    with open("configs/normalization/flowtracker.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20260122",
+                "measurement_time": "142258",
+                "instrument": "flowtracker",
+                "area_total_m2": "4.188",
+                "total_discharge_m3_s": "0.0458",
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, "area_total_m2"] == 4.188
