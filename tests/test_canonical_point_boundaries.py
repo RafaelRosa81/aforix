@@ -6,6 +6,7 @@ import pytest
 from aforix.metadata import canonical_station_id
 from aforix.batch.default_registry import _parse_points
 from aforix.export.tables.runner import available_points, normalize_point_token
+from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_model_point_id
 
 
 @pytest.mark.parametrize(
@@ -58,3 +59,13 @@ def test_export_point_normalizer_uses_canonical_ids(raw: str, expected: str) -> 
 def test_export_available_points_collapses_legacy_and_canonical_aliases() -> None:
     df = pd.DataFrame({"station_id": ["P1", "7001", "P71", "7071", "P101", "7101"]})
     assert available_points(df) == ["7001", "7071", "7101"]
+
+
+def test_model_point_namespace_accepts_pm_and_internal_bare_ids() -> None:
+    assert _normalize_model_point_id("Pm71") == "71"
+    assert _normalize_model_point_id("71") == "71"
+
+
+def test_model_point_namespace_rejects_measured_aforix_point() -> None:
+    with pytest.raises(ValueError, match="Expected a model point id"):
+        _normalize_model_point_id("P71")
