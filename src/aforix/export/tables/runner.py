@@ -7,6 +7,7 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
+from aforix.metadata import canonical_station_id
 from .config import get_export_root, get_normalized_root, enabled_instruments
 from .writers import write_csv, write_metadata, write_xlsx
 
@@ -174,14 +175,7 @@ def get_date_column(df: pd.DataFrame) -> str | None:
 
 
 def normalize_point_token(token: str) -> str:
-    s = str(token).strip()
-    if not s:
-        return s
-    if s.upper().startswith("P"):
-        return "P" + s[1:]
-    if s.isdigit():
-        return "P" + s
-    return s
+    return canonical_station_id(token)
 
 
 def available_points(df: pd.DataFrame) -> list[str]:
@@ -190,7 +184,7 @@ def available_points(df: pd.DataFrame) -> list[str]:
         return []
     vals = [normalize_point_token(v) for v in df[col].dropna().astype(str).unique()]
     def key(x: str):
-        return (0, int(x[1:])) if x.upper().startswith("P") and x[1:].isdigit() else (1, x)
+        return (0, int(x)) if x.isdigit() else (1, x)
     return sorted(set(vals), key=key)
 
 
