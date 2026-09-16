@@ -6,12 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from aforix.metadata import (
-    canonical_station_id,
     normalize_measurement_date,
     normalize_measurement_time,
     normalize_station_id,
 )
-from aforix.ingest.metadata import clean_station_name
+from aforix.ingest.metadata import clean_station_id, clean_station_name
 
 
 @dataclass(frozen=True)
@@ -149,11 +148,12 @@ def extract_metadata_field(
 
     value = _first_non_empty(sources, context=context)
 
-    # station_id is canonicalized at the ingest boundary, before legacy
-    # transforms such as remove_prefix/digits_only can erase the P<n> signal.
-    # This makes P71 -> 7071 while preserving an already canonical 7071.
-    if field_name == "station_id":
-        value = canonical_station_id(value)
+    # station_id is cleaned/canonicalized at the ingest boundary, before
+    # legacy transforms such as remove_prefix/digits_only can erase the P<n>
+    # signal. clean_station_id also unwraps FlowTracker file-like IDs such as
+    # P71.TXT.WAD before applying the shared canonical rule.
+    if field_name == "station_id" and value:
+        value = clean_station_id(value)
 
     transforms = field_policy.get("transforms", []) or []
     value = _apply_string_transforms(value, transforms)
