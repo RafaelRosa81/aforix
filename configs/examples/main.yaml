@@ -28,16 +28,8 @@ ingest:
             key: input_file
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
@@ -99,16 +91,8 @@ ingest:
             key: station_id
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
@@ -168,16 +152,8 @@ ingest:
             key: reference
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
