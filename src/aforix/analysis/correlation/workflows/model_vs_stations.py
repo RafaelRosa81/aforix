@@ -50,6 +50,26 @@ def _available_station_ids(stations_dir: Path, timestep: str) -> list[str]:
     return sorted({p.name.split("_")[0] for p in stations_dir.glob(f"*_{timestep}_station_data.csv")})
 
 
+def _normalize_model_point_id(value: object) -> str:
+    """Return the model's internal point id without confusing P and Pm namespaces.
+
+    Explicit model-point aliases use ``Pm<n>``. Bare ids are accepted because
+    ``load_model_data`` and ``all_pairs`` use the model's internal keys. A
+    measured Aforix point such as ``P71`` is intentionally rejected rather
+    than being silently interpreted as model point ``Pm71``.
+    """
+    token = str(value).strip()
+    if token.lower().startswith("pm"):
+        token = token[2:].strip()
+    elif token.lower().startswith("p"):
+        raise ValueError(
+            f"Expected a model point id (Pm<n> or bare model id), got Aforix point {value!r}"
+        )
+    if not token:
+        raise ValueError(f"Invalid empty model point id: {value!r}")
+    return token
+
+
 def _pairs_from_all(stations_dir: Path, model_dir: Path, timestep: str) -> list[tuple[str, str]]:
     station_ids = _available_station_ids(stations_dir, timestep)
     model_ids = sorted(load_model_data(model_dir).keys(), key=lambda x: int(x))
@@ -99,7 +119,7 @@ def run_model_vs_stations(
     summary_rows = []
 
     for station_id, point_id in selected_pairs:
-        point_id = str(point_id).replace("Pm", "").replace("P", "")
+        point_id = _normalize_model_point_id(point_id)
         if point_id not in model_data:
             continue
 
@@ -151,8 +171,8 @@ def run_model_vs_stations(
             "NRMSE Y vs. X [-]": rmse_direct / q_mean_y if q_mean_y else float("nan"),
             "MAE regression vs. Y [l/s]": mae(y_values, y_pred),
             "MAPE regression vs. Y [%]": mape(y_values, y_pred),
-            "PBIAS regression vs. Y [%]": pbias(y_values, y_pred),
-            "NSE regression vs. Y": nse(y_values, y_pred),
+            "PBIAS regression vs. Y [%]": pbias(y_values,y_pred),
+            "NSE regression vs. Y": nse(y_values,y_pred),
         }
 
         summary_rows.append(row)
