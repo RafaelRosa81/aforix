@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from aforix.ingest.adapters.molinete_excel import MolineteExcelAdapter
 from aforix.ingest.metadata import clean_station_id
 from aforix.ingest.metadata_policy import (
     MetadataExtractionContext,
@@ -69,9 +70,20 @@ def test_metadata_policy_can_preserve_station_id_verbatim():
     assert _extract("A15", policy) == "A15"
 
 
-def test_molinete_prefixed_adapter_value_recovers_raw_numeric_station():
-    # The current Molinete adapter prefixes numeric workbook values with P.
-    # The example policy removes that adapter representation without applying
-    # any 7000-namespace renumbering.
-    assert _extract("P7071") == "7071"
-    assert _extract("P101") == "101"
+def test_molinete_adapter_preserves_raw_station_id():
+    clean = MolineteExcelAdapter._clean_station_id
+
+    assert clean(7008) == "7008"
+    assert clean(7071) == "7071"
+    assert clean(7101) == "7101"
+    assert clean(7008.0) == "7008"
+    assert clean("7008") == "7008"
+    assert clean("A15") == "A15"
+
+
+def test_molinete_raw_station_id_survives_numeric_policy():
+    # A numeric station ID already read from the workbook must not acquire a
+    # synthetic P prefix at the adapter boundary. The configured policy may
+    # still apply its own transformations afterwards.
+    assert _extract("7071") == "7071"
+    assert _extract("7101") == "7101"
