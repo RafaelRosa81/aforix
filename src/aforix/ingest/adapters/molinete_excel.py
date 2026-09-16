@@ -827,21 +827,21 @@ class MolineteExcelAdapter:
 
     @staticmethod
     def _clean_station_id(value: Any) -> Optional[str]:
+        """Clean the station identifier without changing its identity.
+
+        The value stored in the configured RAW metadata field is authoritative.
+        This helper only normalizes its textual representation; it must not add
+        a legacy ``P`` prefix or remap the identifier into another namespace.
+        """
         if value is None or pd.isna(value):
             return None
 
-        text = str(value).strip()
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
 
+        text = str(value).strip()
         if not text:
             return None
-
-        match_p = re.search(r"\bP\s*([0-9]{1,4})\b", text, flags=re.IGNORECASE)
-        if match_p:
-            return f"P{int(match_p.group(1))}"
-
-        match_num = re.search(r"\b([0-9]{1,4})\b", text)
-        if match_num:
-            return f"P{int(match_num.group(1))}"
 
         cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_")
         return cleaned.upper() if cleaned else None
