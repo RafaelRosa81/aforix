@@ -8,7 +8,7 @@ import pandas as pd
 
 from aforix.config.loader import load_config
 from aforix.runs.manager import create_run
-from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
+from aforix.ingest.adapters.flowtracker_dis import FlowTrackerDISAdapter, parse_flowtracker_dis
 from aforix.ingest.discovery import (
     fallback_station_id_from_parents,
     find_files_recursive,
@@ -185,6 +185,15 @@ def _extract_flowtracker_metadata(
     """Resolve FlowTracker metadata using config policy with legacy fallbacks."""
 
     raw_fields = dict(summary)
+    file_name_value = (
+        summary.get("file_name")
+        or summary.get("nombre_del_fichero")
+        or summary.get("input_file")
+        or dis_path.name
+    )
+    raw_fields["station_id"] = FlowTrackerDISAdapter()._clean_file_name_as_station_id(
+        file_name_value
+    )
     raw_fields["fallback_station_id"] = fallback_station_id_from_parents(dis_path) or ""
     raw_fields["filename"] = dis_path.name
     raw_fields["stem"] = dis_path.stem
