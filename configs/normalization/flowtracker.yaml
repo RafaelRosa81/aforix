@@ -113,22 +113,26 @@ tables:
       width_total_m:
         sources:
           - total_width_m
+          - ancho_total_m
           - width_m
         dtype: float
       velocity_mean_m_s:
         sources:
           - mean_velocity_m_s
+          - velocidad_media_m_s
           - mean_velocity_ms
           - velocity_mean_m_s
         dtype: float
       depth_mean_m:
         sources:
           - mean_depth_m
+          - calado_medido_m
           - depth_mean_m
         dtype: float
       temperature_c:
         sources:
           - mean_temp_degc
+          - temp_promedio_degc
           - temperature_c
         dtype: float
 
