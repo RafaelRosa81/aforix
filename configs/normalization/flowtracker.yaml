@@ -107,6 +107,7 @@ tables:
       area_total_m2:
         sources:
           - total_area_m2
+          - area_total_m2
           - area_m2
         dtype: float
       width_total_m:
