@@ -5,8 +5,6 @@ from datetime import datetime
 from pathlib import Path
 import re
 
-from aforix.metadata import canonical_station_id
-
 
 @dataclass(frozen=True)
 class MeasurementMeta:
@@ -17,12 +15,12 @@ class MeasurementMeta:
 
 
 def clean_station_id(value: str | None, *, fallback: str | None = None) -> str:
-    """Normalize station IDs extracted from source files.
+    """Clean a station identifier without changing its identity.
 
-    File-like wrappers are removed first, then the shared Aforix canonical
-    station-id rule is applied. This keeps ingest compatible with FlowTracker
-    names such as ``P71.TXT.WAD`` while ensuring legacy ``P<n>`` identifiers
-    enter the canonical 7000 namespace exactly once.
+    This helper only removes common file-name wrappers and unsafe separator
+    characters. It deliberately does not map ``P<n>`` into any numeric
+    namespace: station numbering belongs to the raw source and to the
+    configurable metadata policy.
     """
 
     candidate = value if value else fallback
@@ -30,9 +28,9 @@ def clean_station_id(value: str | None, *, fallback: str | None = None) -> str:
     if candidate:
         text = str(candidate).strip()
 
-        # Common FlowTracker case:
-        # CHAM1512.WAD -> CHAM1512
-        # P71.TXT.WAD -> P71.TXT -> P71 -> 7071
+        # Common FlowTracker wrappers:
+        # 70101.TXT.WAD -> 70101.TXT -> 70101
+        # P71.TXT.WAD   -> P71.TXT   -> P71
         text = Path(text).stem
 
         if text.upper().endswith(".TXT"):
@@ -41,7 +39,7 @@ def clean_station_id(value: str | None, *, fallback: str | None = None) -> str:
         text = re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_")
 
         if text:
-            return canonical_station_id(text)
+            return text
 
     return "UNKNOWN"
 
