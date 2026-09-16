@@ -44,10 +44,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P
@@ -253,10 +250,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P
@@ -322,63 +316,47 @@ tables:
         dtype: string
 
       point_index:
-        source: point_index
-        dtype: int
-
-      point_label:
         sources:
-          - point_label
-          - vert_label
-        dtype: string
+          - point_index
+          - index
+        dtype: int
 
       distance_m:
         sources:
           - distance_m
-          - progr_m
+          - posicion_m
+          - pos_m
         dtype: float
 
       depth_m:
         sources:
           - depth_m
           - prof_m
+          - profundidad_m
+        dtype: float
+
+      area_m2:
+        sources:
+          - area_m2
+          - area
         dtype: float
 
       velocity_mean_m_s:
         sources:
           - velocity_mean_m_s
-          - vel_media_vert_ms
-          - vel_media_secc_ms
-        dtype: float
-
-      area_m2:
-        source: area_m2
+          - vel_media_ms
+          - velocidad_media_ms
         dtype: float
 
       q_m3s:
-        source: q_m3s
+        sources:
+          - q_m3s
+          - caudal_m3s
         dtype: float
 
       q_ls:
         source: __derived__
         dtype: float
-
-      percent_q:
-        sources:
-          - percent_q
-          - q_percent
-        dtype: float
-
-      temperature_c:
-        source: temperature_c
-        dtype: float
-
-      angle_hor_deg:
-        source: angle_hor_deg
-        dtype: float
-
-      n_velocity_points:
-        source: n_points
-        dtype: int
 
     derived:
       q_ls:
@@ -391,6 +369,7 @@ tables:
       - measurement_date
       - measurement_time
       - instrument
+      - point_index
       - distance_m
       - depth_m
 
@@ -401,5 +380,6 @@ tables:
 
     qc:
       non_negative:
+        - distance_m
         - depth_m
         - area_m2
