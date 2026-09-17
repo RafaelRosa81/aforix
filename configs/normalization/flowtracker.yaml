@@ -270,6 +270,12 @@ tables:
       depth_m:
         source: depth_m
         dtype: float
+      percent_depth:
+        source: percent_depth
+        dtype: float
+      measured_depth_m:
+        source: measured_depth_m
+        dtype: float
       velocity_mean_m_s:
         sources:
           - velocity_mean_m_s
