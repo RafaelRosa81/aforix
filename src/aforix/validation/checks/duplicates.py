@@ -14,6 +14,17 @@ TABLE_KEY_SUFFIXES = {
 }
 
 
+def _keys_for_table(table_name: str, df: pd.DataFrame, base_keys: list[str]) -> list[str]:
+    keys = [*base_keys, *TABLE_KEY_SUFFIXES.get(table_name, [])]
+
+    if table_name == "Points" and "instrument" in df.columns and "percent_depth" in df.columns:
+        instruments = set(df["instrument"].dropna().astype(str).str.lower())
+        if "flowtracker" in instruments:
+            keys.append("percent_depth")
+
+    return keys
+
+
 def run(
     *,
     input_dir: Path,
@@ -29,7 +40,7 @@ def run(
         if df is None:
             continue
 
-        keys = [*base_keys, *TABLE_KEY_SUFFIXES.get(table_name, [])]
+        keys = _keys_for_table(table_name, df, base_keys)
         available_keys = [col for col in keys if col in df.columns]
 
         if len(available_keys) != len(keys):
