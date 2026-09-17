@@ -127,3 +127,29 @@ def test_flowtracker_summary_preserves_spanish_hydraulic_aliases(
     out = normalize_table(df_raw, spec)
 
     assert out.loc[0, canonical_column] == expected
+
+
+def test_nivus_summary_preserves_unicode_area_and_temperature_aliases():
+    with open("configs/normalization/nivus.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20241219",
+                "measurement_time": "214313",
+                "instrument": "nivus",
+                "q [l/s]": "75.591",
+                "a [m²]": "0.7175",
+                "t [°C]": "24.09",
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, "area_total_m2"] == 0.7175
+    assert out.loc[0, "temperature_c"] == 24.09
