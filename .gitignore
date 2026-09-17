@@ -66,3 +66,7 @@ data/**/*.parquet
 database/**/*.csv
 database/**/*.xlsx
 database/**/*.parquet
+
+# Local audit/debug outputs
+nivus_acceptance_audit.csv
+normalize_output.txt
