@@ -334,6 +334,7 @@ validation:
 
   hydraulic_consistency:
     q_tolerance_pct: 1.0
+    q_tolerance_abs_ls: 0.5
     area_tolerance_pct: 1.0
 
   ranges:
@@ -373,7 +374,7 @@ external_sources:
     normalized_dir: database/external/normalized/model
 
   dinagua:
-    raw_dir: database/external/raw/dinagua
+    raw_dir: data/external/raw/dinagua
     normalized_dir: database/external/normalized/dinagua
 
   manual_stage:
