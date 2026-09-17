@@ -8,13 +8,30 @@ import pandas as pd
 from aforix.validation.common import DEFAULT_KEYS, read_table, write_report
 
 
+TABLE_KEY_SUFFIXES = {
+    "Summary": [],
+    "Points": ["point_index"],
+}
+
+
+def _keys_for_table(table_name: str, df: pd.DataFrame, base_keys: list[str]) -> list[str]:
+    keys = [*base_keys, *TABLE_KEY_SUFFIXES.get(table_name, [])]
+
+    if table_name == "Points" and "instrument" in df.columns and "percent_depth" in df.columns:
+        instruments = set(df["instrument"].dropna().astype(str).str.lower())
+        if "flowtracker" in instruments:
+            keys.append("percent_depth")
+
+    return keys
+
+
 def run(
     *,
     input_dir: Path,
     output_dir: Path,
     validation_cfg: dict[str, Any],
 ) -> tuple[Path, pd.DataFrame]:
-    keys = validation_cfg.get("keys", DEFAULT_KEYS)
+    base_keys = validation_cfg.get("keys", DEFAULT_KEYS)
     rows: list[pd.DataFrame] = []
 
     for table_name in ("Summary", "Points"):
@@ -23,6 +40,7 @@ def run(
         if df is None:
             continue
 
+        keys = _keys_for_table(table_name, df, base_keys)
         available_keys = [col for col in keys if col in df.columns]
 
         if len(available_keys) != len(keys):
@@ -41,13 +59,13 @@ def run(
             )
             continue
 
-        duplicated = df[df.duplicated(subset=available_keys, keep=False)].copy()
+        duplicated = df[df.duplicated(subset=keys, keep=False)].copy()
 
         if duplicated.empty:
             continue
 
         counts = (
-            duplicated.groupby(available_keys, dropna=False)
+            duplicated.groupby(keys, dropna=False)
             .size()
             .reset_index(name="duplicate_count")
         )
@@ -60,7 +78,7 @@ def run(
         report = pd.concat(rows, ignore_index=True)
     else:
         report = pd.DataFrame(
-            columns=["table", "status", *keys, "duplicate_count"]
+            columns=["table", "status", *base_keys, "duplicate_count"]
         )
 
     path = write_report(report, output_dir, "duplicates.csv")

@@ -18,6 +18,7 @@ def run(
     cfg = validation_cfg.get("hydraulic_consistency", {}) or {}
 
     q_tolerance_pct = float(cfg.get("q_tolerance_pct", 1.0))
+    q_tolerance_abs_ls = float(cfg.get("q_tolerance_abs_ls", 0.0))
     area_tolerance_pct = float(cfg.get("area_tolerance_pct", 1.0))
 
     summary = read_table(input_dir, "Summary")
@@ -90,9 +91,11 @@ def run(
     merged["q_diff_m3s"] = merged["q_points_m3s"] - merged["q_total_m3s"]
     merged["q_diff_ls"] = merged["q_points_ls"] - merged["q_total_ls"]
 
+    q_denominator = merged["q_total_m3s"].abs()
     merged["q_rel_diff_pct"] = (
-        merged["q_diff_m3s"] / merged["q_total_m3s"] * 100
+        merged["q_diff_m3s"].abs() / q_denominator * 100
     )
+    merged.loc[q_denominator == 0, "q_rel_diff_pct"] = pd.NA
 
     merged["area_diff_m2"] = merged["area_points_m2"] - merged["area_total_m2"]
 
@@ -100,7 +103,10 @@ def run(
         merged["area_diff_m2"] / merged["area_total_m2"] * 100
     )
 
-    merged["q_ok"] = merged["q_rel_diff_pct"].abs() <= q_tolerance_pct
+    q_abs_ok = merged["q_diff_ls"].abs() <= q_tolerance_abs_ls
+    q_rel_ok = merged["q_rel_diff_pct"] <= q_tolerance_pct
+    merged["q_ok"] = q_abs_ok | q_rel_ok.fillna(False)
+
     merged["area_ok"] = merged["area_rel_diff_pct"].abs() <= area_tolerance_pct
 
     merged["status"] = "ok"

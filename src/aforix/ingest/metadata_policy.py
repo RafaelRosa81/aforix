@@ -146,6 +146,9 @@ def extract_metadata_field(
             f"Unsupported metadata extraction strategy for {field_name}: {strategy}"
         )
 
+    # Source selection and station-id transformations are controlled by the
+    # instrument's metadata_policy. Do not canonicalize or renumber station IDs
+    # implicitly at this boundary.
     value = _first_non_empty(sources, context=context)
 
     transforms = field_policy.get("transforms", []) or []

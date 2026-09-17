@@ -1,4 +1,6 @@
 import pandas as pd
+import pytest
+import yaml
 
 from aforix.canonical.normalizer import normalize_table
 
@@ -66,3 +68,88 @@ def test_normalize_table_uses_metadata_sources_and_policy():
     assert out.loc[0, "instrument"] == "molinete"
     assert out.loc[0, "source_file"] == "P11.xlsx"
     assert out.loc[0, "q_total_m3s"] == 0.082686
+
+
+def test_flowtracker_summary_preserves_canonical_area_total_m2():
+    with open("configs/normalization/flowtracker.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20260122",
+                "measurement_time": "142258",
+                "instrument": "flowtracker",
+                "area_total_m2": "4.188",
+                "total_discharge_m3_s": "0.0458",
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, "area_total_m2"] == 4.188
+
+
+@pytest.mark.parametrize(
+    ("raw_column", "canonical_column", "raw_value", "expected"),
+    [
+        ("ancho_total_m", "width_total_m", "2.9", 2.9),
+        ("velocidad_media_m_s", "velocity_mean_m_s", "0.1168", 0.1168),
+        ("calado_medido_m", "depth_mean_m", "0.135", 0.135),
+        ("temp_promedio_degc", "temperature_c", "24.77", 24.77),
+    ],
+)
+def test_flowtracker_summary_preserves_spanish_hydraulic_aliases(
+    raw_column, canonical_column, raw_value, expected
+):
+    with open("configs/normalization/flowtracker.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20260122",
+                "measurement_time": "142258",
+                "instrument": "flowtracker",
+                "total_discharge_m3_s": "0.0458",
+                raw_column: raw_value,
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, canonical_column] == expected
+
+
+def test_nivus_summary_preserves_unicode_area_and_temperature_aliases():
+    with open("configs/normalization/nivus.yaml", encoding="utf-8") as f:
+        registry = yaml.safe_load(f)
+
+    spec = registry["tables"]["Summary"]
+    df_raw = pd.DataFrame(
+        [
+            {
+                "station_id": "7001",
+                "station_name": "Prueba",
+                "measurement_date": "20241219",
+                "measurement_time": "214313",
+                "instrument": "nivus",
+                "q [l/s]": "75.591",
+                "a [m²]": "0.7175",
+                "t [°C]": "24.09",
+            }
+        ]
+    )
+
+    out = normalize_table(df_raw, spec)
+
+    assert out.loc[0, "area_total_m2"] == 0.7175
+    assert out.loc[0, "temperature_c"] == 24.09

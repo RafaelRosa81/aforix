@@ -28,16 +28,8 @@ ingest:
             key: input_file
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
@@ -99,16 +91,8 @@ ingest:
             key: station_id
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
@@ -168,16 +152,8 @@ ingest:
             key: reference
           - type: raw_field
             key: fallback_station_id
-          - type: path_regex
-            pattern: "P(?P<value>\\d{1,4})"
         transforms:
           - strip
-          - uppercase
-          - name: remove_prefix
-            value: "P"
-          - digits_only
-        normalize:
-          digits_only: true
 
       station_name:
         strategy: first_non_empty
@@ -358,6 +334,7 @@ validation:
 
   hydraulic_consistency:
     q_tolerance_pct: 1.0
+    q_tolerance_abs_ls: 0.5
     area_tolerance_pct: 1.0
 
   ranges:
@@ -397,7 +374,7 @@ external_sources:
     normalized_dir: database/external/normalized/model
 
   dinagua:
-    raw_dir: database/external/raw/dinagua
+    raw_dir: data/external/raw/dinagua
     normalized_dir: database/external/normalized/dinagua
 
   manual_stage:

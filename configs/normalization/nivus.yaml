@@ -42,10 +42,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P
@@ -252,10 +249,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P
@@ -445,10 +439,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P
@@ -624,10 +615,7 @@ tables:
           - run_id
 
     metadata_policy:
-      station_id:
-        remove_prefixes:
-          - P
-        digits_only: true
+      station_id: {}
       station_code:
         enabled: true
         prefix: P

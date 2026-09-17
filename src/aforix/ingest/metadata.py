@@ -15,14 +15,22 @@ class MeasurementMeta:
 
 
 def clean_station_id(value: str | None, *, fallback: str | None = None) -> str:
-    """Normalize station ID values extracted from source files."""
+    """Clean a station identifier without changing its identity.
 
-    if value:
-        text = str(value).strip()
+    This helper only removes common file-name wrappers and unsafe separator
+    characters. It deliberately does not map ``P<n>`` into any numeric
+    namespace: station numbering belongs to the raw source and to the
+    configurable metadata policy.
+    """
 
-        # Common FlowTracker case:
-        # CHAM1512.WAD -> CHAM1512
-        # P82001.TXT.WAD -> P82001.TXT -> P82001
+    candidate = value if value else fallback
+
+    if candidate:
+        text = str(candidate).strip()
+
+        # Common FlowTracker wrappers:
+        # 70101.TXT.WAD -> 70101.TXT -> 70101
+        # P71.TXT.WAD   -> P71.TXT   -> P71
         text = Path(text).stem
 
         if text.upper().endswith(".TXT"):
@@ -31,10 +39,7 @@ def clean_station_id(value: str | None, *, fallback: str | None = None) -> str:
         text = re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_")
 
         if text:
-            return text.upper()
-
-    if fallback:
-        return str(fallback).strip().upper()
+            return text
 
     return "UNKNOWN"
 
