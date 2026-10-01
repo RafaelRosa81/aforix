@@ -1,0 +1,529 @@
+project:
+  name: aforix_real_data_acceptance
+  description: Pipeline para procesamiento de datos de aforos
+  timezone: America/Montevideo
+
+paths:
+  raw_data_dir: data/raw
+  runs_root: runs_acceptance
+  database_root: database_acceptance
+
+ingest:
+  flowtracker:
+    enabled: true
+    raw_subdir: FT
+    spec_path: configs/specs/flowtracker.yaml
+
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: file_name
+          - type: raw_field
+            key: nombre_del_fichero
+          - type: raw_field
+            key: input_file
+          - type: raw_field
+            key: fallback_station_id
+        transforms:
+          - strip
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: site_name
+          - type: raw_field
+            key: station_name
+          - type: raw_field
+            key: nom_del_punto_de_aforo
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: start_date_time
+          - type: raw_field
+            key: start_date_and_time
+          - type: raw_field
+            key: fecha_y_hora_de_inicio
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: start_date_time
+          - type: raw_field
+            key: start_date_and_time
+          - type: raw_field
+            key: fecha_y_hora_de_inicio
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%H%M%S"
+
+  molinete:
+    enabled: true
+    raw_subdir: ML
+    sheet_name: CALCULO
+
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: fallback_station_id
+        transforms:
+          - strip
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%m/%d/%Y"
+            - "%d/%m/%Y"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%H:%M"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+            - "%m/%d/%Y %H:%M:%S"
+            - "%d/%m/%Y %H:%M:%S"
+          output_format: "%H%M%S"
+
+  nivus:
+    enabled: true
+    raw_subdir: NV
+
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: ref
+          - type: raw_field
+            key: reference
+          - type: raw_field
+            key: fallback_station_id
+        transforms:
+          - strip
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+          - type: raw_field
+            key: name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+          - type: raw_field
+            key: timestamp_time
+          - type: filename_regex
+            pattern: "(?P<value>\\d{8})_\\d{6}"
+        normalize:
+          input_formats:
+            - "%Y%m%d"
+            - "%Y-%m-%d"
+            - "%Y/%m/%d"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+          - type: raw_field
+            key: timestamp_time
+          - type: filename_regex
+            pattern: "\\d{8}_(?P<value>\\d{6})"
+        normalize:
+          input_formats:
+            - "%H%M%S"
+            - "%H:%M:%S"
+            - "%H:%M"
+            - "%Y-%m-%d %H:%M:%S"
+            - "%Y/%m/%d %H:%M:%S"
+          output_format: "%H%M%S"
+
+  m9:
+    enabled: true
+    raw_subdir: M9
+
+build_groups:
+  enabled: true
+  output_dir: database_acceptance/raw_canonical
+
+  use_latest_run_only: true
+
+  deduplicate: true
+  deduplicate_by:
+    - instrument
+    - station_id
+    - measurement_date
+    - measurement_time
+    - group
+
+  manifest: true
+
+  groups:
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups:
+    - Summary
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+
+normalize:
+  enabled: true
+  registry_dir: configs/normalization
+  input_dir: database_acceptance/raw_canonical
+  output_dir: database_acceptance/normalized
+
+  write_policy: overwrite
+
+  groups:
+    - Summary
+    - Points
+    - Sections
+    - Gates
+
+  concat_groups:
+    - Summary
+    - Points
+
+  sources:
+    - flowtracker
+    - molinete
+    - nivus
+
+validation:
+  enabled: true
+  strict: false
+  input_dir: database_acceptance/normalized
+  output_dir: database_acceptance/validation
+
+  traceability_columns:
+    - station_id
+    - station_name
+    - measurement_date
+    - measurement_time
+    - instrument
+    - source_file
+    - source_run_dir
+    - run_id
+
+  keys:
+    - instrument
+    - station_id
+    - measurement_date
+    - measurement_time
+
+  checks:
+    required_columns: true
+    duplicates: true
+    completeness: true
+    ranges: true
+    hydraulic_consistency: true
+
+  required_columns:
+    Summary:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - q_total_m3s
+      - q_total_ls
+      - area_total_m2
+    Points:
+      - station_id
+      - station_name
+      - measurement_date
+      - measurement_time
+      - instrument
+      - source_file
+      - source_run_dir
+      - run_id
+      - point_index
+      - distance_m
+      - depth_m
+      - area_m2
+      - q_m3s
+      - q_ls
+
+  completeness:
+    critical_columns:
+      Summary:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_total_m3s
+      Points:
+        - station_id
+        - measurement_date
+        - measurement_time
+        - instrument
+        - q_m3s
+
+  hydraulic_consistency:
+    q_tolerance_pct: 1.0
+    q_tolerance_abs_ls: 0.5
+    area_tolerance_pct: 1.0
+
+  ranges:
+    Summary:
+      area_total_m2:
+        min: 0
+      width_total_m:
+        min: 0
+      depth_mean_m:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
+    Points:
+      depth_m:
+        min: 0
+      area_m2:
+        min: 0
+      temperature_c:
+        min: -5
+        max: 45
+
+export:
+  tables:
+    enabled: true
+    input_dir: database_acceptance/normalized
+    output_dir: outputs_acceptance/tables
+
+  excel:
+    enabled: true
+    input_dir: database_acceptance/normalized
+    output_dir: outputs_acceptance/excel
+
+external_sources:
+  model:
+    raw_dir: database/external/raw/model
+    normalized_dir: database_acceptance/external/normalized/model
+
+  dinagua:
+    raw_dir: data/external/raw/dinagua
+    normalized_dir: database_acceptance/external/normalized/dinagua
+
+  manual_stage:
+    enabled: true
+    raw_dir: data/external/manual_stage
+    normalized_dir: database_acceptance/external/normalized/manual_stage
+
+analysis:
+  correlation:
+    output_root: runs_acceptance/analysis_correlation
+    measuring_instruments:
+      - code: NV
+        name: Nivus
+        subdir: nivus
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
+      - code: FT
+        name: FlowTracker
+        subdir: flowtracker
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
+      - code: ML
+        name: Molinete
+        subdir: molinete
+        summary_format: wide
+        flow_column: q_total_ls
+        flow_unit: l/s
+    default_ranking:
+      - NV
+      - FT
+      - ML
+    variable_roles:
+      gauges_vs_model:
+        x: model
+        y: gauge
+      gauges_vs_stations:
+        x: station
+        y: gauge
+      model_vs_stations:
+        x: station
+        y: model
+
+  quality_metrics:
+    enabled: true
+    input_dirs:
+      normalized_root: database_acceptance/normalized
+      raw_canonical_root: database_acceptance/raw_canonical
+    output_root: runs_acceptance/analysis_quality_metrics
+
+    instruments:
+      nivus:
+        enabled: true
+        tables:
+          normalized_points: nivus/Points
+          raw_points: nivus/Points
+        columns:
+          weight_column: percent_q
+
+  section_profiles:
+    enabled: true
+
+    input_dirs:
+      normalized_root: database_acceptance/normalized
+
+    output:
+      run_output_root: runs_acceptance/analysis_section_profiles
+      stable_output_dir: database_acceptance/analysis/section_profiles
+      write_stable_copy: false
+
+    selection:
+      points: all
+      instruments: all
+      start_date: null
+      end_date: null
+
+    defaults:
+      x_axis: distance_m
+      y_axis: depth_m
+      chart_type: scatter
+
+    allowed:
+      x_columns:
+        - distance_m
+        - point_index
+        - station_id
+      y_columns:
+        - depth_m
+        - velocity_mean_m_s
+        - area_m2
+        - q_m3s
+        - q_ls
+        - percent_q
+        - temperature_c
+      chart_types:
+        - scatter
+        - line
+        - scatter_line
+
+    instruments:
+      nivus:
+        enabled: true
+        code: NV
+        points_table: nivus/Points
+
+      flowtracker:
+        enabled: true
+        code: FT
+        points_table: flowtracker/Points
+
+      molinete:
+        enabled: true
+        code: ML
+        points_table: molinete/Points
+
+  stage_discharge:
+    enabled: true
+
+    input_dirs:
+      normalized_root: database_acceptance/normalized
+      manual_stage_root: database_acceptance/external/normalized/manual_stage
+
+    output:
+      run_output_root: runs_acceptance/analysis_stage_discharge
+      stable_output_dir: database_acceptance/analysis/stage_discharge
+      write_stable_copy: false
+
+    selection:
+      points: all
+      instruments: all
+      start_date: null
+      end_date: null
+
+    matching:
+      keys:
+        - station_id
+        - measurement_date
+      stage_sources:
+        - manual
+        - instrument
+
+    columns:
+      discharge: q_total_m3s
+      stage_manual: stage_m
+      stage_instrument: stage_instrument_m
+      date: measurement_date
+      station: station_id
+
+    charts:
+      x_axis: stage_m
+      y_axis: q_total_m3s
+      include_labels: true
