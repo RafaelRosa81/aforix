@@ -70,3 +70,9 @@ database/**/*.parquet
 # Local audit/debug outputs
 nivus_acceptance_audit.csv
 normalize_output.txt
+
+
+# Real-data acceptance outputs
+runs_acceptance/
+database_acceptance/
+outputs_acceptance/
