@@ -994,3 +994,10 @@ Lookup IDs currently adopted:
 - `ADCP=12`.
 
 A configuration regression test was added without modifying the user's local config files. It checks both lookup resolvability and synchronization between production and acceptance SIH mappings.
+
+
+### SIH mapping consistency — expected failure confirmed
+
+Initial regression result: **1 passed / 1 failed**. Lookup resolvability passed with the user's local production-config edits; acceptance/main mapping synchronization failed as expected.
+
+The acceptance SIH config is now synchronized to the adopted mappings. Re-run the focused consistency test before committing the user's local `sih.yaml` and `instrumentos_rangos.csv` edits.
