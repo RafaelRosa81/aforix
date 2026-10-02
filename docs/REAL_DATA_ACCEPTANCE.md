@@ -1009,3 +1009,12 @@ Focused config consistency test: **2 passed**.
 Full suite: **99 passed**.
 
 This verifies lookup-key resolvability and synchronization between the main and acceptance SIH mappings using the user's current local production-config edits. Real-data export verification with the adopted IDs remains pending.
+
+
+### SIH-04 — adopted FlowTracker/Molinete mappings
+
+Acceptance target for the current two-measurement selection:
+- FlowTracker ACCF001: `id_tipo_actuacion=4`, `id_instrumento=501`, `id_tipo_aforo=57`, `id_instrumentos_rangos=11`;
+- Molinete ACCM001: `id_tipo_actuacion=4`, `id_instrumento=19`, `id_tipo_aforo=57`, `id_instrumentos_rangos=11`.
+
+`scripts/acceptance_check_sih_expected_ids.py` verifies those exact IDs plus successful metadata status. Manual inspection remains required for the complete CSV contents and usability.
