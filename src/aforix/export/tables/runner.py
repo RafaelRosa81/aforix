@@ -22,6 +22,22 @@ METADATA_COLUMNS = {
 DATE_CANDIDATES = ["measurement_date", "Date", "date", "datetime", "timestamp"]
 POINT_CANDIDATES = ["station_id", "Point", "point", "station", "site_id"]
 
+NORMALIZED_ID_DTYPES = {
+    "station_id": "string",
+    "measurement_date": "string",
+    "measurement_time": "string",
+}
+
+
+def _read_normalized_csv(path: Path) -> pd.DataFrame:
+    """Read normalized CSVs without losing identity formatting.
+
+    Numeric measurement columns are still inferred normally, while station/date/time
+    identity fields are kept as strings so values such as 093425 remain six digits
+    in user-facing exports.
+    """
+    return pd.read_csv(path, dtype=NORMALIZED_ID_DTYPES)
+
 
 @dataclass(frozen=True)
 class ExportRequest:
@@ -116,7 +132,7 @@ def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "a
 def load_normalized_table(config: dict, table: str, instrument: str = "all") -> tuple[pd.DataFrame, list[Path]]:
     root_csv = _root_table_csv(config, table)
     if root_csv is not None:
-        df = pd.read_csv(root_csv)
+        df = _read_normalized_csv(root_csv)
         if instrument and instrument.lower() != "all" and "instrument" in df.columns:
             df = df[df["instrument"].astype(str).str.lower() == instrument.lower()]
         return df, [root_csv]
@@ -131,7 +147,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         for tdir in table_dirs:
             inst_name = tdir.parent.name
             for f in sorted(tdir.glob("*.csv")):
-                df = pd.read_csv(f)
+                df = _read_normalized_csv(f)
                 if "instrument" not in df.columns:
                     df.insert(0, "instrument", inst_name)
                 frames.append(df)
@@ -144,7 +160,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         raise FileNotFoundError(f"No CSV files found in normalized table directory: {tdir}")
     frames = []
     for f in files:
-        frames.append(pd.read_csv(f))
+        frames.append(_read_normalized_csv(f))
     df = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
     return df, files
 
