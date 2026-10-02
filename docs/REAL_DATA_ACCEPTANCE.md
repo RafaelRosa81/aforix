@@ -770,3 +770,22 @@ Production runner behavior is now corrected so explicit flat mode is authoritati
 - metadata reports flat semantics consistently.
 
 Verification is pending the focused regression and full pytest suite.
+
+
+### Export tables module — final acceptance
+
+MAIN-016 verification completed successfully:
+
+- `tests/test_export_tables_flat_override.py`: **1 passed**;
+- full suite: **94 passed**.
+
+The `export tables` module is now accepted for the current campaign. Verified capabilities include:
+- flat XLSX/CSV exports;
+- exact station/date/instrument filters;
+- preservation of authoritative station/date/time identity;
+- interactive export workflow;
+- daily and monthly pivot as explicit analytical options;
+- flat as the default/recommended layout;
+- explicit `--flat` override semantics.
+
+EXP-TABLES is **PASS (module complete for current scope)**.
