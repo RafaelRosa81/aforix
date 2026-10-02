@@ -205,3 +205,15 @@ A clean SIH regeneration after the file-lock issue confirmed the production fix 
 - the only remaining semantic blank in these two aforos is `id_instrumentos_rangos`.
 
 MAIN-018 is fully verified for integration.
+
+
+### MAIN-019 implementation note
+
+The strictness regression failed as intended: both explicitly configured but unresolved semantic lookups returned blank instead of raising.
+
+Production resolver behavior is now:
+- a direct configured ID still wins;
+- if no direct ID and no lookup key is configured, the field may remain intentionally blank;
+- if a lookup key is explicitly configured, it must resolve exactly once or raise a `ValueError`.
+
+This makes unresolved SIH semantics visible in the per-measurement export metadata instead of silently producing a successful export with a blank configured ID. Verification is pending.
