@@ -565,3 +565,17 @@ Manual acceptance:
 - selected hydraulic fields are presented correctly.
 
 EXP-TABLES-03 is **PASS (automated + manual)**.
+
+
+### EXP-TABLES-04 — daily pivot XLSX
+
+Next case tests the grouped/pivot branch of `export tables` using the same FlowTracker date window as EXP-TABLES-03:
+
+- instrument: `flowtracker`
+- date range: `20260119` through `20260122`
+- grouping: `daily`
+- aggregation: `mean`
+- format: XLSX
+- parameters: `q_total_ls`, `area_total_m2`
+
+The checker independently builds the expected daily pivot from normalized Summary data and verifies period-major columns, complete date coverage (including dates with blank cells), station rows, numeric mean fidelity, and metadata.
