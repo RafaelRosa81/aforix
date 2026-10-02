@@ -227,3 +227,22 @@ The configured-lookup strictness correction is fully verified at code level:
 - full test suite: **97 passed** (repeated twice with the same result).
 
 Explicitly configured SIH semantic lookup keys now must resolve exactly once; otherwise the measurement export raises and is recorded as an error instead of silently emitting a blank configured ID. MAIN-019 is verified for integration.
+
+
+### MAIN-019 real-data verification complete
+
+SIH-03 verified the strict configured-lookup behavior end to end with real acceptance data:
+
+- output directory was confirmed clean before execution;
+- generated files: **1** (`sih_export_metadata.csv` only);
+- expected unresolved lookup checker: **5/5 PASS**;
+- both selected measurements were recorded as explicit export errors;
+- no partial `actuacion` or `aforo` CSVs were emitted.
+
+This confirms that unresolved configured SIH semantics no longer pass silently. MAIN-019 is fully verified for integration.
+
+### Current migration checkpoint
+
+All production-code findings intended for later integration into `main` are tracked in this register. Acceptance-only configs/checkers/docs remain campaign scaffolding and should not be merged blindly with production changes.
+
+Latest verified full test suite: **97 passed**.
