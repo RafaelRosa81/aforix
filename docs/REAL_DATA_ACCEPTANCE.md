@@ -757,3 +757,16 @@ Target rule:
 - filename and metadata must describe a flat export.
 
 A regression test was added before production changes.
+
+
+### Export tables flat override — production correction
+
+The regression test failed as intended: `grouping=daily` with `pivot=False` still generated pivoted date columns instead of a row-wise flat export.
+
+Production runner behavior is now corrected so explicit flat mode is authoritative. When `pivot=False`:
+- effective grouping is `none`;
+- the output is built with the flat path;
+- filename shape is `flat`;
+- metadata reports flat semantics consistently.
+
+Verification is pending the focused regression and full pytest suite.
