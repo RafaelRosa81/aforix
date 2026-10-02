@@ -73,7 +73,13 @@ def _lookup_value(
         return ""
 
     lookup_df = lookup_tables[table_name]
-    matches = lookup_df[lookup_df[key_column].astype(str) == str(key)]
+
+    # Textual lookup keys are identifiers by representation, not by case or
+    # accidental surrounding whitespace. Normalize only those superficial
+    # differences; do not create semantic aliases between different labels.
+    normalized_key = str(key).strip().casefold()
+    normalized_series = lookup_df[key_column].astype(str).str.strip().str.casefold()
+    matches = lookup_df[normalized_series == normalized_key]
 
     if matches.empty:
         if required:
