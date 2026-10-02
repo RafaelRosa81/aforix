@@ -70,6 +70,13 @@ This 250-unique-payload baseline is consistent with the previously validated 250
 | --- | --- | --- | --- |
 | BASE-01 | RAW physical inventory | PASS | 257 physical files, 250 unique SHA-256 payloads |
 | CFG-01 | `aforix config-check` using `acceptance_real.yaml` | PASS | Configuration loaded successfully |
-| ING-FT | FlowTracker ingest | NEXT | Expected: 30/30 physical files processed; 29 unique measurement outputs because one pair is byte-identical |
+| ING-FT | FlowTracker ingest | PASS / WARN | 30/30 physical files processed; 29 Summary + 29 Points outputs; exact duplicate pair collapses to one measurement output |
 | ING-ML | Molinete ingest | PENDING | 13 unique RAW files |
 | ING-NV | Nivus ingest | PENDING | 214 physical XML files / 208 unique payloads |
+
+
+### Acceptance infrastructure issue discovered during ING-FT
+
+`paths.runs_root: runs_acceptance` is currently ignored by `create_run()`, which hard-codes the root directory as `runs/`. The FlowTracker acceptance run therefore completed successfully but was written under the normal `runs/` tree.
+
+A regression test was added first in `tests/test_runs_manager.py`. It defines the required behavior: `create_run()` must honor the configured `paths.runs_root` relative to the project root. The production fix will be applied only after the failing regression test is confirmed.
