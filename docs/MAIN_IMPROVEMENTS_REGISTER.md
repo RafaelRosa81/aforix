@@ -121,3 +121,13 @@ Both CLI and interactive table export now default to `grouping=none`. Daily/mont
 ### MAIN-015 implementation note
 
 The intended regression failure was observed: entering bare `1` selected station `7001` because the code treated it as list index 1. Interactive station selection now gives exact station IDs priority. Explicit index syntax (`idx:N` or `[N]`) remains supported. Verification is pending.
+
+
+### MAIN-015 verification complete
+
+The interactive station-selection correction is fully verified:
+
+- focused interactive-selection tests: **2/2 PASS**;
+- full test suite: **93 passed**.
+
+Exact authoritative station IDs now take precedence in station-selection prompts. Explicit index selection remains available through `idx:N` or `[N]`. MAIN-015 is verified for integration.
