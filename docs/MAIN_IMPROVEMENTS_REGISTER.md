@@ -316,3 +316,31 @@ A focused regression test was added first and is expected to fail until the two 
 ### MAIN-020 diagnosis — operator mapping contract
 
 The current repository contains no SIH operator lookup table or operator-ID mapping. Molinete maps raw field `realizado` directly into output column `id_operador`; the reviewed row therefore exports the source text `I. Pérez`. This cannot be classified as correct or incorrect from repository evidence alone. Keep MAIN-020 open until the SIH contract or authoritative operator-ID catalogue is available; do not invent an ID.
+
+
+### MAIN-021 regression result and real-data diagnosis
+
+The focused regression failed exactly as intended: `sih.yaml` still maps Molinete `escala_media` to raw column `escala_media` instead of the adapter column `escala_media_m`.
+
+Real-data diagnostic for station `7071`, date `20260120`, time `142300` showed:
+- `id_operador -> realizado`: column exists, value `I. Pérez`;
+- `lectura_escala -> escala_media`: configured source column does not exist;
+- `escala_inicio -> esc_ini_m`: column exists, but source value is blank;
+- `escala_fin -> esc_fin_m`: column exists, but source value is blank;
+- `escala_media -> escala_media`: configured source column does not exist;
+- actual adapter column `escala_media_m`: column exists, but source value is blank;
+- `observaciones`: present;
+- `radio_hidraulico_m`: present (`0.22646286086565168`).
+
+Conclusion: there is a genuine configuration defect for the mean-scale mappings (`lectura_escala` and `escala_media` should reference `escala_media_m`), but the selected real Molinete measurement itself contains no scale values in `esc_ini_m`, `esc_fin_m`, or `escala_media_m`. Therefore correcting the mapping is necessary for future/other measurements but will not populate scale fields for this specific acceptance row.
+
+MAIN-021 remains **FOLLOW-UP** until the configuration correction is implemented and the regression/full suite are rerun.
+
+### Acceptance pause checkpoint — SIH
+
+Work paused after the MAIN-021 diagnostic. Last fully green suite before the intentionally failing regression: **99 passed**. Current focused regression state: **1 expected FAIL** in `tests/test_sih_molinete_scale_mapping.py`, pending production/config correction.
+
+Open SIH items at pause:
+- MAIN-020: confirm SIH semantics for `id_operador`; current Molinete export carries source text `I. Pérez`, and the repository has no operator-ID lookup or authoritative mapping;
+- MAIN-021: change Molinete `lectura_escala` and `escala_media` source mappings from nonexistent `escala_media` to adapter column `escala_media_m`, then rerun focused/full tests and SIH export;
+- after MAIN-020/021, continue real-data SIH acceptance with Nivus (`id_tipo_aforo=57`, `id_instrumentos_rangos=10`).
