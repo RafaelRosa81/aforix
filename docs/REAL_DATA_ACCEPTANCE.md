@@ -71,7 +71,7 @@ This 250-unique-payload baseline is consistent with the previously validated 250
 | BASE-01 | RAW physical inventory | PASS | 257 physical files, 250 unique SHA-256 payloads |
 | CFG-01 | `aforix config-check` using `acceptance_real.yaml` | PASS | Configuration loaded successfully |
 | ING-FT | FlowTracker ingest | PASS | 30 physical RAW files; 29 unique measurement outputs; isolated acceptance run confirmed |
-| ING-ML | Molinete ingest | PENDING | 13 unique RAW files |
+| ING-ML | Molinete ingest | PASS | 13/13 real measurements passed independent RAW-to-ingest checks |
 | ING-NV | Nivus ingest | PENDING | 214 physical XML files / 208 unique payloads |
 
 
@@ -117,3 +117,17 @@ Real-data Molinete ingest produced:
 - Points outputs: **13**
 
 This matches the baseline of 13 unique Molinete RAW Excel files. Numerical/source fidelity remains to be checked before final PASS.
+
+
+### ING-ML final acceptance verification
+
+Independent real-data Molinete acceptance check completed successfully:
+
+- run: `runs_acceptance/ingest_molinete/20261001_220110`
+- Summary files: **13**
+- Points files: **13**
+- measurements checked: **13**
+- PASS: **13**
+- FAIL: **0**
+
+The independent checker opened the RAW Excel files directly and compared station identity plus total discharge, area, mean velocity, Points sums, and point counts against Aforix ingest outputs. ING-ML is accepted for the current real-data corpus.
