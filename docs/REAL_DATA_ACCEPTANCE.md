@@ -892,3 +892,13 @@ The output directory had just been opened for manual review. On Windows, an open
 Therefore the subsequent semantic checker result is **not accepted as a clean rerun**. Molinete already shows `id_tipo_aforo=57`, but FlowTracker still shows blank and may be stale. Re-run only after closing all SIH CSVs/Excel windows and confirming the output directory is actually removed before export.
 
 The unresolved `Velocimetro puntual` / `id_instrumentos_rangos` issue remains independent and expected.
+
+
+### SIH-02a clean real-data verification
+
+The clean rerun completed successfully and generated the expected 5 files. The semantic checker still reports **2 PASS / 4 FAIL**, but the failure content is now exactly the expected unresolved range mapping:
+
+- FlowTracker: `id_tipo_aforo=57`, `id_instrumentos_rangos=""`;
+- Molinete: `id_tipo_aforo=57`, `id_instrumentos_rangos=""`.
+
+This confirms MAIN-018 end to end. The remaining SIH-02 issue is solely the configured `Velocimetro puntual` concept not existing in the current `instrumentos_rangos.csv`.
