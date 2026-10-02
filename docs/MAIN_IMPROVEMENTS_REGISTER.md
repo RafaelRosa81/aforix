@@ -217,3 +217,13 @@ Production resolver behavior is now:
 - if a lookup key is explicitly configured, it must resolve exactly once or raise a `ValueError`.
 
 This makes unresolved SIH semantics visible in the per-measurement export metadata instead of silently producing a successful export with a blank configured ID. Verification is pending.
+
+
+### MAIN-019 verification complete
+
+The configured-lookup strictness correction is fully verified at code level:
+
+- focused regression: **2/2 PASS**;
+- full test suite: **97 passed** (repeated twice with the same result).
+
+Explicitly configured SIH semantic lookup keys now must resolve exactly once; otherwise the measurement export raises and is recorded as an error instead of silently emitting a blank configured ID. MAIN-019 is verified for integration.
