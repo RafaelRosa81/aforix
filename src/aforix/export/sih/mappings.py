@@ -173,6 +173,9 @@ def resolve_tipo_aforo_lookup_id(
         return str(direct_value)
 
     lookup_key = instrument_cfg.get("tipo_aforo_lookup")
+    if lookup_key in (None, ""):
+        return ""
+
     lookup_cfg = sih_config["sih"]["lookup_tables"]["tipos_aforos"]
 
     return _lookup_value(
@@ -182,7 +185,7 @@ def resolve_tipo_aforo_lookup_id(
         value_column=lookup_cfg["value_column"],
         key=lookup_key,
         label=f"tipo_aforo={lookup_key}",
-        required=False,
+        required=True,
     )
 
 
@@ -197,6 +200,9 @@ def resolve_instrumentos_rangos_lookup_id(
         return str(direct_value)
 
     lookup_key = instrument_cfg.get("instrumentos_rangos_lookup")
+    if lookup_key in (None, ""):
+        return ""
+
     lookup_cfg = sih_config["sih"]["lookup_tables"]["instrumentos_rangos"]
 
     return _lookup_value(
@@ -206,7 +212,7 @@ def resolve_instrumentos_rangos_lookup_id(
         value_column=lookup_cfg["value_column"],
         key=lookup_key,
         label=f"instrumentos_rangos={lookup_key}",
-        required=False,
+        required=True,
     )
 
 
