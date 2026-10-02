@@ -30,7 +30,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-012 | Placeholder commands | `export excel`, M9 ingest, filter-groups, and statistics analysis are not complete production implementations in the audited codebase. | Structural review during acceptance campaign. | **PLACEHOLDER** | Keep clearly documented as incomplete; test/implement separately rather than treating CLI presence as acceptance. |
 | MAIN-013 | SIH acceptance isolation | Default SIH config still points to standard database/output paths rather than acceptance-specific paths. | Identified during pipeline mapping; SIH acceptance not yet executed. | **FOLLOW-UP** | Create/use an isolated SIH acceptance config before real-data SIH tests. |
 | MAIN-014 | Export tables station-selection guidance | CLI help and export metadata still described legacy/ambiguous point-code behavior after station identity was made exact. | Found during EXP-TABLES continuation after MAIN-008. | **MERGE** | Merge wording cleanup so non-interactive table export documents exact `station_id` matching and does not imply P aliases or unsupported index-token behavior. |
-| MAIN-015 | Interactive export station selection | Interactive multi-select checks bare numeric tokens as list indices before exact station IDs. With numeric station IDs, a user-entered station such as `7071` could be interpreted ambiguously if it falls within index range; help text also still mentions legacy P-style codes. | Found while preparing interactive export acceptance after flat-default change. | **FOLLOW-UP** | Regression-first: exact station IDs must win when `allow_codes=True`; index selection should require explicit `idx:N` or `[N]`. Remove legacy P-code wording. |
+| MAIN-015 | Interactive export station selection | Interactive multi-select checked bare numeric tokens as list indices before exact station IDs, so a numeric station ID could select the wrong station. | Regression reproduced the ambiguity: station ID `1` was interpreted as list index 1 and selected `7001`. Production fix now prioritizes exact station IDs and reserves `idx:N` / `[N]` for explicit index selection. | **MERGE** | Merge the interactive selection precedence fix and updated help wording after targeted/full-suite verification. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -116,3 +116,8 @@ The flat-layout default is now verified on the acceptance branch:
 - full test suite: **91 passed**.
 
 Both CLI and interactive table export now default to `grouping=none`. Daily/monthly pivot modes remain available only when explicitly requested. MAIN-006 is fully verified for integration.
+
+
+### MAIN-015 implementation note
+
+The intended regression failure was observed: entering bare `1` selected station `7001` because the code treated it as list index 1. Interactive station selection now gives exact station IDs priority. Explicit index syntax (`idx:N` or `[N]`) remains supported. Verification is pending.
