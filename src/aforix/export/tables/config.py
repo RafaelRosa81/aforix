@@ -24,7 +24,10 @@ def _infer_repo_root(config_path: Path) -> Path:
     for parent in [config_path.parent, *config_path.parents]:
         if (parent / "pyproject.toml").exists() or (parent / "src" / "aforix").exists():
             return parent
-    return Path.cwd().resolve()
+
+    # For standalone/legacy configs outside a repository tree, resolve relative
+    # paths from the config file location rather than from the caller's cwd.
+    return config_path.parent
 
 
 def resolve_project_path(config: dict[str, Any], value: str | Path | None, default: str | Path) -> Path:
