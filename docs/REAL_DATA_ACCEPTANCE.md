@@ -1018,3 +1018,17 @@ Acceptance target for the current two-measurement selection:
 - Molinete ACCM001: `id_tipo_actuacion=4`, `id_instrumento=19`, `id_tipo_aforo=57`, `id_instrumentos_rangos=11`.
 
 `scripts/acceptance_check_sih_expected_ids.py` verifies those exact IDs plus successful metadata status. Manual inspection remains required for the complete CSV contents and usability.
+
+
+### SIH-04 uploaded output review
+
+Reviewed generated files:
+- `ID_ACCF001_actuacion_7071_20260120_141519.csv`;
+- `ID_ACCF001_aforo_7071_20260120_141519.csv`;
+- `ID_ACCM001_actuacion_7071_20260120_142300.csv`;
+- `ID_ACCM001_aforo_7071_20260120_142300.csv`;
+- `sih_export_metadata.csv`.
+
+Observed results: both metadata rows are `success`; authoritative station ID `7071`, dates/times, and filenames agree; FlowTracker exports instrument `501`, type `57`, range `11`; Molinete exports instrument `19`, type `57`, range `11`. The CSVs are UTF-8 BOM comma-delimited files with one data row each. Hydraulic summary values are internally coherent at exported precision.
+
+Manual-review follow-ups: Molinete `id_operador` contains display text (`I. Pérez`) while FlowTracker is blank, so the SIH operator-ID contract must be confirmed (MAIN-020). Molinete scale-related fields are blank despite `raw_canonical_found=True`; source-vs-mapping verification is required (MAIN-021). Molinete observation text `Punto P71` is retained as free text while authoritative station identity remains `7071`.
