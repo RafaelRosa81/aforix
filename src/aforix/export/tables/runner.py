@@ -479,12 +479,26 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     if missing:
         raise KeyError("Selected parameter columns not found: " + ", ".join(missing))
 
-    grouping = (request.grouping or "none").lower()
+    requested_grouping = (request.grouping or "none").lower()
+
+    # An explicit flat override is authoritative. This is the contract exposed by
+    # the CLI's --flat option: even if daily/monthly grouping was also supplied,
+    # the effective export shape is flat and must be named/described as such.
+    explicit_flat = request.pivot is False
+    grouping = "none" if explicit_flat else requested_grouping
     pivot = request.pivot if request.pivot is not None else grouping in {"monthly", "daily"}
+
     if pivot:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
-    elif grouping in {"monthly", "daily"}:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
+        out_df = _build_pivot(
+            df,
+            params,
+            grouping,
+            early_eff,
+            late_eff,
+            request.aggregation,
+            request.points,
+            request.instrument,
+        )
     else:
         out_df = _build_flat(df, params)
 
