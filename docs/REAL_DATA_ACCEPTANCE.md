@@ -745,3 +745,15 @@ Manual acceptance:
 - the accepted flat layout remained intact.
 
 EXP-TABLES-06 is **PASS (automated + manual)**.
+
+
+### Export tables flat override — regression stage
+
+Before closing the export-tables module, source inspection found a contract mismatch: CLI help says `--flat` prevents pivoting even when `--grouping daily/monthly` is supplied, but the runner currently still builds a pivot whenever grouping is daily/monthly. Filename and metadata also continue to describe a grouped pivot.
+
+Target rule:
+- explicit flat mode (`pivot=False`) must produce row-wise flat output;
+- effective grouping must be `none`;
+- filename and metadata must describe a flat export.
+
+A regression test was added before production changes.
