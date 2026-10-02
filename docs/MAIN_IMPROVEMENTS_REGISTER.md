@@ -33,6 +33,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-015 | Interactive export station selection | Interactive multi-select checked bare numeric tokens as list indices before exact station IDs, so a numeric station ID could select the wrong station. | Regression reproduced the ambiguity: station ID `1` was interpreted as list index 1 and selected `7001`. Production fix now prioritizes exact station IDs and reserves `idx:N` / `[N]` for explicit index selection. | **MERGE** | Merge the interactive selection precedence fix and updated help wording after targeted/full-suite verification. |
 | MAIN-016 | Export tables flat override | CLI help promised `--flat` would prevent pivoting, but the runner still pivoted whenever grouping was daily/monthly and reported grouped filename/metadata semantics. | Regression reproduced the defect: `grouping=daily, pivot=False` produced date-pivot columns instead of row-wise output. Production runner now treats explicit flat mode as authoritative and sets effective grouping to `none`. | **MERGE** | Merge the runner fix after focused/full-suite verification. |
 | MAIN-017 | SIH semantic lookups | SIH batch export can succeed structurally even if configured `tipo_aforo_lookup` or `instrumentos_rangos_lookup` does not resolve; current lookup helpers allow an empty result for these fields. | SIH-01 passed 6/6 structural/identity/numeric checks; config review found lookup-key vocabulary that may not match the current lookup CSV values. | **FOLLOW-UP** | Run SIH-02 semantic completeness diagnostic. Do not invent replacement IDs; distinguish matching-normalization defects from missing/incorrect domain mapping that requires a data/config decision. |
+| MAIN-018 | SIH textual lookup matching | Configured `tipo_aforo_lookup: Vadeo` is semantically present in `tipos_aforos.csv` as `VADEO`, but production matching is exact/case-sensitive and silently returns blank because the resolver marks this lookup optional. | SIH-02: normalized diagnostic finds the key, while exported `id_tipo_aforo` is blank for both FlowTracker and Molinete. | **FOLLOW-UP** | Regression-first: textual lookup keys should match after representation-only trim/case normalization. Do not broaden this into semantic aliasing. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -156,3 +157,12 @@ The explicit flat-override correction is fully verified:
 - full test suite: **94 passed**.
 
 `pivot=False` now forces true flat output, effective grouping `none`, flat filename semantics, and flat metadata. MAIN-016 is verified for integration.
+
+
+### SIH-02 diagnosis
+
+The semantic diagnostic produced **2 PASS / 4 FAIL** and separates two different causes:
+
+- `id_tipo_actuacion` and `id_instrumento` are populated in both selected exports (FlowTracker instrument ID `501`, Molinete instrument ID `19`);
+- `tipo_aforo_lookup: Vadeo` has a representation-level match in the lookup table (`VADEO`), but production lookup matching is exact/case-sensitive, so exported `id_tipo_aforo` is blank. This is MAIN-018 and is suitable for a code fix;
+- `instrumentos_rangos_lookup: Velocimetro puntual` has **no semantic row at all** in the current `instrumentos_rangos.csv`. Exported `id_instrumentos_rangos` is therefore blank. No replacement ID is inferred; this remains a configuration/domain-data decision under MAIN-017.
