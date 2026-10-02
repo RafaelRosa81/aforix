@@ -668,3 +668,14 @@ A regression test was added before production changes.
 The first regression test unexpectedly passed because the chosen station ID (`7071`) was far outside the available list-index range, so the existing code naturally fell through to exact station-code matching. That did not exercise the ambiguous branch.
 
 The regression case was corrected to use station ID `1` in a list where index `1` points to a different station. This now tests the actual ambiguity: for station selection, bare `1` must mean exact `station_id=1`, while explicit `idx:1` remains the index-selection syntax. Production code is still unchanged pending the intended failure.
+
+
+### Interactive station selection regression harness — second correction
+
+The second test still passed because station ID `1` was accidentally placed at list index `1`, so both interpretations selected the same value. The harness is corrected again so station `1` is at index `0` while index `1` is station `7001`.
+
+Expected behavior:
+- bare `1` -> exact station ID `1`;
+- explicit `idx:1` -> station `7001`.
+
+Production code remains unchanged until the corrected test demonstrates the ambiguity.
