@@ -308,3 +308,12 @@ The modern acceptance config resolves to `database_acceptance/normalized` for in
 ### EXP-TABLES-01 — first user-facing workbook
 
 The first manual+automated export case is a flat all-instrument `Summary` workbook with only user-relevant hydraulic columns. The automated checker verifies 250 rows, exact fidelity against normalized Summary data, preservation of long station IDs (including 701190/701150/70101), sidecar metadata, and workbook sheets. Manual review focuses on readability, field order, station/date/time presentation, units/column naming, representative values, and whether the workbook is practical to use without internal Aforix knowledge.
+
+
+### EXP-TABLES-01 first manual review — time formatting defect
+
+The first real user-facing Summary workbook contained the expected 250 rows and was manually judged acceptable in the other reviewed aspects, but the user identified a presentation/data-fidelity defect in `measurement_time`: leading zeros were lost (for example `091500` appeared as `91500`). The automated source-fidelity check independently caught the same defect (for example source `093425` vs exported `93425`).
+
+Inspection of the workbook confirmed that `station_id`, `measurement_date`, and `measurement_time` had been written as numeric cells. Root cause: the export loader used default pandas type inference when reopening normalized CSVs, so six-digit time identity strings could be coerced to integers before XLSX writing.
+
+The export loader now keeps `station_id`, `measurement_date`, and `measurement_time` as strings while continuing to infer hydraulic measurement columns numerically. A focused regression test verifies the XLSX cell value and type for a leading-zero time. EXP-TABLES-01 remains pending until the workbook is regenerated, the automated checker passes, and the corrected time is manually confirmed.
