@@ -679,3 +679,16 @@ Expected behavior:
 - explicit `idx:1` -> station `7001`.
 
 Production code remains unchanged until the corrected test demonstrates the ambiguity.
+
+
+### Interactive station selection — production correction
+
+The corrected regression test reached the intended failure:
+
+- bare input `1` was incorrectly interpreted as list index 1;
+- station `7001` was selected instead of authoritative station ID `1`;
+- explicit `idx:1` behaved as intended.
+
+Production interactive selection was corrected so that when selecting stations, exact station IDs are matched before any bare numeric index interpretation. Index selection now remains explicit via `idx:N` or `[N]`. Legacy P-code wording in the validation message was also removed.
+
+Verification is pending the targeted test and full suite.
