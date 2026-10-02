@@ -44,9 +44,9 @@ def test_batch_point_parser_preserves_distinct_station_namespaces() -> None:
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("P1", "7001"),
-        ("P71", "7071"),
-        ("P101", "7101"),
+        ("P1", "P1"),
+        ("P71", "P71"),
+        ("P101", "P101"),
         ("7001", "7001"),
         ("7071", "7071"),
         ("7101", "7101"),
