@@ -597,3 +597,16 @@ Decision for the new Aforix version:
 - **daily/monthly pivot** should remain available only when explicitly requested for analytical use.
 
 A regression test is added before changing the CLI default.
+
+
+### Flat export default — production correction
+
+The regression test failed as expected because the non-interactive CLI still defaulted to `grouping=monthly`.
+
+Production behavior is now changed so the new general-purpose default is the accepted flat layout:
+
+- non-interactive CLI `--grouping` default: `none`;
+- interactive export prompt default: `none`;
+- `daily` and `monthly` pivot exports remain available when explicitly selected.
+
+Verification is pending the focused regression test and full pytest suite.
