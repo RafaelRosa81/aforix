@@ -185,3 +185,18 @@ Corrected build-groups acceptance check completed successfully:
 - manifest status: **PASS**
 
 This verifies that the latest isolated ingest runs were consolidated into `database_acceptance/raw_canonical` without row loss or content drift, and that all selected source CSVs are represented in the manifest.
+
+
+### GRP-01 final acceptance verification
+
+The corrected build-groups acceptance checker passed completely:
+
+- group checks: **8**
+- PASS: **8**
+- FAIL: **0**
+- manifest expected rows: **916**
+- manifest rows: **916**
+- manifest selected: **916**
+- manifest status: **PASS**
+
+GRP-01 is accepted for the current real-data corpus.
