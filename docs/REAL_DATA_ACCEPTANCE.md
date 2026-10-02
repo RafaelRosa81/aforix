@@ -85,3 +85,13 @@ A regression test was added first in `tests/test_runs_manager.py`. It defines th
 ### runs_root fix
 
 After the failing regression test confirmed the issue, `create_run()` was updated to resolve `paths.runs_root` from the active project configuration instead of hard-coding `runs/`. Relative roots are resolved from the project root; absolute roots are preserved. The acceptance campaign must re-run the regression test before proceeding.
+
+
+### Regression verification — runs_root
+
+Verified locally after the fix:
+
+- `pytest -q tests/test_runs_manager.py`: **1 passed**
+- full suite `pytest -q`: **77 passed**
+
+The configured `paths.runs_root` behavior is now covered by regression testing and the full test suite remains green.
