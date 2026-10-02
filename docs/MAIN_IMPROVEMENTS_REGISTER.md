@@ -31,7 +31,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-013 | SIH acceptance isolation | Default SIH config still points to standard database/output paths rather than acceptance-specific paths. | Identified during pipeline mapping; SIH acceptance not yet executed. | **FOLLOW-UP** | Create/use an isolated SIH acceptance config before real-data SIH tests. |
 | MAIN-014 | Export tables station-selection guidance | CLI help and export metadata still described legacy/ambiguous point-code behavior after station identity was made exact. | Found during EXP-TABLES continuation after MAIN-008. | **MERGE** | Merge wording cleanup so non-interactive table export documents exact `station_id` matching and does not imply P aliases or unsupported index-token behavior. |
 | MAIN-015 | Interactive export station selection | Interactive multi-select checked bare numeric tokens as list indices before exact station IDs, so a numeric station ID could select the wrong station. | Regression reproduced the ambiguity: station ID `1` was interpreted as list index 1 and selected `7001`. Production fix now prioritizes exact station IDs and reserves `idx:N` / `[N]` for explicit index selection. | **MERGE** | Merge the interactive selection precedence fix and updated help wording after targeted/full-suite verification. |
-| MAIN-016 | Export tables flat override | CLI help promises `--flat` will not pivot even when a daily/monthly grouping is supplied, but the runner currently pivots whenever grouping is daily/monthly and also reports pivot metadata/filename semantics. | Found during export-module closure after EXP-TABLES-06. | **FOLLOW-UP** | Regression-first: `pivot=False` must force true flat output, effective grouping `none`, flat filename, and flat metadata. |
+| MAIN-016 | Export tables flat override | CLI help promised `--flat` would prevent pivoting, but the runner still pivoted whenever grouping was daily/monthly and reported grouped filename/metadata semantics. | Regression reproduced the defect: `grouping=daily, pivot=False` produced date-pivot columns instead of row-wise output. Production runner now treats explicit flat mode as authoritative and sets effective grouping to `none`. | **MERGE** | Merge the runner fix after focused/full-suite verification. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -132,3 +132,16 @@ The interactive station-selection correction is fully verified:
 - full test suite: **93 passed**.
 
 Exact authoritative station IDs now take precedence in station-selection prompts. Explicit index selection remains available through `idx:N` or `[N]`. MAIN-015 is verified for integration.
+
+
+### MAIN-016 implementation note
+
+The intended regression failure was observed: `grouping=daily` with `pivot=False` still produced pivot columns such as `20260120 | q_total_ls`.
+
+The runner now treats explicit flat mode as authoritative:
+- output remains row-wise flat;
+- effective grouping becomes `none`;
+- filename uses the `flat` shape;
+- metadata reports `grouping: none`, `pivot: False`, and `column_order: flat`.
+
+Verification is pending.
