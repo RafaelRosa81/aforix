@@ -106,3 +106,14 @@ After the `runs_root` fix, the real-data FlowTracker acceptance run was created 
 - Points outputs: **29**
 
 This matches the expected 29 unique FlowTracker measurements from 30 physical RAW files with one exact duplicate pair. ING-FT is accepted for the current real-data corpus.
+
+
+### ING-ML structural verification
+
+Real-data Molinete ingest produced:
+
+- run: `runs_acceptance/ingest_molinete/20261001_220110`
+- Summary outputs: **13**
+- Points outputs: **13**
+
+This matches the baseline of 13 unique Molinete RAW Excel files. Numerical/source fidelity remains to be checked before final PASS.
