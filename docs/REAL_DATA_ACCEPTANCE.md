@@ -403,3 +403,14 @@ Verification is pending the targeted and full pytest runs.
 ### Downstream identity verification — stale test expectation corrected
 
 The targeted downstream suite passed **6/6** after the production fix. The broader metadata/boundary run exposed three remaining failures, all in one parameterized export-boundary test whose expected values still encoded the old `P<n> -> 7000+n` mapping. Production behavior was already correct (`P1 -> P1`, `P71 -> P71`, `P101 -> P101`). The stale test expectations were corrected, and the correlation CLI help was also updated to stop advertising legacy P aliases.
+
+
+### Downstream station identity — final verification
+
+Verification after the production correction is complete:
+
+- `tests/test_station_identity_downstream.py`: **6 passed**;
+- `tests/test_metadata.py tests/test_canonical_point_boundaries.py`: **29 passed**;
+- full suite: **90 passed**.
+
+The authoritative-ID rule is now enforced across the audited downstream boundaries: no semantic `P<n> -> 7000+n` aliasing, no manual-stage P-prefix invention, and `Pm<n>` remains a distinct model-point namespace.
