@@ -29,6 +29,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-011 | Negative flow observations | Pipeline audit reports 236 informational range flags associated with negative flow values; no warning/error range findings. | Hydraulic/unit checks remain clean; production validation range rules pass. | **ACCEPTED** | Preserve signed flow. Keep negative-flow reporting informational unless domain rules change. |
 | MAIN-012 | Placeholder commands | `export excel`, M9 ingest, filter-groups, and statistics analysis are not complete production implementations in the audited codebase. | Structural review during acceptance campaign. | **PLACEHOLDER** | Keep clearly documented as incomplete; test/implement separately rather than treating CLI presence as acceptance. |
 | MAIN-013 | SIH acceptance isolation | Default SIH config still points to standard database/output paths rather than acceptance-specific paths. | Identified during pipeline mapping; SIH acceptance not yet executed. | **FOLLOW-UP** | Create/use an isolated SIH acceptance config before real-data SIH tests. |
+| MAIN-014 | Export tables station-selection guidance | CLI help and export metadata still described legacy/ambiguous point-code behavior after station identity was made exact. | Found during EXP-TABLES continuation after MAIN-008. | **MERGE** | Merge wording cleanup so non-interactive table export documents exact `station_id` matching and does not imply P aliases or unsupported index-token behavior. |
 
 ## Current verified acceptance state after station-code removal
 
