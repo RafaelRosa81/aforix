@@ -200,3 +200,12 @@ The corrected build-groups acceptance checker passed completely:
 - manifest status: **PASS**
 
 GRP-01 is accepted for the current real-data corpus.
+
+
+### NORM-01 first acceptance run
+
+Normalization completed in the isolated acceptance tree with **669 normalized outputs**, plus cross-instrument concatenations of Summary and Points. The global concatenations contain **250 Summary rows** and **3977 Points rows**.
+
+The first acceptance checker produced 4 PASS / 6 FAIL, but all six failures were checker assumptions about pre-normalization representation rather than observed data loss: Molinete dates/times legitimately change from `YYYY-MM-DD` / `HH:MM:SS` to configured canonical `YYYYMMDD` / `HHMMSS`, and raw point/section/gate indices use instrument-specific source column names that normalize to canonical index columns. The checker was updated to compare canonical logical identity and source aliases. Production normalization code was not changed.
+
+The general audit simultaneously reported all 669 raw and normalized column checks OK, all 750 hydraulic checks OK, and all 461 unit-consistency checks OK. Duplicate/range audit findings are retained for separate diagnosis before validation is closed.
