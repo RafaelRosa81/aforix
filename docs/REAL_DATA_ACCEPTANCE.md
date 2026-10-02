@@ -1001,3 +1001,11 @@ A configuration regression test was added without modifying the user's local con
 Initial regression result: **1 passed / 1 failed**. Lookup resolvability passed with the user's local production-config edits; acceptance/main mapping synchronization failed as expected.
 
 The acceptance SIH config is now synchronized to the adopted mappings. Re-run the focused consistency test before committing the user's local `sih.yaml` and `instrumentos_rangos.csv` edits.
+
+
+### SIH mapping consistency verification
+
+Focused config consistency test: **2 passed**.
+Full suite: **99 passed**.
+
+This verifies lookup-key resolvability and synchronization between the main and acceptance SIH mappings using the user's current local production-config edits. Real-data export verification with the adopted IDs remains pending.
