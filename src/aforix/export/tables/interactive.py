@@ -189,7 +189,7 @@ def run_interactive_export_tables(config: dict):
 
     early = input("\nEarly date YYYYMMDD, or empty: ").strip() or None
     late = input("Late date YYYYMMDD, or empty: ").strip() or None
-    grouping = input("Grouping (none/monthly/daily) [monthly]: ").strip().lower() or "monthly"
+    grouping = input("Grouping (none/monthly/daily) [none]: ").strip().lower() or "none"
     if grouping not in {"none", "monthly", "daily"}:
         raise ValueError("Grouping must be one of: none, monthly, daily")
     pivot = grouping in {"monthly", "daily"}
