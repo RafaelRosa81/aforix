@@ -59,3 +59,28 @@ def test_audit_duplicates_flowtracker_distinct_percent_depth_is_not_duplicate(tm
     assert report.loc[0, "group"] == "Points"
     assert report.loc[0, "status"] == "ok"
     assert report.loc[0, "n_duplicated_rows"] == 0
+
+
+
+def test_audit_duplicates_flowtracker_same_percent_depth_is_duplicate(tmp_path):
+    points_dir = tmp_path / "normalized" / "flowtracker" / "Points"
+    points_dir.mkdir(parents=True)
+
+    row = {
+        **MEASUREMENT,
+        "point_index": "16",
+        "percent_depth": "0.2",
+        "distance_m": "3.0",
+        "q_m3s": "0.01",
+    }
+    pd.DataFrame([row, row]).to_csv(
+        points_dir / "7005_Points_20251217_093425.csv",
+        index=False,
+    )
+
+    report = audit_duplicates(tmp_path / "normalized")
+
+    assert len(report) == 1
+    assert report.loc[0, "status"] == "duplicates"
+    assert report.loc[0, "n_duplicated_rows"] == 2
+    assert report.loc[0, "n_duplicate_keys"] == 1
