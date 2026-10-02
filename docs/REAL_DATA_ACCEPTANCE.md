@@ -235,3 +235,8 @@ The first regression-test run failed during test collection because `scripts/` i
 ### Audit duplicate regression test harness — second correction
 
 The explicit file-path import still failed during collection because the dynamically created module was not registered in `sys.modules` before execution; `dataclasses` relies on that registration while decorating `TableRef`. The test harness now registers the module before `exec_module`. Production audit code remains unchanged; the next run should reach the intended duplicate assertion.
+
+
+### Audit duplicate false-positive fix
+
+The regression test now reaches the intended assertion and fails because the standalone audit labels two FlowTracker rows with the same `point_index` but different `percent_depth` as duplicates. The audit duplicate key was corrected to mirror production validation semantics: FlowTracker Points use measurement identity + `point_index` + `percent_depth`. A guard test was also added to confirm that rows with the same `point_index` and same `percent_depth` are still reported as true duplicates.
