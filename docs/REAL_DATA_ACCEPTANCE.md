@@ -240,3 +240,19 @@ The explicit file-path import still failed during collection because the dynamic
 ### Audit duplicate false-positive fix
 
 The regression test now reaches the intended assertion and fails because the standalone audit labels two FlowTracker rows with the same `point_index` but different `percent_depth` as duplicates. The audit duplicate key was corrected to mirror production validation semantics: FlowTracker Points use measurement identity + `point_index` + `percent_depth`. A guard test was also added to confirm that rows with the same `point_index` and same `percent_depth` are still reported as true duplicates.
+
+
+### Post-fix audit verification
+
+The FlowTracker audit duplicate-key fix was verified locally:
+
+- targeted audit tests: **2 passed**
+- full test suite: **79 passed**
+- raw column audit: **669/669 OK**
+- normalized column audit: **669/669 OK**
+- duplicate audit: **461 OK**, **208 not_checked** (Nivus Gates; no reliable unique key defined), **0 duplicate findings**
+- hydraulic consistency: **750/750 OK**
+- unit consistency: **461/461 OK**
+- range audit: **1179 OK**, **236 informational flags** (negative flow observations), with no warning/error findings
+
+The standalone audit and production duplicate validation semantics are now aligned for FlowTracker multi-depth verticals.
