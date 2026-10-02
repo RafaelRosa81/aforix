@@ -692,3 +692,12 @@ The corrected regression test reached the intended failure:
 Production interactive selection was corrected so that when selecting stations, exact station IDs are matched before any bare numeric index interpretation. Index selection now remains explicit via `idx:N` or `[N]`. Legacy P-code wording in the validation message was also removed.
 
 Verification is pending the targeted test and full suite.
+
+
+### Interactive station selection — targeted verification
+
+The focused regression suite passed after the production correction:
+
+- `tests/test_export_tables_interactive_selection.py`: **2 passed**.
+
+Full-suite verification is still pending before MAIN-015 is closed.
