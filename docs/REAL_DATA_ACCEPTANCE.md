@@ -914,3 +914,15 @@ Target contract:
 - this does not choose or invent a replacement lookup value.
 
 A regression test has been added before production changes.
+
+
+### SIH-02b — configured lookup strictness production correction
+
+The regression produced the intended **2 failures**: neither unresolved configured lookup raised an error.
+
+Production behavior is now corrected:
+- absent lookup configuration may remain blank;
+- an explicitly configured lookup key must resolve exactly once;
+- unresolved configured semantics raise instead of silently writing blank IDs.
+
+No lookup values or SIH IDs were invented. In the current real-data acceptance config, `Velocimetro puntual` is still unresolved and should therefore make the selected measurement rows report export errors until the correct SIH mapping is supplied.
