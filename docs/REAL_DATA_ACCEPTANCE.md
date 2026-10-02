@@ -976,3 +976,21 @@ Current configuration vs lookup CSVs:
 - M9 tipo-aforo key `ADCP`: not present in `tipos_aforos.csv`.
 
 M9 remains disabled, so it is not currently exercised. Nivus is enabled and requires semantic SIH mapping resolution before its SIH export can pass strict acceptance.
+
+
+### SIH mapping decision — regression stage
+
+Adopted semantic mappings:
+- FlowTracker -> `VADEO / Velocimetro`;
+- Molinete -> `VADEO / Velocimetro`;
+- Nivus -> `VADEO / Acustico`;
+- M9 -> `BOTE / ADCP`.
+
+Lookup IDs currently adopted:
+- `VADEO=57`;
+- `BOTE=59`;
+- `Acustico=10`;
+- `Velocimetro=11`;
+- `ADCP=12`.
+
+A configuration regression test was added without modifying the user's local config files. It checks both lookup resolvability and synchronization between production and acceptance SIH mappings.
