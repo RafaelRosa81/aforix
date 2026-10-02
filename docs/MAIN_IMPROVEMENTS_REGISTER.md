@@ -100,3 +100,8 @@ Next active item on resume:
 - expected two independent same-day measurements (FlowTracker + Molinete)
 
 No merge to `main` should be performed before the acceptance campaign resumes and the remaining export/downstream modules are reviewed.
+
+
+### MAIN-006 implementation note
+
+The flat-layout product decision has now been implemented on the acceptance branch: both non-interactive and interactive table export default to `grouping=none`. Daily/monthly pivot modes remain explicit options. Verification is pending before final integration.
