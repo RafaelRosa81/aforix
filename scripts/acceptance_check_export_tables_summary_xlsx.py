@@ -105,19 +105,54 @@ def main() -> None:
     if not missing_export and not missing_source and len(exported) == len(source):
         exp = exported[expected_cols].copy()
         src = source[expected_cols].copy()
-        for col in expected_cols:
+
+        sort_keys = ["instrument", "station_id", "measurement_date", "measurement_time"]
+
+        # Identity/text fields must match exactly after whitespace cleanup.
+        for col in IDENTITY:
             exp[col] = canonical_text(exp[col])
             src[col] = canonical_text(src[col])
-        sort_keys = ["instrument", "station_id", "measurement_date", "measurement_time"]
+
         exp = exp.sort_values(sort_keys, kind="stable").reset_index(drop=True)
         src = src.sort_values(sort_keys, kind="stable").reset_index(drop=True)
-        comparison_ok = exp.equals(src)
+
+        text_bad = pd.Series(False, index=exp.index)
+        for col in IDENTITY:
+            text_bad |= exp[col] != src[col]
+
+        # Hydraulic/user data are numeric. Excel may serialize 109.0 as 109;
+        # compare values numerically rather than by their display strings.
+        numeric_bad = pd.Series(False, index=exp.index)
+        numeric_details: list[str] = []
+        for col in EXPECTED_PARAMETERS:
+            exp_num = pd.to_numeric(exp[col], errors="coerce")
+            src_num = pd.to_numeric(src[col], errors="coerce")
+
+            missing_mismatch = exp_num.isna() ^ src_num.isna()
+            both = exp_num.notna() & src_num.notna()
+            value_mismatch = pd.Series(False, index=exp.index)
+            value_mismatch.loc[both] = (
+                (exp_num.loc[both] - src_num.loc[both]).abs() > 1e-12
+            )
+            col_bad = missing_mismatch | value_mismatch
+            numeric_bad |= col_bad
+
+            if col_bad.any() and len(numeric_details) < 5:
+                idx = int(col_bad[col_bad].index[0])
+                numeric_details.append(
+                    f"{col}: export={exp.loc[idx, col]!r} source={src.loc[idx, col]!r}"
+                )
+
+        all_bad = text_bad | numeric_bad
+        comparison_ok = not all_bad.any()
+
         if not comparison_ok:
-            bad = (exp != src).any(axis=1)
-            idx = int(bad[bad].index[0])
+            idx = int(all_bad[all_bad].index[0])
             comparison_detail = (
                 f"first mismatch row={idx}; "
-                f"export={exp.iloc[idx].to_dict()}; source={src.iloc[idx].to_dict()}"
+                f"identity_export={exp.loc[idx, IDENTITY].to_dict()}; "
+                f"identity_source={src.loc[idx, IDENTITY].to_dict()}; "
+                f"numeric_details={numeric_details}"
             )
     else:
         comparison_detail = "comparison skipped because required columns/row counts differ"
