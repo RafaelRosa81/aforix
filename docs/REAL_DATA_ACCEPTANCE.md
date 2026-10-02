@@ -331,3 +331,17 @@ Manual review of a normalized Summary file showed that authoritative `station_id
 The older export example also demonstrates the historical behavior: its exported `station_id` values were P-prefixed (for example `P7003`, `P7008`, `P7013`). The current flat export correctly uses P-free `station_id` values.
 
 The target behavior for the current pipeline is now explicitly tested: current normalization configs must not generate the legacy `station_code`, and the normalizer must not force that column when it is not requested. Production code/config has not yet been changed; the regression tests should fail first.
+
+
+### Legacy `station_code` production fix
+
+The regression tests failed as expected: the current normalization YAMLs still enabled `station_code: P...`, and the normalizer forced an empty `station_code` column even when no policy requested it.
+
+The production pipeline was corrected as follows:
+
+- removed P-prefixed `station_code` generation from the current FlowTracker, Molinete, and Nivus normalization specs;
+- removed `station_code` from the normalizer's mandatory traceability columns;
+- aligned the standalone pipeline auditor with the P-free normalized schema;
+- retained the generic metadata capability to create a `station_code` only when a project-specific policy explicitly requests it.
+
+Existing normalized acceptance files still contain the old column until normalization is rerun; the next acceptance step must regenerate normalized outputs and re-run the normalization/validation checks.
