@@ -446,3 +446,68 @@ Next case verifies non-interactive filters and CSV output using a domain-signifi
 - expected measurements: **2** (FlowTracker + Molinete, distinct times)
 
 This case checks exact station matching, date filtering, retention of multiple same-day measurements, CSV identity formatting, numeric fidelity, and metadata.
+
+
+## Pause / resume checkpoint — 2026-10-02
+
+Acceptance work paused here by user request.
+
+### Closed before pause
+- ING-FT: PASS
+- ING-ML: PASS
+- ING-NV: PASS
+- GRP-01 build-groups: PASS
+- NORM-01: PASS
+- VAL-01: PASS
+- EXP-TABLES-01 flat all-instrument Summary XLSX: **PASS automated + PASS manual**
+- downstream station identity audit: closed; authoritative station IDs preserved; full suite **90 passed**
+- legacy `station_code` removed from current normalized outputs
+
+### Current verified state
+- unique real measurements: **250**
+- normalized Summary rows: **250**
+- normalized Points rows: **3977**
+- duplicate findings: **0**
+- hydraulic audit: **750/750 OK**
+- unit audit: **461/461 OK**
+- validation acceptance: **6/6 PASS**
+- full pytest suite: **90 passed**
+
+### Exact next step when work resumes
+Continue with **EXP-TABLES-02 — exact station/date filtered CSV**.
+
+Planned test case:
+- table: `Summary`
+- station_id: `7071`
+- date: `20260120`
+- instrument: `all`
+- format: CSV
+- expected rows: **2**
+  - FlowTracker at `141519`
+  - Molinete at `142300`
+
+Commands to resume:
+
+```powershell
+git pull
+
+python -m aforix.export.tables.cli `
+  -c configs/examples/acceptance_real.yaml `
+  --table Summary `
+  --instrument all `
+  --points 7071 `
+  --early-date 20260120 `
+  --late-date 20260120 `
+  --grouping none `
+  --format csv `
+  --parameters q_total_m3s q_total_ls
+
+python .\scripts\acceptance_check_export_tables_filtered_csv.py
+```
+
+Manual review after the checker:
+- exactly 2 rows;
+- both with `station_id=7071`;
+- distinct times preserved;
+- no aggregation/collapse of the two same-day measurements;
+- `q_total_m3s` and `q_total_ls` remain coherent.
