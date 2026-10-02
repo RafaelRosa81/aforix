@@ -1,0 +1,3 @@
+station_id,measurement_date,measurement_time,instrument,export_id
+7071,20260120,141519,flowtracker,ACCF001
+7071,20260120,142300,molinete,ACCM001
