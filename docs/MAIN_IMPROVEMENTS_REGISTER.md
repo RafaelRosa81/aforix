@@ -246,3 +246,19 @@ This confirms that unresolved configured SIH semantics no longer pass silently. 
 All production-code findings intended for later integration into `main` are tracked in this register. Acceptance-only configs/checkers/docs remain campaign scaffolding and should not be merged blindly with production changes.
 
 Latest verified full test suite: **97 passed**.
+
+
+### MAIN-017 scope expansion — Nivus and M9
+
+Review of the current SIH configuration shows that the semantic lookup mismatch is broader than FlowTracker/Molinete:
+
+- FlowTracker: `instrumentos_rangos_lookup: Velocimetro puntual` — absent from current `instrumentos_rangos.csv`;
+- Molinete: `instrumentos_rangos_lookup: Velocimetro puntual` — absent;
+- Nivus: `instrumentos_rangos_lookup: Doppler acustico` — absent (current lookup has only `Acustico` as a potentially related label, but no semantic equivalence is assumed);
+- M9: `instrumentos_rangos_lookup: ADCP movil` — absent.
+
+There is also a separate SIH `tipo_aforo` lookup gap for:
+- Nivus: `tipo_aforo_lookup: Acustico` — absent from current `tipos_aforos.csv`;
+- M9: `tipo_aforo_lookup: ADCP` — absent.
+
+M9 is currently disabled in SIH config, so these M9 mismatches do not affect current exports until M9 is enabled. Nivus is enabled and therefore would currently fail strict semantic lookup resolution under MAIN-019 until its SIH mappings are defined.
