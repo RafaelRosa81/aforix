@@ -610,3 +610,13 @@ Production behavior is now changed so the new general-purpose default is the acc
 - `daily` and `monthly` pivot exports remain available when explicitly selected.
 
 Verification is pending the focused regression test and full pytest suite.
+
+
+### Flat export default — final verification
+
+The production default change was verified successfully:
+
+- `tests/test_export_tables_defaults.py`: **1 passed**;
+- full suite: **91 passed**.
+
+The new Aforix table-export default is therefore the flat layout (`grouping=none`) for both CLI and interactive modes. Pivot remains an explicit analytical option.
