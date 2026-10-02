@@ -71,3 +71,7 @@ The first source audit found legacy semantic station canonicalization in multipl
 The model-point namespace `Pm<n>` is intentionally separate and already has explicit protection against confusing measured `P<n>` IDs with model points.
 
 A new downstream regression suite (`tests/test_station_identity_downstream.py`) defines the target rule before production changes: station normalization may clean representation (whitespace/case/float-like string artifacts) but must not create semantic aliases or renumber `P<n>` into the 7000 namespace. Manual-stage conversion must not invent a `P` prefix. Production downstream code remains unchanged until the expected failures are observed.
+
+### MAIN-008 implementation note
+
+After the expected regression failures, the acceptance branch now contains the production correction for downstream station identity. The shared canonical helper no longer creates `P<n> -> 7000+n` aliases, manual-stage conversion no longer creates `P<n>`, and correlation sorting accepts distinct nonnumeric station namespaces. MAIN-008 remains pending verification before its status is promoted to **MERGE**.
