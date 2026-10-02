@@ -345,3 +345,14 @@ The production pipeline was corrected as follows:
 - retained the generic metadata capability to create a `station_code` only when a project-specific policy explicitly requests it.
 
 Existing normalized acceptance files still contain the old column until normalization is rerun; the next acceptance step must regenerate normalized outputs and re-run the normalization/validation checks.
+
+
+### Manual verification after station_code removal
+
+The regenerated acceptance `Summary.csv` was manually inspected in PowerShell. Confirmed:
+
+- `station_code` is absent from the normalized Summary schema;
+- `station_id` is the first station-identity column;
+- querying for `station_id` values beginning with `P` returned no rows.
+
+The follow-up spot check for specific long IDs still needs to be executed; the user's later PowerShell commands were wrapped in `{ ... }`, which creates a script block instead of running the pipeline.
