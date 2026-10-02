@@ -384,3 +384,17 @@ A separate `docs/MAIN_IMPROVEMENTS_REGISTER.md` now tracks acceptance findings t
 Source inspection confirmed that legacy station aliasing survives in downstream modules even though the accepted normalized database is now P-free. A regression suite was added before production changes. It covers core canonical station handling, export-table filtering, batch point parsing, manual-stage conversion, quality, section-profiles, stage-discharge, and protection of the distinct `Pm<n>` model-point namespace.
 
 Expected current result: failures showing `P71 -> 7071` aliasing and manual-stage generation of `P<n>`.
+
+### Downstream station identity — production correction
+
+The regression suite failed in five expected places, confirming that semantic aliasing was active in the shared metadata helper, export filters, batch parsing, manual-stage conversion, and analysis input boundaries.
+
+Production corrections were then applied:
+
+- `canonical_station_id()` is now representation-only and no longer maps `P<n>` to `7000+n`;
+- manual-stage conversion preserves the supplied station identity instead of inventing a `P` prefix;
+- correlation station sorting accepts distinct nonnumeric namespaces;
+- the interactive correlation prompt no longer advertises legacy P aliases;
+- older tests encoding the deprecated semantic mapping were updated to the authoritative-identity rule.
+
+Verification is pending the targeted and full pytest runs.
