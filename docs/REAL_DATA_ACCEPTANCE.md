@@ -70,7 +70,7 @@ This 250-unique-payload baseline is consistent with the previously validated 250
 | --- | --- | --- | --- |
 | BASE-01 | RAW physical inventory | PASS | 257 physical files, 250 unique SHA-256 payloads |
 | CFG-01 | `aforix config-check` using `acceptance_real.yaml` | PASS | Configuration loaded successfully |
-| ING-FT | FlowTracker ingest | PASS / WARN | 30/30 physical files processed; 29 Summary + 29 Points outputs; exact duplicate pair collapses to one measurement output |
+| ING-FT | FlowTracker ingest | PASS | 30 physical RAW files; 29 unique measurement outputs; isolated acceptance run confirmed |
 | ING-ML | Molinete ingest | PENDING | 13 unique RAW files |
 | ING-NV | Nivus ingest | PENDING | 214 physical XML files / 208 unique payloads |
 
@@ -95,3 +95,14 @@ Verified locally after the fix:
 - full suite `pytest -q`: **77 passed**
 
 The configured `paths.runs_root` behavior is now covered by regression testing and the full test suite remains green.
+
+
+### ING-FT final acceptance verification
+
+After the `runs_root` fix, the real-data FlowTracker acceptance run was created under the isolated acceptance tree:
+
+- run root: `runs_acceptance/ingest_flowtracker/20261001_215942`
+- Summary outputs: **29**
+- Points outputs: **29**
+
+This matches the expected 29 unique FlowTracker measurements from 30 physical RAW files with one exact duplicate pair. ING-FT is accepted for the current real-data corpus.
