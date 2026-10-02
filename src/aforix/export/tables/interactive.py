@@ -48,6 +48,8 @@ def _choose_many(title: str, options: list[str], empty_label: str = "all", allow
     option_points = {normalize_point_token(o).lower(): o for o in options}
     for token in raw.split():
         token_clean = token.strip()
+
+        # Explicit index syntax always means list position.
         if token_clean.lower().startswith("idx:") and token_clean[4:].isdigit():
             idx = int(token_clean[4:])
             if 0 <= idx < len(options):
@@ -58,14 +60,21 @@ def _choose_many(title: str, options: list[str], empty_label: str = "all", allow
             if 0 <= idx < len(options):
                 selected.append(options[idx])
                 continue
-        if token_clean.isdigit() and 0 <= int(token_clean) < len(options):
-            selected.append(options[int(token_clean)])
-            continue
+
+        # For station selection, exact station identity has priority over a bare
+        # numeric list index. This avoids interpreting station_id "1" as index 1.
         if allow_codes:
             normalized = normalize_point_token(token_clean).lower()
             if normalized in option_points:
                 selected.append(option_points[normalized])
                 continue
+
+        # Bare numeric list-index selection is retained only for generic
+        # non-station multi-select prompts.
+        if not allow_codes and token_clean.isdigit() and 0 <= int(token_clean) < len(options):
+            selected.append(options[int(token_clean)])
+            continue
+
         if token_clean.lower() in option_lower:
             selected.append(option_lower[token_clean.lower()])
             continue
@@ -73,7 +82,7 @@ def _choose_many(title: str, options: list[str], empty_label: str = "all", allow
     if invalid:
         raise ValueError(
             "Invalid selection(s): " + ", ".join(invalid) +
-            ". Use list indices, station codes such as P21 / 21, or idx:3 / [3]."
+            ". Use exact station IDs, or explicit index syntax idx:3 / [3]."
         )
     return list(dict.fromkeys(selected))
 
