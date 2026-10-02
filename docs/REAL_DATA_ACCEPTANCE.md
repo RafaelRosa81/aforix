@@ -902,3 +902,15 @@ The clean rerun completed successfully and generated the expected 5 files. The s
 - Molinete: `id_tipo_aforo=57`, `id_instrumentos_rangos=""`.
 
 This confirms MAIN-018 end to end. The remaining SIH-02 issue is solely the configured `Velocimetro puntual` concept not existing in the current `instrumentos_rangos.csv`.
+
+
+### SIH-02b — configured lookup strictness regression
+
+The remaining range-mapping problem exposes a second behavior issue independent of the missing domain row: SIH currently reports a measurement export as successful even when a semantic lookup was explicitly configured but did not resolve.
+
+Target contract:
+- if `tipo_aforo_lookup` or `instrumentos_rangos_lookup` is configured, it must resolve exactly once;
+- if it does not resolve, the measurement export must fail explicitly rather than silently writing a blank configured semantic ID;
+- this does not choose or invent a replacement lookup value.
+
+A regression test has been added before production changes.
