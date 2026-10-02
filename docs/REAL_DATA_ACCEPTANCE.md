@@ -649,3 +649,15 @@ Automated acceptance:
 - FAIL: **0**
 
 This confirms that monthly pivot remains technically correct as an explicit analytical option. The product decision is unchanged: flat remains the default/recommended general-purpose layout.
+
+
+### Interactive export selection — regression stage
+
+Before executing a real interactive export, source inspection found an ambiguity in `_choose_many()`: bare numeric input is interpreted as a list index before exact station-code matching. With numeric authoritative station IDs, selection should be unambiguous.
+
+Target rule:
+- when selecting stations (`allow_codes=True`), an exact station ID such as `7071` must select station `7071`;
+- list-index selection must be explicit via `idx:N` or `[N]`;
+- legacy P-code guidance should be removed.
+
+A regression test was added before production changes.
