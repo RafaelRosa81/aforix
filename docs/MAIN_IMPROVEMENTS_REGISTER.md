@@ -166,3 +166,17 @@ The semantic diagnostic produced **2 PASS / 4 FAIL** and separates two different
 - `id_tipo_actuacion` and `id_instrumento` are populated in both selected exports (FlowTracker instrument ID `501`, Molinete instrument ID `19`);
 - `tipo_aforo_lookup: Vadeo` has a representation-level match in the lookup table (`VADEO`), but production lookup matching is exact/case-sensitive, so exported `id_tipo_aforo` is blank. This is MAIN-018 and is suitable for a code fix;
 - `instrumentos_rangos_lookup: Velocimetro puntual` has **no semantic row at all** in the current `instrumentos_rangos.csv`. Exported `id_instrumentos_rangos` is therefore blank. No replacement ID is inferred; this remains a configuration/domain-data decision under MAIN-017.
+
+
+### MAIN-018 implementation note
+
+The focused regression failed as expected: configured `Vadeo` returned an empty ID against lookup value `VADEO`.
+
+Production textual lookup matching now applies representation-only normalization:
+- trim surrounding whitespace;
+- case-insensitive comparison via `casefold()`;
+- no semantic aliases or substitutions are introduced.
+
+This affects the generic SIH textual lookup helper used by `tipo_aforo` and `instrumentos_rangos`. Therefore `Vadeo` can resolve to the existing `VADEO` row, while `Velocimetro puntual` will still remain unresolved because no corresponding semantic row exists in the current ranges lookup.
+
+Verification is pending.
