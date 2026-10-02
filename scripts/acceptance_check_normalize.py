@@ -48,21 +48,103 @@ def first_existing(df: pd.DataFrame, names: list[str]) -> pd.Series:
     return out
 
 
-def identity_frame(df: pd.DataFrame, *, extra: list[str] | None = None) -> pd.DataFrame:
-    cols = list(IDENTITY)
-    if extra:
-        cols.extend(extra)
-    missing = [col for col in cols if col not in df.columns]
+def _canonical_date(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) >= 8:
+        if len(digits) == 8:
+            return digits
+        if len(digits) >= 14:
+            return digits[:8]
+    parsed = pd.to_datetime(text, errors="coerce")
+    if pd.isna(parsed):
+        return text
+    return parsed.strftime("%Y%m%d")
+
+
+def _canonical_time(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    if "T" in text or " " in text:
+        parsed = pd.to_datetime(text, errors="coerce")
+        if not pd.isna(parsed):
+            return parsed.strftime("%H%M%S")
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) == 6:
+        return digits
+    parsed = pd.to_datetime(text, format="%H:%M:%S", errors="coerce")
+    if pd.isna(parsed):
+        parsed = pd.to_datetime(text, format="%H:%M", errors="coerce")
+    if pd.isna(parsed):
+        return text
+    return parsed.strftime("%H%M%S")
+
+
+def _canonical_index(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    try:
+        number = float(text)
+        if number.is_integer():
+            return str(int(number))
+    except ValueError:
+        pass
+    return text
+
+
+def _coalesce_identity_column(df: pd.DataFrame, aliases: list[str]) -> pd.Series:
+    valid = [col for col in aliases if col in df.columns]
+    if not valid:
+        raise ValueError(f"missing identity columns: {aliases}")
+    out = df[valid[0]].copy()
+    for col in valid[1:]:
+        out = out.combine_first(df[col])
+    return out
+
+
+def identity_frame(
+    df: pd.DataFrame,
+    *,
+    extra_aliases: dict[str, list[str]] | None = None,
+) -> pd.DataFrame:
+    required = ["instrument", "station_id", "measurement_date", "measurement_time", "source_file"]
+    missing = [col for col in required if col not in df.columns]
     if missing:
         raise ValueError(f"missing identity columns: {missing}")
-    out = df[cols].fillna("").astype(str).copy()
+
+    out = pd.DataFrame(index=df.index)
+    out["instrument"] = df["instrument"].fillna("").astype(str).str.strip()
+    out["station_id"] = df["station_id"].fillna("").astype(str).str.strip()
+    out["measurement_date"] = df["measurement_date"].map(_canonical_date)
+    out["measurement_time"] = df["measurement_time"].map(_canonical_time)
+    out["source_file"] = df["source_file"].fillna("").astype(str).str.strip()
+
+    for canonical, aliases in (extra_aliases or {}).items():
+        out[canonical] = _coalesce_identity_column(df, aliases).map(_canonical_index)
+
+    cols = list(out.columns)
     return out.sort_values(cols, kind="stable").reset_index(drop=True)
 
 
-def compare_identity(expected: pd.DataFrame, observed: pd.DataFrame, *, extra: list[str] | None = None) -> tuple[bool, str]:
+def compare_identity(
+    expected: pd.DataFrame,
+    observed: pd.DataFrame,
+    *,
+    extra_aliases: dict[str, list[str]] | None = None,
+) -> tuple[bool, str]:
     try:
-        exp = identity_frame(expected, extra=extra)
-        obs = identity_frame(observed, extra=extra)
+        exp = identity_frame(expected, extra_aliases=extra_aliases)
+        obs = identity_frame(observed, extra_aliases=extra_aliases)
     except Exception as exc:
         return False, str(exc)
 
@@ -212,10 +294,15 @@ def main() -> None:
                 "detail": "missing raw or normalized Points files",
             })
         else:
+            point_aliases = {
+                "flowtracker": ["point_index", "station"],
+                "molinete": ["point_index", "index"],
+                "nivus": ["point_index", "index"],
+            }
             identity_ok, identity_detail = compare_identity(
                 raw_points,
                 norm_points,
-                extra=["point_index"],
+                extra_aliases={"point_index": point_aliases[instrument]},
             )
 
             unit_bad = 0
@@ -246,8 +333,18 @@ def main() -> None:
         raw_paths, raw_df = load_file_group(raw_root, "nivus", group)
         norm_paths, norm_df = load_file_group(norm_root, "nivus", group)
 
-        extra = ["section_index"] if group == "Sections" else ["point_index", "gate_index"]
-        identity_ok, identity_detail = compare_identity(raw_df, norm_df, extra=extra)
+        if group == "Sections":
+            extra_aliases = {"section_index": ["section_index", "index"]}
+        else:
+            extra_aliases = {
+                "point_index": ["point_index"],
+                "gate_index": ["gate_index", "index"],
+            }
+        identity_ok, identity_detail = compare_identity(
+            raw_df,
+            norm_df,
+            extra_aliases=extra_aliases,
+        )
 
         unit_bad = 0
         if group == "Sections" and {"q_m3s", "q_ls"}.issubset(norm_df.columns):
