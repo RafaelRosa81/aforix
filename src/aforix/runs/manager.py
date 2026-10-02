@@ -3,12 +3,45 @@ from pathlib import Path
 import json
 import shutil
 
+from aforix.config.loader import load_config
+
+
+def _project_root_from_config(config_path: Path) -> Path:
+    resolved = Path(config_path).resolve()
+
+    for candidate in [resolved.parent, *resolved.parents]:
+        if (
+            (candidate / ".git").exists()
+            or (candidate / "pyproject.toml").exists()
+            or (candidate / "src" / "aforix").exists()
+        ):
+            return candidate
+
+    # Standard Aforix layout:
+    # <project>/configs/examples/<config>.yaml
+    if len(resolved.parents) >= 3:
+        return resolved.parents[2]
+
+    return Path.cwd().resolve()
+
+
+def _runs_root_from_config(config_path: Path) -> Path:
+    config_path = Path(config_path).resolve()
+    cfg = load_config(config_path)
+
+    runs_root = Path(cfg.get("paths", {}).get("runs_root", "runs"))
+    if runs_root.is_absolute():
+        return runs_root.resolve()
+
+    return (_project_root_from_config(config_path) / runs_root).resolve()
+
 
 def create_run(pipeline_name: str, config_path: Path) -> Path:
-    """Create a reproducible run directory."""
+    """Create a reproducible run directory under the configured runs root."""
 
+    config_path = Path(config_path).resolve()
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = Path("runs") / pipeline_name / run_id
+    run_dir = _runs_root_from_config(config_path) / pipeline_name / run_id
 
     run_dir.mkdir(parents=True, exist_ok=False)
     (run_dir / "logs").mkdir()
