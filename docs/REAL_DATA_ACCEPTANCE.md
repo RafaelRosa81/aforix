@@ -711,3 +711,19 @@ Verification after the production correction is complete:
 - full test suite: **93 passed**.
 
 MAIN-015 is closed as verified.
+
+
+### EXP-TABLES-06 — real interactive flat XLSX export
+
+This case exercises the actual menu-driven export path after MAIN-006 and MAIN-015:
+
+- table: `Summary`
+- instrument: `all`
+- station: exact authoritative ID `7071`
+- parameters: `q_total_m3s q_total_ls`
+- date range: `20260120` to `20260120`
+- grouping: accept default `none`
+- aggregation: accept default `mean` (irrelevant for flat output)
+- format: accept default `xlsx`
+
+Expected output is the same two independent same-day measurements previously accepted in EXP-TABLES-02, now reached through the interactive workflow. Automated and manual review are both required.
