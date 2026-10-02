@@ -433,3 +433,16 @@ Manual acceptance:
 - long station IDs remain intact.
 
 EXP-TABLES-01 is **PASS (automated + manual)**.
+
+
+### EXP-TABLES-02 — exact station/date filtered CSV
+
+Next case verifies non-interactive filters and CSV output using a domain-significant same-day example:
+
+- table: `Summary`
+- station_id: `7071`
+- date: `20260120`
+- instrument: `all`
+- expected measurements: **2** (FlowTracker + Molinete, distinct times)
+
+This case checks exact station matching, date filtering, retention of multiple same-day measurements, CSV identity formatting, numeric fidelity, and metadata.
