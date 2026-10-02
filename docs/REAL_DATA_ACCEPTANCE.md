@@ -862,3 +862,16 @@ Fields already confirmed populated in the two real exports:
 - Molinete `id_instrumento = 19`.
 
 Manual visual review remains pending.
+
+
+### SIH-02a — textual lookup production correction
+
+The regression failed as intended: `resolve_tipo_aforo_lookup_id()` returned blank for configured `Vadeo` when the lookup row was `VADEO`.
+
+Production matching is now representation-normalized using trim + case-insensitive comparison only. No domain aliases are introduced.
+
+Expected consequence:
+- `Vadeo` -> existing SIH lookup ID `57` (`VADEO`);
+- `Velocimetro puntual` remains unresolved because it is absent from the current `instrumentos_rangos.csv`.
+
+Focused and full-suite verification are pending.
