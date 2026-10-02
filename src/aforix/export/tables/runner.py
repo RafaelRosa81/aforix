@@ -513,7 +513,7 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
         "output_stem": stem,
         "filename_pattern": "{table}_{date_range}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{date_range}_{shape}_{instrument}.{fmt}",
         "column_order": "period_major" if grouping in {"monthly", "daily"} else "flat",
-        "point_selection_rule": "numeric point tokens are treated as station codes; use idx:N or [N] to force index selection",
+        "point_selection_rule": "station selection uses exact station_id values; distinct prefixes/namespaces are not aliases",
         "row_count": int(len(out_df)),
         "source_files": [str(p) for p in source_files],
         "created_at": datetime.now().isoformat(timespec="seconds"),
