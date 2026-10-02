@@ -808,3 +808,18 @@ The first batch case intentionally selects two independent measurements for auth
 - Molinete `20260120 142300`.
 
 The checker validates isolation, metadata success/identity, expected SIH files, exact SIH schemas, station/date/time identity, and normalized hydraulic-value fidelity. This first run is allowed to expose configuration/lookup defects; they will be diagnosed regression-first rather than hidden.
+
+
+### SIH-01 automated acceptance
+
+The isolated batch SIH export completed successfully for the two selected real measurements.
+
+Execution:
+- generated files: **5** (2 actuaciones, 2 aforos, 1 metadata);
+- selection rows: **2**;
+- checker: **6/6 PASS**;
+- output remained isolated under `outputs_acceptance/sih`;
+- both same-day station `7071` measurements remained distinct;
+- station/date/time identity and normalized hydraulic values matched the accepted normalized Summary data.
+
+SIH-01 is **PASS for structural/identity/numeric export behavior**. Manual inspection of user-facing SIH CSV fields remains useful, and semantic lookup completeness is tested separately in SIH-02.
