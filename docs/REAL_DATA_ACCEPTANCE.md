@@ -936,3 +936,16 @@ Verification after the strict configured-lookup correction:
 - repeated full-suite run: **97 passed**.
 
 The next real-data run is expected to fail both selected measurements explicitly on the unresolved configured `instrumentos_rangos_lookup: Velocimetro puntual`, while still writing SIH export metadata that records those failures.
+
+
+### SIH-03 — real-data unresolved-lookup failure behavior
+
+This case verifies MAIN-019 end to end with the current unresolved domain configuration.
+
+Expected behavior for both selected `7071` measurements:
+- no `actuacion` or `aforo` CSV should be emitted;
+- `sih_export_metadata.csv` should contain two rows with `status=error`;
+- each error should identify the unresolved configured `instrumentos_rangos_lookup` and key `Velocimetro puntual`;
+- no partial measurement output files should remain.
+
+This is an expected-failure acceptance test of error handling, not a resolution of the missing SIH range mapping.
