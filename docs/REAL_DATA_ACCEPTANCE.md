@@ -356,3 +356,24 @@ The regenerated acceptance `Summary.csv` was manually inspected in PowerShell. C
 - querying for `station_id` values beginning with `P` returned no rows.
 
 The follow-up spot check for specific long IDs still needs to be executed; the user's later PowerShell commands were wrapped in `{ ... }`, which creates a script block instead of running the pipeline.
+
+
+### Post-station-code full verification
+
+After regenerating normalized data without the legacy `station_code` column:
+
+- manual spot-check preserved IDs `70101`, `701150`, `701190`, and `7071` across FlowTracker/Molinete/Nivus;
+- no `station_id` beginning with `P` was found;
+- normalize acceptance: **10/10 PASS**;
+- cross-instrument Summary: **250 rows**;
+- cross-instrument Points: **3977 rows**;
+- raw column audit: **669/669 OK**;
+- normalized column audit: **669/669 OK**;
+- duplicate audit: **0 duplicate findings**;
+- hydraulic consistency: **750/750 OK**;
+- unit consistency: **461/461 OK**;
+- production validation acceptance: **6/6 PASS**;
+- station-code regression tests: **2 passed**;
+- complete test suite: **84 passed**.
+
+A separate `docs/MAIN_IMPROVEMENTS_REGISTER.md` now tracks acceptance findings that must be merged, decided, or followed up before updating `main`.
