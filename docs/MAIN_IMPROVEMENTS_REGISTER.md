@@ -283,3 +283,12 @@ The production config edits themselves are currently local/uncommitted and are n
 The expected first regression result was observed: **1 PASS / 1 FAIL**. Main SIH lookup keys resolve against the user's locally updated lookup CSV, while the acceptance SIH config still differed from the main config (`Vadeo` vs `VADEO` was the first reported mismatch).
 
 `configs/sih/sih_acceptance.yaml` has now been synchronized to the adopted mappings: FlowTracker/Molinete `VADEO / Velocimetro`, Nivus `VADEO / Acustico`, M9 `BOTE / ADCP`. The user's locally modified production config files were not touched remotely.
+
+
+### MAIN-017 configuration regression verification
+
+The adopted SIH semantic mappings now pass the focused consistency regression with the user's local production-config edits plus the synchronized acceptance config: **2/2 PASS**.
+
+The full test suite also passes: **99 passed**.
+
+The production config edits (`configs/sih/sih.yaml` and `configs/sih/instrumentos_rangos.csv`) are still local/uncommitted at this checkpoint and must be committed/pushed before MAIN-017 can be considered fully captured in the branch history. Real-data SIH export verification is still pending.
