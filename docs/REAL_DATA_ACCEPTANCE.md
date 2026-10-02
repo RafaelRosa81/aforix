@@ -949,3 +949,16 @@ Expected behavior for both selected `7071` measurements:
 - no partial measurement output files should remain.
 
 This is an expected-failure acceptance test of error handling, not a resolution of the missing SIH range mapping.
+
+
+### SIH-03 final acceptance
+
+The real-data unresolved-lookup behavior passed exactly as designed:
+
+- output directory clean before run: confirmed;
+- files generated: **1** (`sih_export_metadata.csv`);
+- checker: **5/5 PASS**;
+- both selected measurements were rejected explicitly because `Velocimetro puntual` does not resolve in the current `instrumentos_rangos.csv`;
+- no partial measurement CSVs were left behind.
+
+SIH-03 is **PASS**. The remaining open item is not an error-handling defect: it is the unresolved domain/configuration mapping for `id_instrumentos_rangos` (MAIN-017).
