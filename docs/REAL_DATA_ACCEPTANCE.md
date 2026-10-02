@@ -823,3 +823,15 @@ Execution:
 - station/date/time identity and normalized hydraulic values matched the accepted normalized Summary data.
 
 SIH-01 is **PASS for structural/identity/numeric export behavior**. Manual inspection of user-facing SIH CSV fields remains useful, and semantic lookup completeness is tested separately in SIH-02.
+
+
+### SIH-02 — semantic lookup completeness diagnostic
+
+SIH-01 proved that files can be generated correctly at the structural, identity, and normalized-value levels. The next check deliberately audits semantic IDs that SIH configuration says should be resolved:
+
+- `id_instrumento`;
+- `id_tipo_actuacion`;
+- `id_tipo_aforo`;
+- `id_instrumentos_rangos`.
+
+The diagnostic also checks whether each configured `tipo_aforo_lookup` and `instrumentos_rangos_lookup` key has exactly one match in the current lookup CSVs, using only representation-normalized comparison (trim/case). It does **not** invent or substitute domain IDs when a configured concept is absent from the lookup table.
