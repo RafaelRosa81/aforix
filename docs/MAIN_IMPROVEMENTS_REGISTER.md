@@ -145,3 +145,13 @@ The runner now treats explicit flat mode as authoritative:
 - metadata reports `grouping: none`, `pivot: False`, and `column_order: flat`.
 
 Verification is pending.
+
+
+### MAIN-016 verification complete
+
+The explicit flat-override correction is fully verified:
+
+- focused regression: **1/1 PASS**;
+- full test suite: **94 passed**.
+
+`pivot=False` now forces true flat output, effective grouping `none`, flat filename semantics, and flat metadata. MAIN-016 is verified for integration.
