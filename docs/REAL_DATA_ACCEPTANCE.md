@@ -546,3 +546,22 @@ Next case verifies simultaneous instrument/date filtering on Summary and XLSX ou
 - parameters: q, area, mean velocity
 
 The checker derives the expected row count directly from normalized Summary data and verifies exact row identity/numeric fidelity, filter boundaries, absence of legacy `station_code`, P-free authoritative IDs, and metadata.
+
+
+### EXP-TABLES-03 final acceptance
+
+The FlowTracker Summary XLSX export for the inclusive date range `20260119` through `20260122` completed successfully.
+
+Automated acceptance:
+- rows exported: **8**
+- checks: **6**
+- PASS: **6**
+- FAIL: **0**
+
+Manual acceptance:
+- workbook reviewed by the user and judged correct;
+- instrument/date filtering is clear;
+- authoritative station IDs and time formatting remain intact;
+- selected hydraulic fields are presented correctly.
+
+EXP-TABLES-03 is **PASS (automated + manual)**.
