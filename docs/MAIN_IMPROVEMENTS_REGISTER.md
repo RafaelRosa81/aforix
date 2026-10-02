@@ -180,3 +180,15 @@ Production textual lookup matching now applies representation-only normalization
 This affects the generic SIH textual lookup helper used by `tipo_aforo` and `instrumentos_rangos`. Therefore `Vadeo` can resolve to the existing `VADEO` row, while `Velocimetro puntual` will still remain unresolved because no corresponding semantic row exists in the current ranges lookup.
 
 Verification is pending.
+
+
+### MAIN-018 verification
+
+The textual lookup normalization fix is verified at code level:
+
+- focused regression: **1/1 PASS**;
+- full test suite: **95 passed**.
+
+A subsequent real-data SIH rerun was interrupted at final metadata write by Windows `PermissionError` on `outputs_acceptance/sih/sih_export_metadata.csv`. Because the prior manual review had opened the SIH output directory/files, this rerun cannot be treated as a clean end-to-end verification: the output directory may contain a mixture of newly rewritten and previously open/stale files.
+
+Observed partial files show Molinete `id_tipo_aforo=57`, consistent with the fix, while FlowTracker still appeared blank; that asymmetry must be rechecked only after closing open files and performing a confirmed clean output-directory removal.
