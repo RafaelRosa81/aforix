@@ -317,3 +317,8 @@ The first real user-facing Summary workbook contained the expected 250 rows and 
 Inspection of the workbook confirmed that `station_id`, `measurement_date`, and `measurement_time` had been written as numeric cells. Root cause: the export loader used default pandas type inference when reopening normalized CSVs, so six-digit time identity strings could be coerced to integers before XLSX writing.
 
 The export loader now keeps `station_id`, `measurement_date`, and `measurement_time` as strings while continuing to infer hydraulic measurement columns numerically. A focused regression test verifies the XLSX cell value and type for a leading-zero time. EXP-TABLES-01 remains pending until the workbook is regenerated, the automated checker passes, and the corrected time is manually confirmed.
+
+
+### EXP-TABLES-01 checker numeric-equivalence correction
+
+After the leading-zero time fix, the regenerated workbook preserved `085851` correctly. The remaining automated failure was not a workbook defect: the checker compared numeric hydraulic values as strings, so Excel's equivalent serialization of `109.0` as `109` (and `12.0` as `12`) was treated as a mismatch. The checker now compares identity fields exactly as text and hydraulic fields numerically with tight tolerance. Production export code was not changed for this second issue.
