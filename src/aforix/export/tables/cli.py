@@ -13,7 +13,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--interactive", action="store_true", help="Run menu-driven mode")
     p.add_argument("--table", help="Normalized table name, e.g. Summary or Points")
     p.add_argument("--instrument", default="all", help="Instrument name or 'all'")
-    p.add_argument("--points", nargs="*", default=[], help="Point/station codes, e.g. P21 21 P8")
+    p.add_argument("--points", nargs="*", default=[], help="Exact station IDs, e.g. 7003 70101 701150")
     p.add_argument("--parameters", "--columns", dest="parameters", nargs="*", default=[], help="Columns/parameters to export")
     p.add_argument("--early-date", dest="early_date")
     p.add_argument("--late-date", dest="late_date")
