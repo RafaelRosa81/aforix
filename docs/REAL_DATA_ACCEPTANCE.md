@@ -398,3 +398,8 @@ Production corrections were then applied:
 - older tests encoding the deprecated semantic mapping were updated to the authoritative-identity rule.
 
 Verification is pending the targeted and full pytest runs.
+
+
+### Downstream identity verification — stale test expectation corrected
+
+The targeted downstream suite passed **6/6** after the production fix. The broader metadata/boundary run exposed three remaining failures, all in one parameterized export-boundary test whose expected values still encoded the old `P<n> -> 7000+n` mapping. Production behavior was already correct (`P1 -> P1`, `P71 -> P71`, `P101 -> P101`). The stale test expectations were corrected, and the correlation CLI help was also updated to stop advertising legacy P aliases.
