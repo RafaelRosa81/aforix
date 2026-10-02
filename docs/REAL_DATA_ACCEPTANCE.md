@@ -579,3 +579,21 @@ Next case tests the grouped/pivot branch of `export tables` using the same FlowT
 - parameters: `q_total_ls`, `area_total_m2`
 
 The checker independently builds the expected daily pivot from normalized Summary data and verifies period-major columns, complete date coverage (including dates with blank cells), station rows, numeric mean fidelity, and metadata.
+
+
+### EXP-TABLES-04 automated pass + manual UX decision
+
+The daily pivot workbook passed all structural/numeric checks:
+
+- rows: **8**
+- checks: **6**
+- PASS: **6**
+- FAIL: **0**
+
+Manual review reached a product/UX conclusion: although the pivot is technically correct, the user prefers the newer **flat** layout because it is easier to read and use. The pivot layout resembles the older wide workbook format and becomes less readable as dates/parameters grow.
+
+Decision for the new Aforix version:
+- **flat** should be the default/recommended general-purpose table export;
+- **daily/monthly pivot** should remain available only when explicitly requested for analytical use.
+
+A regression test is added before changing the CLI default.
