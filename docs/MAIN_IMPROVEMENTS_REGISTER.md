@@ -276,3 +276,10 @@ The SIH semantic mapping has now been explicitly chosen for the project:
 These are deliberate project/domain choices supplied during acceptance, not inferred aliases. A regression test now requires every configured lookup key in the main SIH config to resolve exactly once and requires acceptance SIH semantic mappings to stay synchronized with the main SIH config.
 
 The production config edits themselves are currently local/uncommitted and are not overwritten by this test commit.
+
+
+### MAIN-017 regression synchronization
+
+The expected first regression result was observed: **1 PASS / 1 FAIL**. Main SIH lookup keys resolve against the user's locally updated lookup CSV, while the acceptance SIH config still differed from the main config (`Vadeo` vs `VADEO` was the first reported mismatch).
+
+`configs/sih/sih_acceptance.yaml` has now been synchronized to the adopted mappings: FlowTracker/Molinete `VADEO / Velocimetro`, Nivus `VADEO / Acustico`, M9 `BOTE / ADCP`. The user's locally modified production config files were not touched remotely.
