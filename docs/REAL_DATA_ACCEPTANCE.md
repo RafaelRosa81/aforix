@@ -209,3 +209,19 @@ Normalization completed in the isolated acceptance tree with **669 normalized ou
 The first acceptance checker produced 4 PASS / 6 FAIL, but all six failures were checker assumptions about pre-normalization representation rather than observed data loss: Molinete dates/times legitimately change from `YYYY-MM-DD` / `HH:MM:SS` to configured canonical `YYYYMMDD` / `HHMMSS`, and raw point/section/gate indices use instrument-specific source column names that normalize to canonical index columns. The checker was updated to compare canonical logical identity and source aliases. Production normalization code was not changed.
 
 The general audit simultaneously reported all 669 raw and normalized column checks OK, all 750 hydraulic checks OK, and all 461 unit-consistency checks OK. Duplicate/range audit findings are retained for separate diagnosis before validation is closed.
+
+
+### NORM-01 final acceptance verification
+
+The corrected normalization acceptance checker completed with **10 PASS / 0 FAIL**. Cross-instrument concatenations contain **250 Summary rows** and **3977 Points rows**, matching the expected corpus.
+
+The acceptance audit also shows:
+- raw column checks: **669/669 OK**
+- normalized column checks: **669/669 OK**
+- hydraulic consistency: **750/750 OK**
+- unit consistency: **461/461 OK**
+- range flags: **236**, all informational negative-flow observations; **no warning/error range findings**
+
+NORM-01 is accepted for the current real-data corpus.
+
+A separate audit-script issue remains open: four FlowTracker Points files are reported as duplicate-bearing because the standalone audit currently keys Points only by `point_index`; FlowTracker can legitimately contain the same vertical at multiple `percent_depth` values. The production validation duplicate check already handles this correctly. A regression test was added before changing the audit implementation.
