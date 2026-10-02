@@ -49,16 +49,33 @@ def normalize_frame(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def compare_common_columns(expected: pd.DataFrame, observed: pd.DataFrame) -> tuple[int, list[str]]:
+def compare_common_columns(
+    expected: pd.DataFrame,
+    observed: pd.DataFrame,
+    *,
+    identity_columns: list[str] | None = None,
+) -> tuple[int, list[str]]:
     common = [c for c in expected.columns if c in observed.columns]
     if not common:
         return 1, ["no common columns"]
 
-    exp = normalize_frame(expected[common]).reset_index(drop=True)
-    obs = normalize_frame(observed[common]).reset_index(drop=True)
+    exp = normalize_frame(expected[common])
+    obs = normalize_frame(observed[common])
 
     if len(exp) != len(obs):
         return 1, [f"row count differs: expected={len(exp)} observed={len(obs)}"]
+
+    if identity_columns:
+        keys = [c for c in identity_columns if c in common]
+        if keys:
+            exp = exp.sort_values(keys, kind="stable").reset_index(drop=True)
+            obs = obs.sort_values(keys, kind="stable").reset_index(drop=True)
+        else:
+            exp = exp.reset_index(drop=True)
+            obs = obs.reset_index(drop=True)
+    else:
+        exp = exp.reset_index(drop=True)
+        obs = obs.reset_index(drop=True)
 
     mismatches = 0
     examples: list[str] = []
@@ -68,8 +85,16 @@ def compare_common_columns(expected: pd.DataFrame, observed: pd.DataFrame) -> tu
         mismatches += count
         if count and len(examples) < 10:
             idx = bad[bad].index[0]
+            identity = ""
+            if identity_columns:
+                present = [c for c in identity_columns if c in common]
+                if present:
+                    identity = " [" + ", ".join(
+                        f"{c}={exp.at[idx, c]!r}" for c in present
+                    ) + "]"
             examples.append(
-                f"column={col} row={idx} expected={exp.at[idx, col]!r} observed={obs.at[idx, col]!r}"
+                f"column={col} row={idx}{identity} "
+                f"expected={exp.at[idx, col]!r} observed={obs.at[idx, col]!r}"
             )
     return mismatches, examples
 
@@ -148,7 +173,17 @@ def main() -> None:
 
                 expected = load_concat_expected(source_files)
                 observed = pd.read_csv(output_path, dtype=str)
-                mismatches, examples = compare_common_columns(expected, observed)
+                mismatches, examples = compare_common_columns(
+                    expected,
+                    observed,
+                    identity_columns=[
+                        "instrument",
+                        "station_id",
+                        "measurement_date",
+                        "measurement_time",
+                        "source_file",
+                    ],
+                )
                 trace_issues = traceability_issues(observed)
                 passed = (
                     len(expected) == len(observed)
