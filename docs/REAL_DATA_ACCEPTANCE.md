@@ -727,3 +727,21 @@ This case exercises the actual menu-driven export path after MAIN-006 and MAIN-0
 - format: accept default `xlsx`
 
 Expected output is the same two independent same-day measurements previously accepted in EXP-TABLES-02, now reached through the interactive workflow. Automated and manual review are both required.
+
+
+### EXP-TABLES-06 final acceptance
+
+The real menu-driven flat XLSX export passed both automated and manual review.
+
+Automated acceptance:
+- rows exported: **2**
+- checks: **6**
+- PASS: **6**
+- FAIL: **0**
+
+Manual acceptance:
+- the interactive workflow was judged clear;
+- the generated XLSX was judged correct;
+- the accepted flat layout remained intact.
+
+EXP-TABLES-06 is **PASS (automated + manual)**.
