@@ -225,3 +225,8 @@ The acceptance audit also shows:
 NORM-01 is accepted for the current real-data corpus.
 
 A separate audit-script issue remains open: four FlowTracker Points files are reported as duplicate-bearing because the standalone audit currently keys Points only by `point_index`; FlowTracker can legitimately contain the same vertical at multiple `percent_depth` values. The production validation duplicate check already handles this correctly. A regression test was added before changing the audit implementation.
+
+
+### Audit duplicate regression test harness
+
+The first regression-test run failed during test collection because `scripts/` is not a Python package and therefore `from scripts.audit_pipeline_outputs import ...` is not importable in the installed test environment. The test harness was corrected to load the standalone audit script explicitly by file path. Production code remains unchanged; the regression assertion still needs to fail before the audit implementation is modified.
