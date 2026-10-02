@@ -835,3 +835,30 @@ SIH-01 proved that files can be generated correctly at the structural, identity,
 - `id_instrumentos_rangos`.
 
 The diagnostic also checks whether each configured `tipo_aforo_lookup` and `instrumentos_rangos_lookup` key has exactly one match in the current lookup CSVs, using only representation-normalized comparison (trim/case). It does **not** invent or substitute domain IDs when a configured concept is absent from the lookup table.
+
+
+### SIH-02 diagnostic result
+
+Result: **2 PASS / 4 FAIL**.
+
+The failures are not one single defect:
+
+1. **Textual representation mismatch — code defect candidate**
+   - configured: `tipo_aforo_lookup: Vadeo`;
+   - lookup contains `VADEO`;
+   - the acceptance diagnostic deliberately normalizes case/outer whitespace and finds exactly one semantic match;
+   - production lookup uses exact string comparison, so both exported `id_tipo_aforo` values are blank.
+   - A focused regression test is added before production changes.
+
+2. **Missing semantic mapping — configuration/domain-data issue**
+   - configured: `instrumentos_rangos_lookup: Velocimetro puntual`;
+   - current lookup values are `Barra 20 mm`, cable/barra combinations, `Todos los casos`, and `Acustico`;
+   - there is no `Velocimetro puntual` entry to resolve.
+   - No substitute ID will be guessed.
+
+Fields already confirmed populated in the two real exports:
+- `id_tipo_actuacion = 4`;
+- FlowTracker `id_instrumento = 501`;
+- Molinete `id_instrumento = 19`.
+
+Manual visual review remains pending.
