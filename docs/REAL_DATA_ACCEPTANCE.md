@@ -414,3 +414,22 @@ Verification after the production correction is complete:
 - full suite: **90 passed**.
 
 The authoritative-ID rule is now enforced across the audited downstream boundaries: no semantic `P<n> -> 7000+n` aliasing, no manual-stage P-prefix invention, and `Pm<n>` remains a distinct model-point namespace.
+
+
+### EXP-TABLES-01 final acceptance
+
+The final flat all-instrument Summary workbook was regenerated after station-identity cleanup.
+
+Automated acceptance:
+- rows exported: **250**
+- checks: **6**
+- PASS: **6**
+- FAIL: **0**
+
+Manual acceptance:
+- workbook layout judged clear and usable;
+- no legacy `station_code` column;
+- six-digit times preserved;
+- long station IDs remain intact.
+
+EXP-TABLES-01 is **PASS (automated + manual)**.
