@@ -636,3 +636,16 @@ Test case:
 - parameters: `q_total_ls`, `area_total_m2`
 
 This is a technical acceptance case; no preference reversal is implied. The checker independently reconstructs monthly means and verifies period-major columns, station rows, numeric fidelity, explicit month coverage, and metadata.
+
+
+### EXP-TABLES-05 final acceptance
+
+The explicit monthly pivot FlowTracker Summary export completed successfully.
+
+Automated acceptance:
+- rows exported: **16**
+- checks: **6**
+- PASS: **6**
+- FAIL: **0**
+
+This confirms that monthly pivot remains technically correct as an explicit analytical option. The product decision is unchanged: flat remains the default/recommended general-purpose layout.
