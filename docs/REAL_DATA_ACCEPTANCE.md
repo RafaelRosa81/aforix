@@ -1032,3 +1032,10 @@ Reviewed generated files:
 Observed results: both metadata rows are `success`; authoritative station ID `7071`, dates/times, and filenames agree; FlowTracker exports instrument `501`, type `57`, range `11`; Molinete exports instrument `19`, type `57`, range `11`. The CSVs are UTF-8 BOM comma-delimited files with one data row each. Hydraulic summary values are internally coherent at exported precision.
 
 Manual-review follow-ups: Molinete `id_operador` contains display text (`I. Pérez`) while FlowTracker is blank, so the SIH operator-ID contract must be confirmed (MAIN-020). Molinete scale-related fields are blank despite `raw_canonical_found=True`; source-vs-mapping verification is required (MAIN-021). Molinete observation text `Punto P71` is retained as free text while authoritative station identity remains `7071`.
+
+
+### SIH-05 — Molinete raw-field diagnostic
+
+Pre-fix repository diagnosis: the Molinete adapter writes `escala_media_m`, but both SIH configs currently reference nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`. A regression test and a real-data diagnostic script were added before production changes.
+
+The diagnostic also reports actual values of `esc_ini_m` and `esc_fin_m` for ACCM001 so their blank SIH outputs can be classified as source-data blanks versus an export defect.
