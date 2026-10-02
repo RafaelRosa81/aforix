@@ -1,0 +1,38 @@
+version: 1
+captured_date: "2026-10-01"
+raw_root: data/raw
+
+corpus:
+  physical_files: 257
+  unique_sha256_payloads: 250
+  exact_duplicate_files: 7
+
+instruments:
+  flowtracker:
+    raw_subdir: FT
+    physical_files: 30
+    unique_sha256_payloads: 29
+    exact_duplicate_files: 1
+    known_duplicate_pairs:
+      - files:
+          - 11900205.dis
+          - 119020160205.dis
+        sha256: 32fd2e6983dfca0b29d80f6051b97d822a2df2ac8d5d10722030d8387032632f
+
+  molinete:
+    raw_subdir: ML
+    physical_files: 13
+    unique_sha256_payloads: 13
+    exact_duplicate_files: 0
+
+  nivus:
+    raw_subdir: NV
+    physical_files: 214
+    unique_sha256_payloads: 208
+    exact_duplicate_files: 6
+
+  m9:
+    raw_subdir: M9
+    physical_files: 0
+    unique_sha256_payloads: 0
+    exact_duplicate_files: 0
