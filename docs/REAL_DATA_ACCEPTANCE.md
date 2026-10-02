@@ -526,3 +526,10 @@ Automated acceptance:
 - exact station/date filtering, identity fidelity, numeric fidelity, and metadata all passed
 
 Manual user review is still pending before EXP-TABLES-02 is closed.
+
+
+### EXP-TABLES-02 final acceptance
+
+Manual review confirmed the filtered CSV is correct and usable. The two expected same-day measurements for station `7071` were preserved independently.
+
+EXP-TABLES-02 is **PASS (automated + manual)**.
