@@ -53,3 +53,21 @@ Do not merge this branch to `main` merely because an individual acceptance item 
 3. either close or deliberately defer **FOLLOW-UP** items;
 4. run the full test suite and the selected real-data smoke checks one final time;
 5. merge through a reviewed PR so the acceptance history remains traceable.
+
+
+## MAIN-008 downstream station-identity audit — occurrence inventory
+
+The first source audit found legacy semantic station canonicalization in multiple downstream boundaries, not only in normalization:
+
+- `src/aforix/metadata.py::canonical_station_id` maps `P<n>` to `7000+n`;
+- `export/tables/runner.py` uses it for point filtering and point discovery;
+- `batch/default_registry.py` uses it for point parsing;
+- quality analysis uses it for filename-derived station IDs and filters;
+- section-profiles uses it when standardizing station IDs;
+- stage-discharge uses it for normalized/manual-stage matching and CLI selection;
+- correlation uses it in CLI/interactive selection, gauge loading, and gauge/model workflows;
+- `external/manual_stage/convert.py` has a separate legacy rule that converts numeric IDs to `P<n>`.
+
+The model-point namespace `Pm<n>` is intentionally separate and already has explicit protection against confusing measured `P<n>` IDs with model points.
+
+A new downstream regression suite (`tests/test_station_identity_downstream.py`) defines the target rule before production changes: station normalization may clean representation (whitespace/case/float-like string artifacts) but must not create semantic aliases or renumber `P<n>` into the 7000 namespace. Manual-stage conversion must not invent a `P` prefix. Production downstream code remains unchanged until the expected failures are observed.
