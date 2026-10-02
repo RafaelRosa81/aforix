@@ -1,8 +1,22 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pandas as pd
 
-from scripts.audit_pipeline_outputs import audit_duplicates
+
+def _load_audit_module():
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "audit_pipeline_outputs.py"
+    spec = importlib.util.spec_from_file_location("audit_pipeline_outputs", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load audit script: {script_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+audit_duplicates = _load_audit_module().audit_duplicates
 
 
 MEASUREMENT = {
