@@ -262,3 +262,17 @@ There is also a separate SIH `tipo_aforo` lookup gap for:
 - M9: `tipo_aforo_lookup: ADCP` — absent.
 
 M9 is currently disabled in SIH config, so these M9 mismatches do not affect current exports until M9 is enabled. Nivus is enabled and therefore would currently fail strict semantic lookup resolution under MAIN-019 until its SIH mappings are defined.
+
+
+### MAIN-017 domain mapping decision
+
+The SIH semantic mapping has now been explicitly chosen for the project:
+
+- FlowTracker: `tipo_aforo=VADEO (57)`, `instrumentos_rangos=Velocimetro (11)`;
+- Molinete: `tipo_aforo=VADEO (57)`, `instrumentos_rangos=Velocimetro (11)`;
+- Nivus: `tipo_aforo=VADEO (57)`, `instrumentos_rangos=Acustico (10)`;
+- M9: `tipo_aforo=BOTE (59)`, `instrumentos_rangos=ADCP (12)`.
+
+These are deliberate project/domain choices supplied during acceptance, not inferred aliases. A regression test now requires every configured lookup key in the main SIH config to resolve exactly once and requires acceptance SIH semantic mappings to stay synchronized with the main SIH config.
+
+The production config edits themselves are currently local/uncommitted and are not overwritten by this test commit.
