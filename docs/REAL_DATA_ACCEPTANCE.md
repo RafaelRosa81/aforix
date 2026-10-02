@@ -1039,3 +1039,22 @@ Manual-review follow-ups: Molinete `id_operador` contains display text (`I. Pér
 Pre-fix repository diagnosis: the Molinete adapter writes `escala_media_m`, but both SIH configs currently reference nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`. A regression test and a real-data diagnostic script were added before production changes.
 
 The diagnostic also reports actual values of `esc_ini_m` and `esc_fin_m` for ACCM001 so their blank SIH outputs can be classified as source-data blanks versus an export defect.
+
+
+### SIH-05 diagnostic result
+
+Focused regression result: **1 FAIL**, expected. The failure confirms that both SIH configs still reference `escala_media` instead of the Molinete adapter column `escala_media_m`.
+
+Real-data diagnostic for ACCM001 (`7071 / 20260120 / 142300`):
+- `realizado` exists and contains `I. Pérez`;
+- `esc_ini_m` exists but is blank;
+- `esc_fin_m` exists but is blank;
+- `escala_media_m` exists but is blank;
+- `escala_media` does not exist;
+- observations and hydraulic radius are present.
+
+Classification: **configuration defect confirmed, source scale values blank for this selected measurement**. A future config fix is still required, but it should not be expected to change the visible scale fields for ACCM001 because the underlying values are empty.
+
+### Pause checkpoint
+
+Acceptance paused here. Resume with the MAIN-021 config correction first, then rerun the focused regression, full suite, and SIH real-data export. Keep MAIN-020 open until an authoritative SIH operator-ID contract/mapping is available. Nivus SIH acceptance follows afterward.
