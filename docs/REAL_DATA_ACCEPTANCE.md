@@ -377,3 +377,10 @@ After regenerating normalized data without the legacy `station_code` column:
 - complete test suite: **84 passed**.
 
 A separate `docs/MAIN_IMPROVEMENTS_REGISTER.md` now tracks acceptance findings that must be merged, decided, or followed up before updating `main`.
+
+
+### Downstream station identity — regression stage
+
+Source inspection confirmed that legacy station aliasing survives in downstream modules even though the accepted normalized database is now P-free. A regression suite was added before production changes. It covers core canonical station handling, export-table filtering, batch point parsing, manual-stage conversion, quality, section-profiles, stage-discharge, and protection of the distinct `Pm<n>` model-point namespace.
+
+Expected current result: failures showing `P71 -> 7071` aliasing and manual-stage generation of `P<n>`.
