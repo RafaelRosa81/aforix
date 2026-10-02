@@ -620,3 +620,19 @@ The production default change was verified successfully:
 - full suite: **91 passed**.
 
 The new Aforix table-export default is therefore the flat layout (`grouping=none`) for both CLI and interactive modes. Pivot remains an explicit analytical option.
+
+
+### EXP-TABLES-05 — monthly pivot technical verification
+
+Because pivot is retained as an explicit analytical option, monthly grouping is tested separately even though flat is now the default presentation.
+
+Test case:
+- table: `Summary`
+- instrument: `flowtracker`
+- date range: `20251101` through `20260131`
+- grouping: `monthly`
+- aggregation: `mean`
+- format: XLSX
+- parameters: `q_total_ls`, `area_total_m2`
+
+This is a technical acceptance case; no preference reversal is implied. The checker independently reconstructs monthly means and verifies period-major columns, station rows, numeric fidelity, explicit month coverage, and metadata.
