@@ -962,3 +962,17 @@ The real-data unresolved-lookup behavior passed exactly as designed:
 - no partial measurement CSVs were left behind.
 
 SIH-03 is **PASS**. The remaining open item is not an error-handling defect: it is the unresolved domain/configuration mapping for `id_instrumentos_rangos` (MAIN-017).
+
+
+### SIH semantic lookup scope review
+
+The unresolved SIH mapping is not limited to FlowTracker/Molinete.
+
+Current configuration vs lookup CSVs:
+- FlowTracker/Molinete range key `Velocimetro puntual`: not present;
+- Nivus range key `Doppler acustico`: not present;
+- M9 range key `ADCP movil`: not present;
+- Nivus tipo-aforo key `Acustico`: not present in `tipos_aforos.csv`;
+- M9 tipo-aforo key `ADCP`: not present in `tipos_aforos.csv`.
+
+M9 remains disabled, so it is not currently exercised. Nivus is enabled and requires semantic SIH mapping resolution before its SIH export can pass strict acceptance.
