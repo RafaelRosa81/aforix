@@ -533,3 +533,16 @@ Manual user review is still pending before EXP-TABLES-02 is closed.
 Manual review confirmed the filtered CSV is correct and usable. The two expected same-day measurements for station `7071` were preserved independently.
 
 EXP-TABLES-02 is **PASS (automated + manual)**.
+
+
+### EXP-TABLES-03 — instrument + inclusive date-range XLSX
+
+Next case verifies simultaneous instrument/date filtering on Summary and XLSX output:
+
+- instrument: `flowtracker`
+- date range: `20260119` through `20260122` inclusive
+- grouping: `none`
+- format: XLSX
+- parameters: q, area, mean velocity
+
+The checker derives the expected row count directly from normalized Summary data and verifies exact row identity/numeric fidelity, filter boundaries, absence of legacy `station_code`, P-free authoritative IDs, and metadata.
