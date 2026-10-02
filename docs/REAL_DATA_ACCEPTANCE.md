@@ -303,3 +303,8 @@ The export-tables path-resolution fixes were verified locally:
 - full test suite: **81 passed**
 
 The modern acceptance config resolves to `database_acceptance/normalized` for input and `outputs_acceptance/tables` for output, while standalone legacy configs remain supported.
+
+
+### EXP-TABLES-01 — first user-facing workbook
+
+The first manual+automated export case is a flat all-instrument `Summary` workbook with only user-relevant hydraulic columns. The automated checker verifies 250 rows, exact fidelity against normalized Summary data, preservation of long station IDs (including 701190/701150/70101), sidecar metadata, and workbook sheets. Manual review focuses on readability, field order, station/date/time presentation, units/column naming, representative values, and whether the workbook is practical to use without internal Aforix knowledge.
