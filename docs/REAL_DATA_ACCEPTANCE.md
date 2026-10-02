@@ -131,3 +131,16 @@ Independent real-data Molinete acceptance check completed successfully:
 - FAIL: **0**
 
 The independent checker opened the RAW Excel files directly and compared station identity plus total discharge, area, mean velocity, Points sums, and point counts against Aforix ingest outputs. ING-ML is accepted for the current real-data corpus.
+
+
+### ING-NV structural verification
+
+Real-data Nivus ingest produced:
+
+- run: `runs_acceptance/ingest_nivus/20261001_220512`
+- Summary outputs: **208**
+- Points outputs: **208**
+- Sections outputs: **208**
+- Gates outputs: **208**
+
+This matches the baseline of 214 physical XML files with six exact duplicate copies, leaving 208 unique payloads/measurement outputs. XML-to-CSV field fidelity remains to be checked before final PASS.
