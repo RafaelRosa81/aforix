@@ -278,3 +278,13 @@ The five production validation checks (`required_columns`, `duplicates`, `comple
 ### EXP-TABLES configuration isolation — regression test
 
 Before running real exports, inspection found that the tables-export configuration helper still reads legacy keys (`project.database_root`, `project.runs_root`, and top-level `export_tables`) while the current main config uses `paths.database_root`, `paths.runs_root`, and `export.tables`. A regression test was added first to require the acceptance config to resolve its normalized input to `database_acceptance/normalized` and output to `outputs_acceptance/tables`. Production export code has not yet been changed.
+
+
+### User-facing output acceptance protocol
+
+From the export stage onward, acceptance uses two complementary layers:
+
+1. **Automated verification** — file existence, row/column counts, filters, calculations, source traceability, metadata, naming, and isolation under acceptance output roots.
+2. **Manual user review** — open the produced CSV/XLSX files as an end user would and verify readability, headings, ordering, units, station/date identity, representative numeric values against normalized source data, empty-cell behavior, and whether the result is practically usable without interpretation of internal implementation details.
+
+Manual review findings are recorded separately from automated failures so presentation/usability issues are not hidden by technically correct data.
