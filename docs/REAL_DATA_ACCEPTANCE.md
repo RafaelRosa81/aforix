@@ -293,3 +293,13 @@ Manual review findings are recorded separately from automated failures so presen
 ### EXP-TABLES config fallback correction
 
 The current acceptance-path test passed, confirming that the modern config structure now resolves `database_acceptance/normalized` correctly. The remaining failure was limited to the legacy/standalone-config compatibility test: when a config file is outside a repository tree, `_infer_repo_root()` fell back to the process working directory, making relative paths depend on where the command was launched. The fallback was corrected to the config file's own directory, while repository-contained configs still resolve from the repository root.
+
+
+### EXP-TABLES configuration verification
+
+The export-tables path-resolution fixes were verified locally:
+
+- targeted export config tests: **2 passed**
+- full test suite: **81 passed**
+
+The modern acceptance config resolves to `database_acceptance/normalized` for input and `outputs_acceptance/tables` for output, while standalone legacy configs remain supported.
