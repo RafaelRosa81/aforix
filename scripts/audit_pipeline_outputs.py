@@ -10,7 +10,6 @@ import pandas as pd
 
 TRACEABILITY_COLUMNS = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
@@ -33,7 +32,6 @@ RAW_TRACEABILITY_COLUMNS = [
 
 NORMALIZED_SUMMARY_REQUIRED = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
@@ -48,7 +46,6 @@ NORMALIZED_SUMMARY_REQUIRED = [
 
 NORMALIZED_POINTS_REQUIRED = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
