@@ -511,3 +511,18 @@ Manual review after the checker:
 - distinct times preserved;
 - no aggregation/collapse of the two same-day measurements;
 - `q_total_m3s` and `q_total_ls` remain coherent.
+
+
+### EXP-TABLES-02 automated verification
+
+The exact-station/date filtered Summary CSV export completed successfully for station `7071` on `20260120`.
+
+Automated acceptance:
+- rows exported: **2**
+- checks: **5**
+- PASS: **5**
+- FAIL: **0**
+- expected same-day measurements retained independently: FlowTracker + Molinete
+- exact station/date filtering, identity fidelity, numeric fidelity, and metadata all passed
+
+Manual user review is still pending before EXP-TABLES-02 is closed.
