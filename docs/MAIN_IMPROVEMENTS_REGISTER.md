@@ -87,3 +87,16 @@ Downstream station identity correction is now fully verified on the acceptance b
 - full test suite: **90 passed**.
 
 MAIN-008 is promoted to **MERGE**.
+
+
+## Work checkpoint — 2026-10-02
+
+Acceptance campaign paused after closing **EXP-TABLES-01** and before executing **EXP-TABLES-02**.
+
+Next active item on resume:
+- **EXP-TABLES-02 — exact station/date filtered CSV**
+- station `7071`
+- date `20260120`
+- expected two independent same-day measurements (FlowTracker + Molinete)
+
+No merge to `main` should be performed before the acceptance campaign resumes and the remaining export/downstream modules are reviewed.
