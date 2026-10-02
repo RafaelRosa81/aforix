@@ -322,3 +322,12 @@ The export loader now keeps `station_id`, `measurement_date`, and `measurement_t
 ### EXP-TABLES-01 checker numeric-equivalence correction
 
 After the leading-zero time fix, the regenerated workbook preserved `085851` correctly. The remaining automated failure was not a workbook defect: the checker compared numeric hydraulic values as strings, so Excel's equivalent serialization of `109.0` as `109` (and `12.0` as `12`) was treated as a mismatch. The checker now compares identity fields exactly as text and hydraulic fields numerically with tight tolerance. Production export code was not changed for this second issue.
+
+
+### Legacy `station_code` discovered during manual review
+
+Manual review of a normalized Summary file showed that authoritative `station_id` values are now correct and P-free (for example `7001`, `70101`, `701150`), but a legacy `station_code` column is still being generated as `P` + `station_id` (for example `P7001`, `P701150`). The column carries no independent station identity and is not used by the current SIH station mapping, which reads `station_id` directly.
+
+The older export example also demonstrates the historical behavior: its exported `station_id` values were P-prefixed (for example `P7003`, `P7008`, `P7013`). The current flat export correctly uses P-free `station_id` values.
+
+The target behavior for the current pipeline is now explicitly tested: current normalization configs must not generate the legacy `station_code`, and the normalizer must not force that column when it is not requested. Production code/config has not yet been changed; the regression tests should fail first.
