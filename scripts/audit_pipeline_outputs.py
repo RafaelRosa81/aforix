@@ -174,7 +174,20 @@ def _duplicate_key_columns(df: pd.DataFrame, group: str) -> tuple[list[str], lis
     for candidate in GROUP_KEY_CANDIDATES.get(group, []):
         if candidate in df.columns:
             key_cols.append(candidate)
+
+            if (
+                group == "Points"
+                and "instrument" in df.columns
+                and "percent_depth" in df.columns
+            ):
+                instruments = set(
+                    df["instrument"].dropna().astype(str).str.lower()
+                )
+                if "flowtracker" in instruments:
+                    key_cols.append("percent_depth")
+
             return key_cols, []
+
         missing_group_candidates.append(candidate)
 
     if group != "Summary" and GROUP_KEY_CANDIDATES.get(group):
