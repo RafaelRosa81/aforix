@@ -256,3 +256,20 @@ The FlowTracker audit duplicate-key fix was verified locally:
 - range audit: **1179 OK**, **236 informational flags** (negative flow observations), with no warning/error findings
 
 The standalone audit and production duplicate validation semantics are now aligned for FlowTracker multi-depth verticals.
+
+
+### VAL-01 final acceptance verification
+
+Production validation completed successfully against the isolated normalized acceptance database:
+
+- acceptance checks: **6**
+- PASS: **6**
+- FAIL: **0**
+- validation summary rows: **5**
+- required-column rows: **25**
+- duplicate rows: **0**
+- completeness rows: **10**
+- range rows: **0**
+- hydraulic rows: **250**
+
+The five production validation checks (`required_columns`, `duplicates`, `completeness`, `ranges`, and `hydraulic_consistency`) all resolve to `ok`. VAL-01 is accepted for the current real-data corpus.
