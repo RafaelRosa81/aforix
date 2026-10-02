@@ -37,7 +37,7 @@ def run_correlation(
     ranking: str = typer.Option(None, "--ranking", help="Instrument ranking, e.g. 'NV FT ML'"),
     timestep: str = typer.Option("daily", "--timestep", help="daily | monthly; gauges_vs_stations also accepts hourly later"),
     pairs: str = typer.Option(None, "--pairs", help='Pairs, e.g. "[44 7001] [117 7008]"'),
-    points: str = typer.Option(None, "--points", help='Aforix points, e.g. "7003 7005 7008"; legacy P3,P5,P8 also accepted'),
+    points: str = typer.Option(None, "--points", help='Aforix station IDs, e.g. "7003 7005 7008"'),
     all_pairs: bool = typer.Option(False, "--all-pairs", help="Compare all available stations and model points"),
     match_mode: str = typer.Option("exact", "--match-mode", help="exact | window"),
     window_days: int = typer.Option(0, "--window-days", help="Window size in days for match-mode=window"),
