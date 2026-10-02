@@ -192,3 +192,15 @@ The textual lookup normalization fix is verified at code level:
 A subsequent real-data SIH rerun was interrupted at final metadata write by Windows `PermissionError` on `outputs_acceptance/sih/sih_export_metadata.csv`. Because the prior manual review had opened the SIH output directory/files, this rerun cannot be treated as a clean end-to-end verification: the output directory may contain a mixture of newly rewritten and previously open/stale files.
 
 Observed partial files show Molinete `id_tipo_aforo=57`, consistent with the fix, while FlowTracker still appeared blank; that asymmetry must be rechecked only after closing open files and performing a confirmed clean output-directory removal.
+
+
+### MAIN-018 real-data verification complete
+
+A clean SIH regeneration after the file-lock issue confirmed the production fix end to end:
+
+- FlowTracker exported `id_tipo_aforo=57`;
+- Molinete exported `id_tipo_aforo=57`;
+- both resolve configured `Vadeo` against lookup row `VADEO`;
+- the only remaining semantic blank in these two aforos is `id_instrumentos_rangos`.
+
+MAIN-018 is fully verified for integration.
