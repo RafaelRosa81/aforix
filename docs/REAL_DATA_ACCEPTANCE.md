@@ -789,3 +789,22 @@ The `export tables` module is now accepted for the current campaign. Verified ca
 - explicit `--flat` override semantics.
 
 EXP-TABLES is **PASS (module complete for current scope)**.
+
+
+### SIH-01 — isolated batch export setup
+
+After closing `export tables`, the next module is SIH export.
+
+Acceptance isolation is now explicit:
+- normalized input: `database_acceptance/normalized`;
+- raw canonical input: `database_acceptance/raw_canonical`;
+- quality input: `database_acceptance/analysis/quality_metrics`;
+- output: `outputs_acceptance/sih`;
+- SIH config: `configs/sih/sih_acceptance.yaml`;
+- selection: `configs/sih/selection_acceptance.csv`.
+
+The first batch case intentionally selects two independent measurements for authoritative station `7071` on the same date:
+- FlowTracker `20260120 141519`;
+- Molinete `20260120 142300`.
+
+The checker validates isolation, metadata success/identity, expected SIH files, exact SIH schemas, station/date/time identity, and normalized hydraulic-value fidelity. This first run is allowed to expose configuration/lookup defects; they will be diagnosed regression-first rather than hidden.
