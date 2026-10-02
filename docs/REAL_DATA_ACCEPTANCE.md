@@ -701,3 +701,13 @@ The focused regression suite passed after the production correction:
 - `tests/test_export_tables_interactive_selection.py`: **2 passed**.
 
 Full-suite verification is still pending before MAIN-015 is closed.
+
+
+### Interactive station selection — final verification
+
+Verification after the production correction is complete:
+
+- focused regression suite: **2 passed**;
+- full test suite: **93 passed**.
+
+MAIN-015 is closed as verified.
