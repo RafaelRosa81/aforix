@@ -170,3 +170,18 @@ The independent checker parsed the real XML files directly and compared metadata
 The first build-groups acceptance check reported two failures only for concatenated `Summary` groups (FlowTracker and Nivus), while all six file-based group checks and the 916-row manifest passed. Inspection showed the production build orders concatenated Summary rows by the configured deduplication identity key, whereas the acceptance checker had concatenated expected rows in filename order and compared row-by-row.
 
 The checker was corrected to align concatenated rows by measurement identity (`instrument`, `station_id`, `measurement_date`, `measurement_time`, `source_file`) before comparing values. No production build-groups code was changed. GRP-01 remains pending until the corrected checker is rerun.
+
+
+### GRP-01 final acceptance verification
+
+Corrected build-groups acceptance check completed successfully:
+
+- group checks: **8**
+- PASS: **8**
+- FAIL: **0**
+- manifest expected rows: **916**
+- manifest rows: **916**
+- manifest selected: **916**
+- manifest status: **PASS**
+
+This verifies that the latest isolated ingest runs were consolidated into `database_acceptance/raw_canonical` without row loss or content drift, and that all selected source CSVs are represented in the manifest.
