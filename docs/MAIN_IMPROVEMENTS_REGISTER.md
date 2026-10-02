@@ -105,3 +105,13 @@ No merge to `main` should be performed before the acceptance campaign resumes an
 ### MAIN-006 implementation note
 
 The flat-layout product decision has now been implemented on the acceptance branch: both non-interactive and interactive table export default to `grouping=none`. Daily/monthly pivot modes remain explicit options. Verification is pending before final integration.
+
+
+### MAIN-006 verification complete
+
+The flat-layout default is now verified on the acceptance branch:
+
+- focused default regression: **1/1 PASS**;
+- full test suite: **91 passed**.
+
+Both CLI and interactive table export now default to `grouping=none`. Daily/monthly pivot modes remain available only when explicitly requested. MAIN-006 is fully verified for integration.
