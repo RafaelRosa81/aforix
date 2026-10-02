@@ -273,3 +273,8 @@ Production validation completed successfully against the isolated normalized acc
 - hydraulic rows: **250**
 
 The five production validation checks (`required_columns`, `duplicates`, `completeness`, `ranges`, and `hydraulic_consistency`) all resolve to `ok`. VAL-01 is accepted for the current real-data corpus.
+
+
+### EXP-TABLES configuration isolation — regression test
+
+Before running real exports, inspection found that the tables-export configuration helper still reads legacy keys (`project.database_root`, `project.runs_root`, and top-level `export_tables`) while the current main config uses `paths.database_root`, `paths.runs_root`, and `export.tables`. A regression test was added first to require the acceptance config to resolve its normalized input to `database_acceptance/normalized` and output to `outputs_acceptance/tables`. Production export code has not yet been changed.
