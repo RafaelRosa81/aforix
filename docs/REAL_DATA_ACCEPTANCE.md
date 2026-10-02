@@ -926,3 +926,13 @@ Production behavior is now corrected:
 - unresolved configured semantics raise instead of silently writing blank IDs.
 
 No lookup values or SIH IDs were invented. In the current real-data acceptance config, `Velocimetro puntual` is still unresolved and should therefore make the selected measurement rows report export errors until the correct SIH mapping is supplied.
+
+
+### SIH-02b verification complete
+
+Verification after the strict configured-lookup correction:
+- `tests/test_sih_configured_lookup_required.py`: **2 passed**;
+- full suite: **97 passed**;
+- repeated full-suite run: **97 passed**.
+
+The next real-data run is expected to fail both selected measurements explicitly on the unresolved configured `instrumentos_rangos_lookup: Velocimetro puntual`, while still writing SIH export metadata that records those failures.
