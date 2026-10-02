@@ -72,7 +72,7 @@ This 250-unique-payload baseline is consistent with the previously validated 250
 | CFG-01 | `aforix config-check` using `acceptance_real.yaml` | PASS | Configuration loaded successfully |
 | ING-FT | FlowTracker ingest | PASS | 30 physical RAW files; 29 unique measurement outputs; isolated acceptance run confirmed |
 | ING-ML | Molinete ingest | PASS | 13/13 real measurements passed independent RAW-to-ingest checks |
-| ING-NV | Nivus ingest | PENDING | 214 physical XML files / 208 unique payloads |
+| ING-NV | Nivus ingest | PASS | 208/208 unique real measurements passed independent XML-to-ingest checks |
 
 
 ### Acceptance infrastructure issue discovered during ING-FT
@@ -144,3 +144,22 @@ Real-data Nivus ingest produced:
 - Gates outputs: **208**
 
 This matches the baseline of 214 physical XML files with six exact duplicate copies, leaving 208 unique payloads/measurement outputs. XML-to-CSV field fidelity remains to be checked before final PASS.
+
+
+### ING-NV final acceptance verification
+
+Independent real-data Nivus acceptance check completed successfully:
+
+- run: `runs_acceptance/ingest_nivus/20261001_220512`
+- measurements checked: **208**
+- PASS: **208**
+- FAIL: **0**
+- Summary rows: **208**
+- Points rows: **3147**
+- Sections rows: **3563**
+- Gates rows: **100704**
+- metadata mismatches: **0**
+- row-count mismatches: **0**
+- field mismatches: **0**
+
+The independent checker parsed the real XML files directly and compared metadata, row counts, and source fields against all four Aforix ingest groups. ING-NV is accepted for the current real-data corpus.
