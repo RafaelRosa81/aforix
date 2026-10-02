@@ -288,3 +288,8 @@ From the export stage onward, acceptance uses two complementary layers:
 2. **Manual user review** — open the produced CSV/XLSX files as an end user would and verify readability, headings, ordering, units, station/date identity, representative numeric values against normalized source data, empty-cell behavior, and whether the result is practically usable without interpretation of internal implementation details.
 
 Manual review findings are recorded separately from automated failures so presentation/usability issues are not hidden by technically correct data.
+
+
+### EXP-TABLES config fallback correction
+
+The current acceptance-path test passed, confirming that the modern config structure now resolves `database_acceptance/normalized` correctly. The remaining failure was limited to the legacy/standalone-config compatibility test: when a config file is outside a repository tree, `_infer_repo_root()` fell back to the process working directory, making relative paths depend on where the command was launched. The fallback was corrected to the config file's own directory, while repository-contained configs still resolve from the repository root.
