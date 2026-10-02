@@ -875,3 +875,20 @@ Expected consequence:
 - `Velocimetro puntual` remains unresolved because it is absent from the current `instrumentos_rangos.csv`.
 
 Focused and full-suite verification are pending.
+
+
+### SIH-02a verification + interrupted real-data rerun
+
+Code verification after the textual lookup fix:
+- focused regression: **1 passed**;
+- full suite: **95 passed**.
+
+The attempted real-data regeneration then failed only at the final metadata write with:
+
+`PermissionError: outputs_acceptance/sih/sih_export_metadata.csv`
+
+The output directory had just been opened for manual review. On Windows, an open CSV can prevent deletion/overwrite; the cleanup command used `-ErrorAction SilentlyContinue`, so a locked file could have prevented a truly clean directory reset without being visible in the console.
+
+Therefore the subsequent semantic checker result is **not accepted as a clean rerun**. Molinete already shows `id_tipo_aforo=57`, but FlowTracker still shows blank and may be stale. Re-run only after closing all SIH CSVs/Excel windows and confirming the output directory is actually removed before export.
+
+The unresolved `Velocimetro puntual` / `id_instrumentos_rangos` issue remains independent and expected.
