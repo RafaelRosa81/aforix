@@ -1074,3 +1074,13 @@ After correcting the Molinete mean-scale source mapping in both SIH configs:
 - full test suite: **100 passed**.
 
 The code/config correction is accepted. A clean FT/ML SIH real-data smoke rerun is the next step. ACCM001 scale outputs are still expected to be blank because the selected raw-canonical row has blank `esc_ini_m`, `esc_fin_m`, and `escala_media_m` values.
+
+
+### SIH-05 final acceptance
+
+Clean FT/ML rerun after the Molinete scale mapping correction:
+- generated files: **5**;
+- semantic lookup checker: **6/6 PASS**;
+- exact-ID checker: **4/4 PASS**.
+
+SIH-05 is **PASS**. FlowTracker/Molinete remain accepted with `id_tipo_aforo=57` and `id_instrumentos_rangos=11`.
