@@ -129,10 +129,10 @@ sih:
 
       raw_canonical_fields:
         id_operador: realizado
-        lectura_escala: escala_media
+        lectura_escala: escala_media_m
         escala_inicio: esc_ini_m
         escala_fin: esc_fin_m
-        escala_media: escala_media
+        escala_media: escala_media_m
         observaciones: observaciones
         radio_hidraulico: radio_hidraulico_m
 
