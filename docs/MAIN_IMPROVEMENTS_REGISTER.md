@@ -364,3 +364,8 @@ Post-correction verification is green:
 - full suite: **100 passed**.
 
 MAIN-021 is now **MERGE**. The remaining real-data smoke rerun should confirm that FlowTracker/Molinete SIH files still generate successfully after the config-only correction; ACCM001 scale fields are expected to remain blank because the raw-canonical values themselves are blank.
+
+
+### MAIN-021 real-data smoke verification complete
+
+Clean post-fix SIH rerun for FlowTracker + Molinete generated the expected **5 files**. Semantic checker: **6/6 PASS**. Exact-ID checker: **4/4 PASS**. This confirms the Molinete scale mapping correction did not regress the accepted SIH identities/mappings. MAIN-021 is fully verified for integration.
