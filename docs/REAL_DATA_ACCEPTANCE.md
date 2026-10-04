@@ -1091,3 +1091,18 @@ SIH-05 is **PASS**. FlowTracker/Molinete remain accepted with `id_tipo_aforo=57`
 A deterministic preparation script now selects the first sorted Nivus measurement that has complete normalized hydraulic summary values, positive discharge, and a matching raw-canonical Summary row. It writes an isolated one-row selection file under `runs_acceptance/_checks/` so no corpus-specific station/date is hardcoded in repository configuration.
 
 The Nivus checker expects the adopted SIH IDs: `id_tipo_actuacion=4`, `id_instrumento=502`, `id_tipo_aforo=57`, `id_instrumentos_rangos=10`, preserves authoritative station identity, and verifies exported hydraulic values against normalized Summary. `nivel_confiabilidad` is reported as INFO rather than asserted because the current SIH quality configuration is documented but not yet wired into output generation.
+
+
+### SIH-06 automated result
+
+Deterministic Nivus case selected: `7001 / 20241219 / 214313` (`ACCN001`).
+
+Export generated 3 files and the checker reported **4 PASS / 0 FAIL / 1 INFO**. Passed checks:
+- expected files;
+- metadata success + authoritative station/date/time identity;
+- semantic IDs `4 / 502 / 57 / 10`;
+- hydraulic numeric fidelity against normalized Summary.
+
+`nivel_confiabilidad` is blank and reported as INFO. Repository review confirms that current SIH code does not consume quality-metric output even though Nivus SIH config declares `CG(%)` thresholds. This is registered as MAIN-022 and does not invalidate the core Nivus SIH export acceptance.
+
+Manual review of the generated Nivus actuación/aforo/metadata CSVs remains pending before SIH-06 is closed as automated + manual PASS.
