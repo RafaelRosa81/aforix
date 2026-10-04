@@ -1065,3 +1065,12 @@ Acceptance paused here. Resume with the MAIN-021 config correction first, then r
 The Molinete SIH configuration defect is corrected in both `sih.yaml` and `sih_acceptance.yaml`: `lectura_escala` and `escala_media` now source from the adapter column `escala_media_m`.
 
 Expected acceptance behavior for ACCM001 remains blank scale output because `esc_ini_m`, `esc_fin_m`, and `escala_media_m` are all blank in that selected raw-canonical row. Verification is pending.
+
+
+### SIH-05 verification
+
+After correcting the Molinete mean-scale source mapping in both SIH configs:
+- focused regression: **1 passed**;
+- full test suite: **100 passed**.
+
+The code/config correction is accepted. A clean FT/ML SIH real-data smoke rerun is the next step. ACCM001 scale outputs are still expected to be blank because the selected raw-canonical row has blank `esc_ini_m`, `esc_fin_m`, and `escala_media_m` values.
