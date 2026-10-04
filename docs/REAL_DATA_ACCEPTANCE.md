@@ -1058,3 +1058,10 @@ Classification: **configuration defect confirmed, source scale values blank for 
 ### Pause checkpoint
 
 Acceptance paused here. Resume with the MAIN-021 config correction first, then rerun the focused regression, full suite, and SIH real-data export. Keep MAIN-020 open until an authoritative SIH operator-ID contract/mapping is available. Nivus SIH acceptance follows afterward.
+
+
+### SIH-05 production correction
+
+The Molinete SIH configuration defect is corrected in both `sih.yaml` and `sih_acceptance.yaml`: `lectura_escala` and `escala_media` now source from the adapter column `escala_media_m`.
+
+Expected acceptance behavior for ACCM001 remains blank scale output because `esc_ini_m`, `esc_fin_m`, and `escala_media_m` are all blank in that selected raw-canonical row. Verification is pending.
