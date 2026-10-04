@@ -37,6 +37,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-019 | SIH configured lookup strictness | Explicitly configured SIH semantic lookups previously could fail silently and emit blank IDs. | Focused regression 2/2 PASS; SIH-03 real-data error-handling check 5/5 PASS; later full suite 99 passed. | **MERGE** | Merge strict configured-lookup resolution: configured keys must resolve exactly once; absent keys may remain intentionally blank. |
 | MAIN-020 | SIH operator identity | Real Molinete export writes `id_operador=I. Pérez`, while FlowTracker is blank. The field name suggests an identifier, but the current config maps raw free text (`realizado`) directly and there is no operator lookup in the reviewed SIH config. | SIH-04 uploaded output review: Molinete actuación contains `I. Pérez` in `id_operador`; FlowTracker has blank `id_operador`. | **FOLLOW-UP** | Verify the SIH contract for `id_operador`. If SIH requires an operator ID rather than display text, introduce a declarative operator lookup/mapping; do not infer IDs. |
 | MAIN-021 | SIH scale fields | Molinete SIH config referenced nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`; the adapter actually emits `escala_media_m`. The selected real measurement also has blank source values for `esc_ini_m`, `esc_fin_m`, and `escala_media_m`. | Regression failed first as intended; real-data diagnostic separated config defect from source-data blanks; config corrected in both SIH configs; focused regression 1/1 PASS; full suite 100 passed. | **MERGE** | Merge the declarative Molinete mapping correction (`escala_media_m`). Keep the blank scale fields for ACCM001 as accepted source-data absence, not an export defect. |
+| MAIN-022 | SIH Nivus quality / `nivel_confiabilidad` | Nivus SIH config declares a quality source (`quality_metrics`), parameter `CG(%)`, and Bueno/Regular/Malo thresholds, but the SIH runner/mapping never reads quality results and always writes `nivel_confiabilidad` blank. The quality-analysis module writes `cg_measurements.csv` under timestamped `runs*/analysis_quality_metrics` output, while SIH's `quality_input_dir` is currently only declarative/documented and unused. | SIH-06 real-data acceptance: Nivus core export 4 PASS / 0 FAIL / 1 INFO; `nivel_confiabilidad=''`. Repository review confirms no SIH quality-output integration path. | **FOLLOW-UP** | Define the SIH contract for `nivel_confiabilidad` (text label vs ID/value), then add regression-first integration from per-measurement CG results. Do not infer SIH semantics from field name alone. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -369,3 +370,21 @@ MAIN-021 is now **MERGE**. The remaining real-data smoke rerun should confirm th
 ### MAIN-021 real-data smoke verification complete
 
 Clean post-fix SIH rerun for FlowTracker + Molinete generated the expected **5 files**. Semantic checker: **6/6 PASS**. Exact-ID checker: **4/4 PASS**. This confirms the Molinete scale mapping correction did not regress the accepted SIH identities/mappings. MAIN-021 is fully verified for integration.
+
+
+### SIH-06 Nivus real-data acceptance
+
+Selected deterministic real measurement: station `7001`, date `20241219`, time `214313`.
+
+Observed normalized values:
+- `q_total_m3s=0.0755909999999999`;
+- `width_total_m=4.0`;
+- `depth_mean_m=0.1794`;
+- `area_total_m2=0.7175`;
+- `velocity_mean_m_s=0.1054`.
+
+Raw-canonical context includes `instrument=nivus`, blank `notes`, and `rh [m]=0.1725`.
+
+Export generated exactly 3 files (actuación, aforo, metadata). Automated acceptance result: **4 PASS / 0 FAIL / 1 INFO**. Identity, metadata status, hydraulic numeric fidelity, and adopted semantic IDs all pass: `id_tipo_actuacion=4`, `id_instrumento=502`, `id_tipo_aforo=57`, `id_instrumentos_rangos=10`, `id_estacion=7001`.
+
+The INFO is `nivel_confiabilidad=''`. This is now tracked separately as MAIN-022 rather than treated as a Nivus core-export failure. Core Nivus SIH export is accepted pending manual file review; quality-to-SIH integration remains a follow-up.
