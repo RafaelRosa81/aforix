@@ -344,3 +344,14 @@ Open SIH items at pause:
 - MAIN-020: confirm SIH semantics for `id_operador`; current Molinete export carries source text `I. Pérez`, and the repository has no operator-ID lookup or authoritative mapping;
 - MAIN-021: change Molinete `lectura_escala` and `escala_media` source mappings from nonexistent `escala_media` to adapter column `escala_media_m`, then rerun focused/full tests and SIH export;
 - after MAIN-020/021, continue real-data SIH acceptance with Nivus (`id_tipo_aforo=57`, `id_instrumentos_rangos=10`).
+
+
+### MAIN-021 production/config correction
+
+Resumed acceptance and applied the confirmed Molinete SIH scale mapping correction in both production and acceptance configs:
+- `lectura_escala: escala_media` -> `lectura_escala: escala_media_m`;
+- `escala_media: escala_media` -> `escala_media: escala_media_m`.
+
+`escala_inicio -> esc_ini_m` and `escala_fin -> esc_fin_m` were already correct and remain unchanged. For ACCM001, all three underlying scale values are known to be blank, so a regenerated export should still show blank scale fields for that specific measurement even though the mapping defect is fixed.
+
+Verification pending: focused regression, full suite, then clean SIH real-data regeneration.
