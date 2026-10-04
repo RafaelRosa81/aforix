@@ -1106,3 +1106,19 @@ Export generated 3 files and the checker reported **4 PASS / 0 FAIL / 1 INFO**. 
 `nivel_confiabilidad` is blank and reported as INFO. Repository review confirms that current SIH code does not consume quality-metric output even though Nivus SIH config declares `CG(%)` thresholds. This is registered as MAIN-022 and does not invalidate the core Nivus SIH export acceptance.
 
 Manual review of the generated Nivus actuación/aforo/metadata CSVs remains pending before SIH-06 is closed as automated + manual PASS.
+
+
+### SIH-06 final acceptance — manual review
+
+Uploaded Nivus actuación, aforo, and metadata CSVs were reviewed directly.
+
+Manual checks confirm:
+- authoritative station/date/time identity is consistent across filenames, rows, and metadata;
+- semantic IDs are correct (`4 / 502 / 57 / 10`);
+- hydraulic values match normalized data;
+- raw hydraulic radius is correctly exported as `0.1725`;
+- blank observations are consistent with blank raw `notes`;
+- blank `id_operador`/`lectura_escala` reflect current Nivus configuration;
+- blank `nivel_confiabilidad` remains the known MAIN-022 follow-up.
+
+SIH-06 is **PASS (automated + manual) for the current core Nivus scope**.
