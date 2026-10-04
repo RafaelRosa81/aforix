@@ -36,7 +36,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-018 | SIH textual lookup matching | SIH textual lookup matching previously failed on representation-only differences such as `Vadeo` vs `VADEO`. | Focused regression 1/1 PASS; clean real-data rerun resolved `id_tipo_aforo=57` for FlowTracker and Molinete; later full suite 99 passed. | **MERGE** | Merge trim/casefold representation normalization only; keep semantic substitutions in configuration/data, not code. |
 | MAIN-019 | SIH configured lookup strictness | Explicitly configured SIH semantic lookups previously could fail silently and emit blank IDs. | Focused regression 2/2 PASS; SIH-03 real-data error-handling check 5/5 PASS; later full suite 99 passed. | **MERGE** | Merge strict configured-lookup resolution: configured keys must resolve exactly once; absent keys may remain intentionally blank. |
 | MAIN-020 | SIH operator identity | Real Molinete export writes `id_operador=I. Pérez`, while FlowTracker is blank. The field name suggests an identifier, but the current config maps raw free text (`realizado`) directly and there is no operator lookup in the reviewed SIH config. | SIH-04 uploaded output review: Molinete actuación contains `I. Pérez` in `id_operador`; FlowTracker has blank `id_operador`. | **FOLLOW-UP** | Verify the SIH contract for `id_operador`. If SIH requires an operator ID rather than display text, introduce a declarative operator lookup/mapping; do not infer IDs. |
-| MAIN-021 | SIH scale fields | Molinete config maps `lectura_escala`, `escala_inicio`, `escala_fin`, and `escala_media` from raw-canonical fields, but the reviewed real export contains all four fields blank even though metadata says `raw_canonical_found=True`. | SIH-04 uploaded output review. | **FOLLOW-UP** | Compare the selected raw-canonical row against `esc_ini_m`, `esc_fin_m`, and `escala_media` to determine whether blanks are source-data gaps or a mapping defect before changing code. |
+| MAIN-021 | SIH scale fields | Molinete SIH config referenced nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`; the adapter actually emits `escala_media_m`. The selected real measurement also has blank source values for `esc_ini_m`, `esc_fin_m`, and `escala_media_m`. | Regression failed first as intended; real-data diagnostic separated config defect from source-data blanks; config corrected in both SIH configs; focused regression 1/1 PASS; full suite 100 passed. | **MERGE** | Merge the declarative Molinete mapping correction (`escala_media_m`). Keep the blank scale fields for ACCM001 as accepted source-data absence, not an export defect. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -50,7 +50,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 - Hydraulic consistency audit: **750/750 OK**.
 - Unit consistency audit: **461/461 OK**.
 - Validation acceptance: **6/6 PASS**.
-- Full automated test suite: **99 passed**.
+- Full automated test suite: **100 passed**.
 
 ## Integration rule
 
@@ -355,3 +355,12 @@ Resumed acceptance and applied the confirmed Molinete SIH scale mapping correcti
 `escala_inicio -> esc_ini_m` and `escala_fin -> esc_fin_m` were already correct and remain unchanged. For ACCM001, all three underlying scale values are known to be blank, so a regenerated export should still show blank scale fields for that specific measurement even though the mapping defect is fixed.
 
 Verification pending: focused regression, full suite, then clean SIH real-data regeneration.
+
+
+### MAIN-021 verification complete
+
+Post-correction verification is green:
+- `tests/test_sih_molinete_scale_mapping.py`: **1 passed**;
+- full suite: **100 passed**.
+
+MAIN-021 is now **MERGE**. The remaining real-data smoke rerun should confirm that FlowTracker/Molinete SIH files still generate successfully after the config-only correction; ACCM001 scale fields are expected to remain blank because the raw-canonical values themselves are blank.
