@@ -1084,3 +1084,10 @@ Clean FT/ML rerun after the Molinete scale mapping correction:
 - exact-ID checker: **4/4 PASS**.
 
 SIH-05 is **PASS**. FlowTracker/Molinete remain accepted with `id_tipo_aforo=57` and `id_instrumentos_rangos=11`.
+
+
+### SIH-06 — Nivus real-data acceptance setup
+
+A deterministic preparation script now selects the first sorted Nivus measurement that has complete normalized hydraulic summary values, positive discharge, and a matching raw-canonical Summary row. It writes an isolated one-row selection file under `runs_acceptance/_checks/` so no corpus-specific station/date is hardcoded in repository configuration.
+
+The Nivus checker expects the adopted SIH IDs: `id_tipo_actuacion=4`, `id_instrumento=502`, `id_tipo_aforo=57`, `id_instrumentos_rangos=10`, preserves authoritative station identity, and verifies exported hydraulic values against normalized Summary. `nivel_confiabilidad` is reported as INFO rather than asserted because the current SIH quality configuration is documented but not yet wired into output generation.
