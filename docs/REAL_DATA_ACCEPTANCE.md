@@ -1142,3 +1142,8 @@ Resume from MAIN-020/022/023 before declaring the SIH module fully production-co
 ### MAIN-023 regression setup
 
 Added `tests/test_sih_docs_template_contract.py` to pin accepted station-ID and SIH mapping documentation/template semantics before making corrections. Expected current result: failures caused by legacy `P` station examples/template rows and stale pre-acceptance SIH mapping examples.
+
+
+### MAIN-023 expected failure + correction
+
+The focused documentation/template contract suite failed **3/3** before changes, as expected. Corrections were then applied to the SIH selection template and user documentation so examples follow authoritative station IDs, adopted SIH mappings, and the corrected Molinete `escala_media_m` source. Targeted/full-suite verification remains pending.
