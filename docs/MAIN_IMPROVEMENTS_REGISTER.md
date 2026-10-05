@@ -38,7 +38,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-020 | SIH operator identity | Real Molinete export writes `id_operador=I. Pérez`, while FlowTracker and Nivus are blank. The field name suggests an identifier, but the current config maps raw free text (`realizado`) directly for Molinete and there is no operator lookup in the reviewed SIH config. | SIH-04: Molinete actuación contains `I. Pérez`, FlowTracker blank. SIH-06 manual review: Nivus actuación also has blank `id_operador`. | **FOLLOW-UP** | Verify the SIH contract for `id_operador`. If SIH requires an operator ID rather than display text, introduce a declarative operator lookup/mapping; do not infer IDs. |
 | MAIN-021 | SIH scale fields | Molinete SIH config referenced nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`; the adapter actually emits `escala_media_m`. The selected real measurement also has blank source values for `esc_ini_m`, `esc_fin_m`, and `escala_media_m`. | Regression failed first as intended; real-data diagnostic separated config defect from source-data blanks; config corrected in both SIH configs; focused regression 1/1 PASS; full suite 100 passed. | **MERGE** | Merge the declarative Molinete mapping correction (`escala_media_m`). Keep the blank scale fields for ACCM001 as accepted source-data absence, not an export defect. |
 | MAIN-022 | SIH Nivus quality / `nivel_confiabilidad` | Nivus SIH config declares a quality source (`quality_metrics`), parameter `CG(%)`, and Bueno/Regular/Malo thresholds, but the SIH runner/mapping never reads quality results and always writes `nivel_confiabilidad` blank. The quality-analysis module writes `cg_measurements.csv` under timestamped `runs*/analysis_quality_metrics` output, while SIH's `quality_input_dir` is currently only declarative/documented and unused. | SIH-06 real-data acceptance: Nivus core export 4 PASS / 0 FAIL / 1 INFO; `nivel_confiabilidad=''`. Repository review confirms no SIH quality-output integration path. | **FOLLOW-UP** | Define the SIH contract for `nivel_confiabilidad` (text label vs ID/value), then add regression-first integration from per-measurement CG results. Do not infer SIH semantics from field name alone. |
-| MAIN-023 | SIH documentation and sample-selection drift | SIH user docs and examples still contain pre-acceptance semantics: `SIH_CONFIGURATION.md` documents old lookup keys (`Vadeo`, `Acustico`, `Velocimetro puntual`, `Doppler acustico`, `ADCP movil`) and the old Molinete `escala_media` source; `SIH_EXPORT.md` still shows legacy `P8/P11/P13` station examples; `selection_template.csv` still contains `P7011/P7012/P7013` Molinete station IDs. | Repository review at the SIH pause checkpoint after SIH-06. Current production config and accepted station-ID doctrine no longer match those examples. | **FOLLOW-UP** | Regression/review first, then synchronize SIH docs and templates with authoritative station IDs, adopted semantic mappings, `escala_media_m`, and current known limitations (MAIN-020/022). Do not change historical raw free text. |
+| MAIN-023 | SIH documentation and sample-selection drift | SIH user docs/examples contained pre-acceptance semantics: legacy `P` station aliases, old semantic lookup labels, and the old Molinete `escala_media` source name. | Regression first: 3/3 failed. After documentation/template correction, a residual filename example caused 2/3 PASS and full suite 102/103; final cleanup then produced focused 3/3 PASS and full suite 103 passed. | **MERGE** | Merge the synchronized SIH docs/template updates with the regression guard so documentation remains aligned with authoritative station IDs, adopted semantic mappings, and `escala_media_m`. |
 
 ## Current verified acceptance state after station-code removal
 
@@ -52,7 +52,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 - Hydraulic consistency audit: **750/750 OK**.
 - Unit consistency audit: **461/461 OK**.
 - Validation acceptance: **6/6 PASS**.
-- Full automated test suite: **100 passed**.
+- Full automated test suite: **103 passed**.
 
 ## Integration rule
 
@@ -460,3 +460,12 @@ First post-correction verification produced **2 PASS / 1 FAIL** in the focused s
 Those two residual examples are now corrected to the same authoritative station/date/time identities used by their paired actuación examples (`7001 / 20241219 / 214313` and `7071 / 20260120 / 142300`). A repository-side guard confirmed no `_P<digits>_` filename fragment remains in `SIH_EXPORT.md` after the edit.
 
 Verification pending: rerun the focused MAIN-023 suite and then the full suite.
+
+
+### MAIN-023 final verification complete
+
+Final verification after removing the last residual legacy filename examples:
+- `tests/test_sih_docs_template_contract.py`: **3 passed**;
+- full test suite: **103 passed**.
+
+MAIN-023 is fully verified and promoted to **MERGE**.
