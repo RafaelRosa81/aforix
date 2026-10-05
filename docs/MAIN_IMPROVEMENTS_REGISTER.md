@@ -519,3 +519,13 @@ Molinete real-data run for `7071 / 20260120` completed successfully: checker **5
 Together with the prior Nivus result (`7001 / 20241219`, 10 rows, **5/5 PASS**), section-profiles now has automated structural/identity/chart coverage across all three supported real-data instruments.
 
 Before closing the module, the acceptance checker is being strengthened to verify the exported `distance_m` / `depth_m` pairs directly against each normalized Points source file. Manual workbook review is also still required for end-user readability and chart usability.
+
+
+### SECTION-PROFILES full automated real-data verification
+
+The strengthened checker was rerun against the three real workbooks and all passed **6/6**:
+- Nivus `7001 / 20241219`: 10 rows; `distance_m`/`depth_m` match normalized Points; one chart;
+- FlowTracker `7071 / 20260120`: 24 rows; `distance_m`/`depth_m` match normalized Points; one chart;
+- Molinete `7071 / 20260120`: 25 rows; `distance_m`/`depth_m` match normalized Points; one chart.
+
+This closes automated structural, identity, row-count, source-fidelity, and chart-presence checks for section-profiles across all three supported real-data instruments. Manual workbook review is the remaining acceptance step before the module is considered fully accepted.
