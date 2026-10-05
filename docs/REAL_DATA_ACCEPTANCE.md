@@ -1161,3 +1161,9 @@ Documentation/template contract is now fully green:
 - full suite: **103 passed**.
 
 MAIN-023 is closed as verified. SIH documentation and selection examples now follow authoritative station IDs, adopted SIH semantic mappings, and the corrected Molinete `escala_media_m` source.
+
+
+### Deferred SIH items after MAIN-023
+
+- **MAIN-020** is deferred pending a client decision on the SIH `id_operador` contract and authoritative operator mapping. No ID conversion will be implemented before that consultation.
+- **MAIN-022** is deferred until a unified data-quality evaluation system is designed for FlowTracker, Molinete, and Nivus. SIH `nivel_confiabilidad` integration will be implemented afterward against that common quality model.
