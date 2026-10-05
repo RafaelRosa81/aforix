@@ -1194,3 +1194,10 @@ After resolving this boundary, real-data acceptance will verify:
 Pre-fix focused regression: **2 failed / 0 passed**, both showing the same defect: CLI and interactive point normalization changed authoritative station `7001` into invented alias `P7001`.
 
 Production correction applied: both selection paths now use representation-only `canonical_station_id()`. Verification pending before real-data section-profile execution.
+
+
+### SECTION-PROFILES-01 — Nivus scoped real-data workbook
+
+After MAIN-024 verification (2/2 focused PASS; full suite 105 passed), section-profiles acceptance begins with the already-verified real Nivus measurement `7001 / 20241219 / 214313`.
+
+Scope: instrument `NV`, station `7001`, date `20241219`, default axes `distance_m` vs `depth_m`, scatter chart. Automated checker validates workbook structure, authoritative station identity, absence of legacy P aliases, measurement data row counts, and one chart per measurement sheet. Manual review of the XLSX remains required after automated PASS.
