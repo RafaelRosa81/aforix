@@ -1137,3 +1137,8 @@ Current verified baseline:
 Deferred items are tracked in the main-improvements register: MAIN-020 (`id_operador` contract), MAIN-022 (CG -> `nivel_confiabilidad` integration), MAIN-023 (SIH docs/sample drift), plus previously registered product/follow-up/placeholder items. M9 remains outside real-data SIH acceptance because its ingest/export path is not yet production-complete.
 
 Resume from MAIN-020/022/023 before declaring the SIH module fully production-complete or preparing the final merge review.
+
+
+### MAIN-023 regression setup
+
+Added `tests/test_sih_docs_template_contract.py` to pin accepted station-ID and SIH mapping documentation/template semantics before making corrections. Expected current result: failures caused by legacy `P` station examples/template rows and stale pre-acceptance SIH mapping examples.
