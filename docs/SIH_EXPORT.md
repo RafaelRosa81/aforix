@@ -477,9 +477,9 @@ Aforix — SIH export
 Output directory: D:\repos\aforix\outputs\sih
 Generated files: 5
  - D:\repos\aforix\outputs\sih\ID_SIH001_actuacion_7001_20241219_214313.csv
- - D:\repos\aforix\outputs\sih\ID_SIH001_aforo_P8_20251215_124600.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH001_aforo_7001_20241219_214313.csv
  - D:\repos\aforix\outputs\sih\ID_SIH002_actuacion_7071_20260120_142300.csv
- - D:\repos\aforix\outputs\sih\ID_SIH002_aforo_P11_20260119_141800.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH002_aforo_7071_20260120_142300.csv
  - D:\repos\aforix\outputs\sih\sih_export_metadata.csv
 ```
 
