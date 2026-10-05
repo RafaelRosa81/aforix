@@ -1187,3 +1187,10 @@ After resolving this boundary, real-data acceptance will verify:
 - X/Y values against normalized Points;
 - chart creation and end-user readability;
 - interactive and advanced CLI selection.
+
+
+### SECTION-PROFILES-01 — station identity regression
+
+Pre-fix focused regression: **2 failed / 0 passed**, both showing the same defect: CLI and interactive point normalization changed authoritative station `7001` into invented alias `P7001`.
+
+Production correction applied: both selection paths now use representation-only `canonical_station_id()`. Verification pending before real-data section-profile execution.
