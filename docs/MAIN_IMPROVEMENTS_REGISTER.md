@@ -537,3 +537,10 @@ This closes automated structural, identity, row-count, source-fidelity, and char
 Manual review of the three uploaded section-profile workbooks found Nivus and FlowTracker structurally and visually usable, with populated distance/depth pairs and coherent profile charts. The Molinete workbook is **not accepted yet**: all 25 exported `distance_m` values are blank even though the chart title/axis claim `distance_m`. The rendered Excel chart therefore uses ordinal point positions rather than actual cross-section distances.
 
 Repository diagnosis identifies the likely source immediately: the Molinete adapter emits the progression coordinate as `progr_m`, while the Molinete normalization config's `distance_m.sources` omits `progr_m`. A focused regression test was added before changing production configuration. Expected result: **1 FAIL** until the mapping is corrected.
+
+
+### Section profiles — Molinete distance regression harness correction
+
+The first focused regression run failed with `KeyError: 'groups'` because the new test referenced the wrong normalization-YAML root. The registry schema uses `tables -> Points`, not `groups -> Points`. This failure therefore did **not** yet demonstrate the intended production mapping defect.
+
+The test harness alone has been corrected to read `tables.Points.columns.distance_m.sources`. Production normalization configuration remains unchanged. The focused test must now be rerun; the intended next failure is an assertion showing that `progr_m` is absent from the configured Molinete `distance_m` sources.
