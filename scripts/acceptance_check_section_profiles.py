@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from openpyxl import load_workbook
 
@@ -28,6 +29,25 @@ def _latest_workbook(root: Path) -> Path:
     return candidates[0]
 
 
+def _read_measurement_data(workbook: Path, sheet: str) -> pd.DataFrame:
+    data = pd.read_excel(workbook, sheet_name=sheet, skiprows=12)
+    if "distance_m" in data.columns and "depth_m" in data.columns:
+        return data
+
+    raw = pd.read_excel(workbook, sheet_name=sheet, header=None)
+    header_idx = None
+    for i in range(len(raw)):
+        vals = {str(v) for v in raw.iloc[i].dropna().tolist()}
+        if {"distance_m", "depth_m"}.issubset(vals):
+            header_idx = i
+            break
+
+    if header_idx is None:
+        raise ValueError(f"{sheet}: data header not found")
+
+    return pd.read_excel(workbook, sheet_name=sheet, skiprows=header_idx)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--station", required=True)
@@ -37,10 +57,17 @@ def main() -> None:
         "--root",
         default="runs_acceptance/analysis_section_profiles",
     )
+    parser.add_argument(
+        "--workbook",
+        default=None,
+        help="Explicit workbook path. If omitted, use the latest workbook under --root.",
+    )
     args = parser.parse_args()
 
     root = Path(args.root)
-    workbook = _latest_workbook(root)
+    workbook = Path(args.workbook) if args.workbook else _latest_workbook(root)
+    if not workbook.exists():
+        raise SystemExit(f"Workbook not found: {workbook}")
 
     xls = pd.ExcelFile(workbook)
     checks: list[dict[str, str]] = []
@@ -97,26 +124,12 @@ def main() -> None:
             n_rows_details.append(f"{sheet}: invalid n_rows={row.get('n_rows')}")
             continue
 
-        data = pd.read_excel(
-            workbook,
-            sheet_name=sheet,
-            skiprows=12,
-        )
-        # The writer places 9 summary rows, one blank row, then the tabular header.
-        # If layout changes, fall back to locating distance/depth columns manually.
-        if "distance_m" not in data.columns or "depth_m" not in data.columns:
-            raw = pd.read_excel(workbook, sheet_name=sheet, header=None)
-            header_idx = None
-            for i in range(len(raw)):
-                vals = {str(v) for v in raw.iloc[i].dropna().tolist()}
-                if {"distance_m", "depth_m"}.issubset(vals):
-                    header_idx = i
-                    break
-            if header_idx is None:
-                n_rows_ok = False
-                n_rows_details.append(f"{sheet}: data header not found")
-                continue
-            data = pd.read_excel(workbook, sheet_name=sheet, skiprows=header_idx)
+        try:
+            data = _read_measurement_data(workbook, sheet)
+        except Exception as exc:
+            n_rows_ok = False
+            n_rows_details.append(f"{sheet}: {exc}")
+            continue
 
         actual_rows = len(data.dropna(how="all"))
         if actual_rows != n_rows:
@@ -127,6 +140,65 @@ def main() -> None:
         "check": "data_row_counts",
         "status": "PASS" if n_rows_ok else "FAIL",
         "detail": "; ".join(n_rows_details),
+    })
+
+    xy_ok = True
+    xy_details: list[str] = []
+    for _, row in index.iterrows():
+        sheet = str(row["sheet_name"])
+        source_text = str(row.get("source_file", "")).strip()
+        source_path = Path(source_text)
+
+        if not source_text or not source_path.exists():
+            xy_ok = False
+            xy_details.append(f"{sheet}: source missing ({source_text})")
+            continue
+
+        try:
+            exported = _read_measurement_data(workbook, sheet)
+            source = pd.read_csv(source_path)
+        except Exception as exc:
+            xy_ok = False
+            xy_details.append(f"{sheet}: read error ({exc})")
+            continue
+
+        required = ["distance_m", "depth_m"]
+        if any(col not in exported.columns for col in required) or any(
+            col not in source.columns for col in required
+        ):
+            xy_ok = False
+            xy_details.append(f"{sheet}: distance_m/depth_m missing")
+            continue
+
+        exp_xy = exported[required].dropna(how="all").reset_index(drop=True)
+        src_xy = source[required].dropna(how="all").reset_index(drop=True)
+
+        if len(exp_xy) != len(src_xy):
+            xy_ok = False
+            xy_details.append(
+                f"{sheet}: row mismatch exported={len(exp_xy)}, source={len(src_xy)}"
+            )
+            continue
+
+        exp_values = exp_xy.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
+        src_values = src_xy.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
+        matched = np.allclose(
+            exp_values,
+            src_values,
+            rtol=1e-10,
+            atol=1e-12,
+            equal_nan=True,
+        )
+        if not matched:
+            xy_ok = False
+        xy_details.append(
+            f"{sheet}: rows={len(exp_xy)}, distance/depth={'match' if matched else 'DIFFER'}"
+        )
+
+    checks.append({
+        "check": "xy_source_fidelity",
+        "status": "PASS" if xy_ok else "FAIL",
+        "detail": "; ".join(xy_details),
     })
 
     wb = load_workbook(workbook, read_only=False, data_only=False)
