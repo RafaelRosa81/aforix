@@ -1238,3 +1238,14 @@ The second acceptance layer verified workbook data directly against normalized P
 All three workbooks preserve authoritative station IDs, contain the expected workbook structure, have matching Index/data row counts, reproduce `distance_m` and `depth_m` from normalized Points exactly, and contain one native chart per measurement sheet.
 
 Automated section-profiles acceptance is complete. Manual review of workbook readability, chart labeling/scales, and end-user usability remains pending.
+
+
+### SECTION-PROFILES manual workbook review
+
+The three generated workbooks were reviewed directly.
+
+- **Nivus `7001 / 20241219`**: manual PASS for current scope. Distance/depth values are populated, identity/metadata are readable, and the profile chart corresponds to the data.
+- **FlowTracker `7071 / 20260120`**: manual PASS for current scope. Distance/depth values are populated and the chart is coherent with the worksheet data.
+- **Molinete `7071 / 20260120`**: manual **FAIL pending correction**. All 25 worksheet `distance_m` values are blank while `depth_m` is populated. The chart is labeled as distance-based but Excel falls back to ordinal X positions, so it is not a valid distance profile.
+
+Diagnosis: Molinete raw adapter emits progression as `progr_m`; normalization currently omits `progr_m` from `Points.distance_m` sources. This is tracked as MAIN-025. A regression was added first; production mapping remains unchanged until the failure is observed.
