@@ -320,6 +320,7 @@ tables:
           - distance_m
           - posicion_m
           - pos_m
+          - progr_m
         dtype: float
 
       depth_m:
