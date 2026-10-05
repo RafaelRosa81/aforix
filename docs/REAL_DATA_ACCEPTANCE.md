@@ -1201,3 +1201,17 @@ Production correction applied: both selection paths now use representation-only 
 After MAIN-024 verification (2/2 focused PASS; full suite 105 passed), section-profiles acceptance begins with the already-verified real Nivus measurement `7001 / 20241219 / 214313`.
 
 Scope: instrument `NV`, station `7001`, date `20241219`, default axes `distance_m` vs `depth_m`, scatter chart. Automated checker validates workbook structure, authoritative station identity, absence of legacy P aliases, measurement data row counts, and one chart per measurement sheet. Manual review of the XLSX remains required after automated PASS.
+
+
+### SECTION-PROFILES-01 automated result
+
+Nivus `7001 / 20241219` generated `section_profile_depth_m_by_distance_m_nivus_7001_20241219_20241219.xlsx`.
+
+Checker result: **5/5 PASS**:
+- README/Index/measurement-sheet structure;
+- authoritative identity (`7001`, `nivus`, `2024-12-19`);
+- no legacy `P` alias;
+- 10 index rows = 10 worksheet data rows;
+- exactly one chart on the measurement sheet.
+
+Next real-data coverage: FlowTracker and Molinete at station `7071`, date `20260120`, followed by manual workbook review.
