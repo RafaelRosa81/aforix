@@ -1215,3 +1215,14 @@ Checker result: **5/5 PASS**:
 - exactly one chart on the measurement sheet.
 
 Next real-data coverage: FlowTracker and Molinete at station `7071`, date `20260120`, followed by manual workbook review.
+
+
+### SECTION-PROFILES-02 — FlowTracker
+
+Real run: station `7071`, date `20260120`, instrument FlowTracker. Checker: **5/5 PASS**. Workbook identity is authoritative, no legacy P alias is present, measurement sheet contains 24 data rows matching the Index count, and exactly one native chart is present.
+
+### SECTION-PROFILES-03 — Molinete
+
+Real run: station `7071`, date `20260120`, instrument Molinete. Checker: **5/5 PASS**. Workbook identity is authoritative, no legacy P alias is present, measurement sheet contains 25 data rows matching the Index count, and exactly one native chart is present.
+
+All three supported instruments have now passed the first automated section-profile layer. A second checker layer now verifies `distance_m`/`depth_m` fidelity against normalized Points, followed by manual review of the three XLSX outputs.
