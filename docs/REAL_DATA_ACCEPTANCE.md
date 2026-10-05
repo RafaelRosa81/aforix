@@ -1147,3 +1147,8 @@ Added `tests/test_sih_docs_template_contract.py` to pin accepted station-ID and 
 ### MAIN-023 expected failure + correction
 
 The focused documentation/template contract suite failed **3/3** before changes, as expected. Corrections were then applied to the SIH selection template and user documentation so examples follow authoritative station IDs, adopted SIH mappings, and the corrected Molinete `escala_media_m` source. Targeted/full-suite verification remains pending.
+
+
+### MAIN-023 partial verification
+
+Post-correction run: focused suite **2 passed / 1 failed**; full suite **102 passed / 1 failed**. The only remaining defect was two stale aforo filename examples (`_P8_`, `_P11_`) in `SIH_EXPORT.md`. They are now corrected; final targeted/full-suite verification is pending.
