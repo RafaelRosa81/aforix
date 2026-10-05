@@ -472,8 +472,7 @@ analysis:
         - temperature_c
       chart_types:
         - scatter
-        - line
-        - scatter_line
+        - bar
 
     instruments:
       nivus:

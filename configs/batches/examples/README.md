@@ -255,7 +255,7 @@ start_date: 2025-01-01
 end_date: 2026-12-31
 x_axis: progr_m       # columna real del dataset
 y_axis: prof_m        # columna real del dataset
-chart_type: line      # scatter, line
+chart_type: scatter   # scatter, bar
 ```
 
 En batch, `interactive: true` no está soportado.
