@@ -1152,3 +1152,12 @@ The focused documentation/template contract suite failed **3/3** before changes,
 ### MAIN-023 partial verification
 
 Post-correction run: focused suite **2 passed / 1 failed**; full suite **102 passed / 1 failed**. The only remaining defect was two stale aforo filename examples (`_P8_`, `_P11_`) in `SIH_EXPORT.md`. They are now corrected; final targeted/full-suite verification is pending.
+
+
+### MAIN-023 final verification
+
+Documentation/template contract is now fully green:
+- focused suite: **3 passed**;
+- full suite: **103 passed**.
+
+MAIN-023 is closed as verified. SIH documentation and selection examples now follow authoritative station IDs, adopted SIH semantic mappings, and the corrected Molinete `escala_media_m` source.
