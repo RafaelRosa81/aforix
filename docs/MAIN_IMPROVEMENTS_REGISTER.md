@@ -508,3 +508,14 @@ Nivus section-profiles run for authoritative station `7001`, date `20241219`, co
 Acceptance checker result: **5 PASS / 0 FAIL**. Verified workbook structure (`README`, `Index`, one measurement sheet), authoritative station/instrument/date identity, no legacy `P` alias, consistent index/data row count (10 rows), and exactly one native Excel chart for the measurement sheet.
 
 Automated Nivus section-profile acceptance is therefore PASS. Manual workbook review remains pending, and real-data coverage must still be repeated for FlowTracker and Molinete before closing the module.
+
+
+### SECTION-PROFILES-02/03 automated real-data results
+
+FlowTracker real-data run for `7071 / 20260120` completed successfully: checker **5/5 PASS**, with 24 profile rows and one native Excel chart.
+
+Molinete real-data run for `7071 / 20260120` completed successfully: checker **5/5 PASS**, with 25 profile rows and one native Excel chart.
+
+Together with the prior Nivus result (`7001 / 20241219`, 10 rows, **5/5 PASS**), section-profiles now has automated structural/identity/chart coverage across all three supported real-data instruments.
+
+Before closing the module, the acceptance checker is being strengthened to verify the exported `distance_m` / `depth_m` pairs directly against each normalized Points source file. Manual workbook review is also still required for end-user readability and chart usability.
