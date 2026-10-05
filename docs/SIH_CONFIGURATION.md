@@ -239,29 +239,29 @@ codigo
 
 Resuelve `id_tipo_aforo` cuando no se usa un valor directo.
 
-Actualmente los instrumentos configurados tienen `id_tipo_actuacion: 4`, pero `id_tipo_aforo` se resuelve por:
+Actualmente los instrumentos configurados resuelven `id_tipo_aforo` de forma declarativa con las claves adoptadas:
 
-```yaml
-tipo_aforo_lookup: Vadeo
+```text
+FlowTracker -> VADEO -> 57
+Molinete    -> VADEO -> 57
+Nivus       -> VADEO -> 57
+M9          -> BOTE  -> 59
 ```
 
-o:
-
-```yaml
-tipo_aforo_lookup: Acustico
-```
-
-según instrumento.
+FlowTracker, Molinete y Nivus tienen además `id_tipo_actuacion: 4`. M9 permanece deshabilitado y todavía no cuenta con aceptación real end-to-end.
 
 ### 9.3 instrumentos_rangos
 
-Resuelve `id_instrumentos_rangos` usando claves como:
+Resuelve `id_instrumentos_rangos` usando las claves adoptadas:
 
 ```text
-Velocimetro puntual
-Doppler acustico
-ADCP movil
+FlowTracker -> Velocimetro -> 11
+Molinete    -> Velocimetro -> 11
+Nivus       -> Acustico    -> 10
+M9          -> ADCP        -> 12
 ```
+
+Estas asociaciones son decisiones declarativas del proyecto. No deben implementarse como alias semánticos hardcodeados en Python.
 
 ## 10. instruments
 
@@ -339,10 +339,10 @@ Ejemplo Molinete:
 ```yaml
 raw_canonical_fields:
   id_operador: realizado
-  lectura_escala: escala_media
+  lectura_escala: escala_media_m
   escala_inicio: esc_ini_m
   escala_fin: esc_fin_m
-  escala_media: escala_media
+  escala_media: escala_media_m
   observaciones: observaciones
   radio_hidraulico: radio_hidraulico_m
 ```
@@ -412,6 +412,8 @@ quality:
 ```
 
 Según el estado actual del código, esta sección está preparada para integración futura, pero no se usa todavía para poblar `nivel_confiabilidad` ni otros campos de salida.
+
+Esto está registrado como MAIN-022. Antes de implementar la integración debe definirse el contrato SIH de `nivel_confiabilidad` (por ejemplo, si espera una etiqueta, un ID o un valor). No se debe inferir esa semántica únicamente a partir del nombre del campo.
 
 ## 15. Cómo agregar un nuevo instrumento
 
