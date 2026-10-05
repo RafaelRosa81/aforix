@@ -39,7 +39,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 | MAIN-021 | SIH scale fields | Molinete SIH config referenced nonexistent raw column `escala_media` for `lectura_escala` and `escala_media`; the adapter actually emits `escala_media_m`. The selected real measurement also has blank source values for `esc_ini_m`, `esc_fin_m`, and `escala_media_m`. | Regression failed first as intended; real-data diagnostic separated config defect from source-data blanks; config corrected in both SIH configs; focused regression 1/1 PASS; full suite 100 passed. | **MERGE** | Merge the declarative Molinete mapping correction (`escala_media_m`). Keep the blank scale fields for ACCM001 as accepted source-data absence, not an export defect. |
 | MAIN-022 | SIH quality / `nivel_confiabilidad` | Nivus SIH config declares a quality source (`quality_metrics`), parameter `CG(%)`, and Bueno/Regular/Malo thresholds, but the SIH runner/mapping never reads quality results and always writes `nivel_confiabilidad` blank. The project will next build a broader data-quality evaluation system covering Nivus, FlowTracker, and Molinete, so SIH confidence integration should be designed against that unified quality model rather than implemented only for Nivus now. | SIH-06 real-data acceptance: Nivus core export 4 PASS / 0 FAIL / 1 INFO; `nivel_confiabilidad=''`. Repository review confirms no current SIH quality-output integration path. | **FOLLOW-UP — DEFERRED** | Defer implementation until the cross-instrument quality-evaluation system is defined for FlowTracker, Molinete, and Nivus. Then define the SIH `nivel_confiabilidad` contract and integrate the unified per-measurement quality result regression-first. |
 | MAIN-023 | SIH documentation and sample-selection drift | SIH user docs/examples contained pre-acceptance semantics: legacy `P` station aliases, old semantic lookup labels, and the old Molinete `escala_media` source name. | Regression first: 3/3 failed. After documentation/template correction, a residual filename example caused 2/3 PASS and full suite 102/103; final cleanup then produced focused 3/3 PASS and full suite 103 passed. | **MERGE** | Merge the synchronized SIH docs/template updates with the regression guard so documentation remains aligned with authoritative station IDs, adopted semantic mappings, and `escala_media_m`. |
-| MAIN-024 | Section profiles station selection | Advanced and interactive section-profile selectors converted numeric station IDs to `P<n>`, inventing a prefix and making authoritative numeric IDs such as `7001` fail exact filtering. | Regression failed 2/2 as intended: both CLI and interactive normalized `7001` to `P7001`. Production correction now delegates to representation-only `canonical_station_id()`. | **FOLLOW-UP — VERIFY** | Rerun focused regression and full suite, then execute real-data section-profile acceptance. |
+| MAIN-024 | Section profiles station selection | Advanced and interactive section-profile selectors converted numeric station IDs to `P<n>`, inventing a prefix and making authoritative numeric IDs such as `7001` fail exact filtering. | Regression failed 2/2 as intended; production correction delegates to representation-only `canonical_station_id()`. Focused verification: 2/2 PASS. Full suite: 105 passed. | **MERGE** | Merge the section-profile CLI/interactive identity correction. Continue with real-data section-profile acceptance. |
 
 
 ## Current verified acceptance state after station-code removal
@@ -54,7 +54,7 @@ It is intentionally separate from `REAL_DATA_ACCEPTANCE.md`: the acceptance docu
 - Hydraulic consistency audit: **750/750 OK**.
 - Unit consistency audit: **461/461 OK**.
 - Validation acceptance: **6/6 PASS**.
-- Full automated test suite: **103 passed**.
+- Full automated test suite: **105 passed**.
 
 ## Integration rule
 
@@ -490,3 +490,12 @@ Before running section-profiles on real data, repository review found a station-
 ### MAIN-024 implementation
 
 The expected regression failure was observed: both section-profile selection paths converted `7001` to `P7001`. The CLI and interactive helpers now delegate to shared `canonical_station_id()`, which performs representation cleanup only and preserves distinct identities such as `7001`, `7071`, and `P71`. CLI help was also updated to show authoritative numeric station-ID examples. Focused/full-suite verification is pending.
+
+
+### MAIN-024 verification complete
+
+The section-profile station-selection correction is fully verified:
+- focused regression: **2/2 PASS**;
+- full suite: **105 passed**.
+
+MAIN-024 is promoted to **MERGE**. Real-data acceptance of the section-profiles output now follows as a separate user-facing/module test.
