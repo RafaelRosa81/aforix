@@ -561,3 +561,27 @@ Verification:
 - manual workbook review: PASS.
 
 MAIN-025 is closed.
+
+
+### MAIN-026 - CLOSED / PASS - section-profiles chart-type contract
+
+Section-profiles exposed chart types that were not implemented consistently. `configs/examples/main.yaml` advertised `scatter`, `line`, and `scatter_line`, while the Excel writer only distinguished `bar`; every other value silently produced a `ScatterChart`.
+
+Regression-first verification reproduced both contract failures:
+- requesting `line` did not raise an error and generated a ScatterChart;
+- the main configuration advertised unsupported chart types.
+
+Production correction:
+- supported chart types are now explicitly `scatter` and `bar`;
+- unsupported chart types raise a clear `ValueError`;
+- `configs/examples/main.yaml` now advertises only `scatter` and `bar`;
+- section-profile batch examples were aligned to the same contract.
+
+Verification:
+- focused chart-type regression: 2/2 PASS;
+- full Python suite: 108 passed;
+- real FlowTracker `7071 / 20260120` with `scatter`: generated one ScatterChart;
+- real FlowTracker `7071 / 20260120` with `bar`: generated one BarChart;
+- real FlowTracker `7071 / 20260120` with `line`: rejected with `ValueError` instead of silently generating the wrong chart.
+
+MAIN-026 is closed.

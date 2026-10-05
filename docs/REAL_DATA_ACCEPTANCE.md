@@ -1276,3 +1276,23 @@ Verification:
 - manual workbook review confirms the resulting profile is coherent.
 
 The previous Molinete manual section-profile failure is resolved. **MAIN-025: CLOSED / PASS.**
+
+
+### SECTION-PROFILES - MAIN-026 chart-type contract verification
+
+A real FlowTracker section-profile run at station `7071`, date `20260120`, reproduced a chart-type contract defect: requesting `--chart-type line` completed successfully but produced a native Excel `ScatterChart`.
+
+A regression suite was added before the production correction. The initial result was 2 failures:
+- unsupported `line` was not rejected;
+- `configs/examples/main.yaml` advertised `scatter`, `line`, and `scatter_line` instead of the actually supported contract.
+
+The correction defines the supported section-profile chart types as `scatter` and `bar`. `write_excel()` now rejects unsupported values explicitly, and the main configuration and batch examples use the same contract.
+
+Verification:
+- focused regression: **2 passed**;
+- full suite: **108 passed**;
+- FlowTracker `7071 / 20260120`, `chart_type=scatter`: successful real-data export, one native `ScatterChart`;
+- FlowTracker `7071 / 20260120`, `chart_type=bar`: successful real-data export, one native `BarChart`;
+- FlowTracker `7071 / 20260120`, `chart_type=line`: rejected with `ValueError: Unsupported section-profile chart type: 'line'. Supported types: bar, scatter`.
+
+The previous silent fallback from unsupported chart types to ScatterChart is eliminated. **MAIN-026: CLOSED / PASS.**
