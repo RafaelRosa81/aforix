@@ -1249,3 +1249,8 @@ The three generated workbooks were reviewed directly.
 - **Molinete `7071 / 20260120`**: manual **FAIL pending correction**. All 25 worksheet `distance_m` values are blank while `depth_m` is populated. The chart is labeled as distance-based but Excel falls back to ordinal X positions, so it is not a valid distance profile.
 
 Diagnosis: Molinete raw adapter emits progression as `progr_m`; normalization currently omits `progr_m` from `Points.distance_m` sources. This is tracked as MAIN-025. A regression was added first; production mapping remains unchanged until the failure is observed.
+
+
+### Section profiles — Molinete distance regression harness
+
+Initial focused test failed for the wrong reason (`KeyError: 'groups'`): the test used an incorrect YAML path. The harness was corrected to `tables.Points.columns.distance_m.sources`; no production configuration was changed. Rerun is required before classifying the suspected `progr_m` mapping issue.
