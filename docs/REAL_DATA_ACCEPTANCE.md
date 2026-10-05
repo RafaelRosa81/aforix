@@ -1122,3 +1122,18 @@ Manual checks confirm:
 - blank `nivel_confiabilidad` remains the known MAIN-022 follow-up.
 
 SIH-06 is **PASS (automated + manual) for the current core Nivus scope**.
+
+
+### Pause checkpoint after SIH-06
+
+Acceptance is paused after closing SIH-06 as **PASS (automated + manual) for core Nivus export**.
+
+Current verified baseline:
+- full test suite: **100 passed**;
+- FlowTracker/Molinete SIH post-MAIN-021 smoke: **6/6 semantic PASS**, **4/4 exact-ID PASS**;
+- Nivus SIH-06: **4 PASS / 0 FAIL / 1 INFO**, followed by successful manual review;
+- authoritative station identity and adopted SIH mappings are preserved across the three tested instruments.
+
+Deferred items are tracked in the main-improvements register: MAIN-020 (`id_operador` contract), MAIN-022 (CG -> `nivel_confiabilidad` integration), MAIN-023 (SIH docs/sample drift), plus previously registered product/follow-up/placeholder items. M9 remains outside real-data SIH acceptance because its ingest/export path is not yet production-complete.
+
+Resume from MAIN-020/022/023 before declaring the SIH module fully production-complete or preparing the final merge review.
