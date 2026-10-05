@@ -1226,3 +1226,15 @@ Real run: station `7071`, date `20260120`, instrument FlowTracker. Checker: **5/
 Real run: station `7071`, date `20260120`, instrument Molinete. Checker: **5/5 PASS**. Workbook identity is authoritative, no legacy P alias is present, measurement sheet contains 25 data rows matching the Index count, and exactly one native chart is present.
 
 All three supported instruments have now passed the first automated section-profile layer. A second checker layer now verifies `distance_m`/`depth_m` fidelity against normalized Points, followed by manual review of the three XLSX outputs.
+
+
+### SECTION-PROFILES strengthened checker — final automated results
+
+The second acceptance layer verified workbook data directly against normalized Points:
+- Nivus `7001 / 20241219`: **6/6 PASS**, 10 rows, X/Y source fidelity confirmed;
+- FlowTracker `7071 / 20260120`: **6/6 PASS**, 24 rows, X/Y source fidelity confirmed;
+- Molinete `7071 / 20260120`: **6/6 PASS**, 25 rows, X/Y source fidelity confirmed.
+
+All three workbooks preserve authoritative station IDs, contain the expected workbook structure, have matching Index/data row counts, reproduce `distance_m` and `depth_m` from normalized Points exactly, and contain one native chart per measurement sheet.
+
+Automated section-profiles acceptance is complete. Manual review of workbook readability, chart labeling/scales, and end-user usability remains pending.
