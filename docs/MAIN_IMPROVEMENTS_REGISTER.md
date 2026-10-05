@@ -451,3 +451,12 @@ Documentation/template content has now been synchronized with the accepted contr
 - the quality section retains the known MAIN-022 limitation instead of implying that `nivel_confiabilidad` is already populated.
 
 Verification pending: rerun `tests/test_sih_docs_template_contract.py` and then the full suite.
+
+
+### MAIN-023 partial verification and residual fix
+
+First post-correction verification produced **2 PASS / 1 FAIL** in the focused suite and **102 passed / 1 failed** in the full suite. The remaining failure was narrowly scoped to two residual output-filename examples in `SIH_EXPORT.md`: the actuación filenames had been updated, but the paired aforo filenames still contained `_P8_` and `_P11_`.
+
+Those two residual examples are now corrected to the same authoritative station/date/time identities used by their paired actuación examples (`7001 / 20241219 / 214313` and `7071 / 20260120 / 142300`). A repository-side guard confirmed no `_P<digits>_` filename fragment remains in `SIH_EXPORT.md` after the edit.
+
+Verification pending: rerun the focused MAIN-023 suite and then the full suite.
