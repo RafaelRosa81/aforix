@@ -8,6 +8,7 @@ import typer
 
 from aforix.analysis.section_profiles.inputs import load_points_by_instrument
 from aforix.analysis.section_profiles.filters import filter_date_range, filter_instruments, filter_points
+from aforix.metadata import canonical_station_id
 
 
 def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -117,12 +118,7 @@ def _parse_csv(value: str | None) -> list[str] | None:
 
 
 def _normalize_point(value: str) -> str:
-    s = str(value).strip().upper()
-    if s.startswith("P"):
-        digits = "".join(ch for ch in s[1:] if ch.isdigit())
-    else:
-        digits = "".join(ch for ch in s if ch.isdigit())
-    return f"P{int(digits)}" if digits else s
+    return canonical_station_id(value)
 
 
 def _point_sort_key(value: str):
