@@ -436,3 +436,18 @@ A focused regression suite was added before editing SIH documentation/template c
 - `docs/SIH_EXPORT.md` examples must use authoritative station IDs without legacy `P` aliases.
 
 Production documentation/template files are intentionally unchanged at this stage; the focused suite is expected to fail and demonstrate the drift before correction.
+
+
+### MAIN-023 expected regression confirmed
+
+Focused suite result before documentation/template correction: **3 failed**. The failures independently confirmed all three forms of drift: legacy `P<digits>` rows in `selection_template.csv`, stale semantic/scale examples in `SIH_CONFIGURATION.md`, and legacy `P` station examples in `SIH_EXPORT.md`.
+
+### MAIN-023 implementation
+
+Documentation/template content has now been synchronized with the accepted contracts:
+- `selection_template.csv` now contains only verified authoritative-ID examples (`7001` Nivus, `7071` Molinete, `7071` FlowTracker);
+- `SIH_CONFIGURATION.md` now documents `VADEO/BOTE`, `Velocimetro/Acustico/ADCP`, and Molinete `escala_media_m`;
+- `SIH_EXPORT.md` examples now use authoritative numeric station IDs and explicitly state that no `P<n> -> 7000+n` aliasing is performed;
+- the quality section retains the known MAIN-022 limitation instead of implying that `nivel_confiabilidad` is already populated.
+
+Verification pending: rerun `tests/test_sih_docs_template_contract.py` and then the full suite.
