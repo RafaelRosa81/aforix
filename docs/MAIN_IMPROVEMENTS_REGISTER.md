@@ -544,3 +544,20 @@ Repository diagnosis identifies the likely source immediately: the Molinete adap
 The first focused regression run failed with `KeyError: 'groups'` because the new test referenced the wrong normalization-YAML root. The registry schema uses `tables -> Points`, not `groups -> Points`. This failure therefore did **not** yet demonstrate the intended production mapping defect.
 
 The test harness alone has been corrected to read `tables.Points.columns.distance_m.sources`. Production normalization configuration remains unchanged. The focused test must now be rerun; the intended next failure is an assertion showing that `progr_m` is absent from the configured Molinete `distance_m` sources.
+
+### MAIN-025 - CLOSED / PASS - Molinete section-profile distance mapping
+
+The Molinete normalization mapping has been corrected so the adapter field `progr_m` is accepted as a source for canonical `Points.distance_m`.
+
+Verification:
+- focused regression `test_molinete_section_profile_distance_mapping.py`: PASS;
+- full test suite: 106 passed;
+- real data was renormalized after the configuration change;
+- Molinete `7071 / 20260120`: 25 rows, 25 populated `distance_m` values, 0 blanks;
+- recovered cross-section distances range from 0.00 m to 14.55 m;
+- regenerated section-profile workbook contains one native ScatterChart;
+- chart X reference is `distance_m` (`K14:K38`);
+- chart Y reference is `depth_m` (`L14:L38`);
+- manual workbook review: PASS.
+
+MAIN-025 is closed.

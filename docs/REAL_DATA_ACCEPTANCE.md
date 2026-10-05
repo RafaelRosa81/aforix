@@ -1254,3 +1254,25 @@ Diagnosis: Molinete raw adapter emits progression as `progr_m`; normalization cu
 ### Section profiles — Molinete distance regression harness
 
 Initial focused test failed for the wrong reason (`KeyError: 'groups'`): the test used an incorrect YAML path. The harness was corrected to `tables.Points.columns.distance_m.sources`; no production configuration was changed. Rerun is required before classifying the suspected `progr_m` mapping issue.
+
+### SECTION-PROFILES - MAIN-025 final verification
+
+The intended regression was reproduced after correcting the test harness: Molinete normalization did not recognize the adapter field `progr_m` as a source for canonical `Points.distance_m`.
+
+Production correction:
+- added `progr_m` to `configs/normalization/molinete.yaml` under `tables.Points.columns.distance_m.sources`.
+
+Verification:
+- focused regression: **1 passed**;
+- full suite: **106 passed**;
+- normalization rerun completed successfully;
+- real Molinete case `7071 / 20260120` contains **25 rows / 0 blank distance_m values**;
+- recovered distances span **0.00 m to 14.55 m**;
+- section-profile workbook regenerated successfully;
+- measurement sheet: `7071_20260120_ML`;
+- workbook contains **25 distance/depth pairs** and exactly **1 ScatterChart**;
+- chart X axis is `distance_m`, referencing `K14:K38`;
+- chart Y axis is `depth_m`, referencing `L14:L38`;
+- manual workbook review confirms the resulting profile is coherent.
+
+The previous Molinete manual section-profile failure is resolved. **MAIN-025: CLOSED / PASS.**
