@@ -426,3 +426,13 @@ Open items to resume:
 - MAIN-012 (**PLACEHOLDER**): M9 ingest/export, `export excel`, filter-groups, and statistics remain incomplete. M9 SIH mapping `BOTE(59)/ADCP(12)` is configuration-only and has no real-data end-to-end acceptance yet.
 
 Integration rule remains unchanged: do not merge the acceptance branch wholesale. Review MERGE items, resolve/defer DECIDE/FOLLOW-UP items explicitly, run a final full suite + selected real-data smoke tests, then merge through a reviewed PR.
+
+
+### MAIN-023 regression stage
+
+A focused regression suite was added before editing SIH documentation/template content. It pins three already-adopted contracts:
+- `configs/sih/selection_template.csv` must not use legacy `P<digits>` station aliases;
+- `docs/SIH_CONFIGURATION.md` must describe the current semantic mappings (`VADEO/BOTE`, `Velocimetro/Acustico/ADCP`) and Molinete `escala_media_m` source;
+- `docs/SIH_EXPORT.md` examples must use authoritative station IDs without legacy `P` aliases.
+
+Production documentation/template files are intentionally unchanged at this stage; the focused suite is expected to fail and demonstrate the drift before correction.
