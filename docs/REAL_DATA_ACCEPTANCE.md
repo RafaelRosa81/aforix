@@ -1167,3 +1167,23 @@ MAIN-023 is closed as verified. SIH documentation and selection examples now fol
 
 - **MAIN-020** is deferred pending a client decision on the SIH `id_operador` contract and authoritative operator mapping. No ID conversion will be implemented before that consultation.
 - **MAIN-022** is deferred until a unified data-quality evaluation system is designed for FlowTracker, Molinete, and Nivus. SIH `nivel_confiabilidad` integration will be implemented afterward against that common quality model.
+
+
+## Section profiles real-data acceptance
+
+### SP-00 — preflight / station identity regression
+
+The next audited module is `aforix analyze section-profiles`.
+
+Repository preflight found that both the advanced CLI and interactive selection normalize every numeric station token to `P<n>`. That conflicts with the accepted authoritative station-ID rule, where `7001`, `7071`, and `P71` are distinct identities and no prefix may be invented.
+
+A regression test was added first in `tests/analysis/test_section_profiles_station_identity.py`. Production code is intentionally unchanged at this stage; the focused test is expected to fail for numeric IDs such as `7001` and `7071`.
+
+After resolving this boundary, real-data acceptance will verify:
+- all three supported instruments (Nivus, FlowTracker, Molinete);
+- exact station/date filtering;
+- workbook README/Index/measurement sheets;
+- row counts and source identity;
+- X/Y values against normalized Points;
+- chart creation and end-user readability;
+- interactive and advanced CLI selection.
