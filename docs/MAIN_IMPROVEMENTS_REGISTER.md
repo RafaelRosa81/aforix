@@ -499,3 +499,12 @@ The section-profile station-selection correction is fully verified:
 - full suite: **105 passed**.
 
 MAIN-024 is promoted to **MERGE**. Real-data acceptance of the section-profiles output now follows as a separate user-facing/module test.
+
+
+### SECTION-PROFILES-01 automated real-data result
+
+Nivus section-profiles run for authoritative station `7001`, date `20241219`, completed successfully under `runs_acceptance/analysis_section_profiles/20261005_064533`.
+
+Acceptance checker result: **5 PASS / 0 FAIL**. Verified workbook structure (`README`, `Index`, one measurement sheet), authoritative station/instrument/date identity, no legacy `P` alias, consistent index/data row count (10 rows), and exactly one native Excel chart for the measurement sheet.
+
+Automated Nivus section-profile acceptance is therefore PASS. Manual workbook review remains pending, and real-data coverage must still be repeated for FlowTracker and Molinete before closing the module.
