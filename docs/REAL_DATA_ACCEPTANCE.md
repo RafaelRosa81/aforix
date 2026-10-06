@@ -1296,3 +1296,36 @@ Verification:
 - FlowTracker `7071 / 20260120`, `chart_type=line`: rejected with `ValueError: Unsupported section-profile chart type: 'line'. Supported types: bar, scatter`.
 
 The previous silent fallback from unsupported chart types to ScatterChart is eliminated. **MAIN-026: CLOSED / PASS.**
+
+
+### SECTION-PROFILES-04 - interactive end-to-end acceptance
+
+The interactive section-profiles workflow was exercised end-to-end against real FlowTracker data.
+
+Selection:
+- instrument code: `FT`;
+- authoritative station ID: `7071`;
+- date range: `2026-01-20` to `2026-01-20`;
+- default X axis: `distance_m`;
+- default Y axis: `depth_m`;
+- default chart type: `scatter`.
+
+Interactive discovery behaved as expected:
+- available instruments: `FT, ML, NV`;
+- station `7071` was presented and preserved without inventing a legacy `P` prefix;
+- selected-data date range was correctly reported as `2026-01-20` to `2026-01-20`;
+- available chart types were `scatter, bar`.
+
+Generated workbook:
+- sheets: `README`, `Index`, `7071_20260120_FT`;
+- `station_id=7071`;
+- `instrument=flowtracker`;
+- `instrument_code=FT`;
+- `measurement_date=2026-01-20`;
+- `x_axis=distance_m`;
+- `y_axis=depth_m`;
+- `chart_type=scatter`;
+- exactly one native Excel chart;
+- actual chart class: `ScatterChart`.
+
+**SECTION-PROFILES-04: PASS.**
