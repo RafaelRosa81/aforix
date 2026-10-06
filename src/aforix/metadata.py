@@ -39,28 +39,13 @@ def _as_clean_string(value: Any) -> str:
 
 
 def canonical_station_id(value: Any) -> str:
-    """Return the canonical Aforix station id.
+    """Normalize station-id representation without changing its identity.
 
-    Legacy station codes P1..P999 are mapped into the 7000 namespace
-    (P1 -> 7001, P71 -> 7071). Canonical 7xxx ids are preserved.
-    Other numeric identifiers are preserved to avoid silently remapping
-    unrelated station namespaces.
+    This helper may clean representation artifacts (whitespace, case, and a
+    trailing .0 introduced by spreadsheet/CSV type inference), but it must not
+    infer aliases or renumber stations. P71 and 7071 remain distinct identifiers.
     """
-    text = _as_clean_string(value).upper()
-    if not text:
-        return ""
-
-    legacy = re.fullmatch(r"P\s*(\d{1,3})", text)
-    if legacy:
-        return str(7000 + int(legacy.group(1)))
-
-    if re.fullmatch(r"7\d{3}", text):
-        return text
-
-    if re.fullmatch(r"\d+", text):
-        return str(int(text))
-
-    return text
+    return _as_clean_string(value).upper()
 
 
 def _parse_datetime_with_formats(value: Any, input_formats: list[str]) -> datetime | None:

@@ -22,6 +22,22 @@ METADATA_COLUMNS = {
 DATE_CANDIDATES = ["measurement_date", "Date", "date", "datetime", "timestamp"]
 POINT_CANDIDATES = ["station_id", "Point", "point", "station", "site_id"]
 
+NORMALIZED_ID_DTYPES = {
+    "station_id": "string",
+    "measurement_date": "string",
+    "measurement_time": "string",
+}
+
+
+def _read_normalized_csv(path: Path) -> pd.DataFrame:
+    """Read normalized CSVs without losing identity formatting.
+
+    Numeric measurement columns are still inferred normally, while station/date/time
+    identity fields are kept as strings so values such as 093425 remain six digits
+    in user-facing exports.
+    """
+    return pd.read_csv(path, dtype=NORMALIZED_ID_DTYPES)
+
 
 @dataclass(frozen=True)
 class ExportRequest:
@@ -116,7 +132,7 @@ def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "a
 def load_normalized_table(config: dict, table: str, instrument: str = "all") -> tuple[pd.DataFrame, list[Path]]:
     root_csv = _root_table_csv(config, table)
     if root_csv is not None:
-        df = pd.read_csv(root_csv)
+        df = _read_normalized_csv(root_csv)
         if instrument and instrument.lower() != "all" and "instrument" in df.columns:
             df = df[df["instrument"].astype(str).str.lower() == instrument.lower()]
         return df, [root_csv]
@@ -131,7 +147,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         for tdir in table_dirs:
             inst_name = tdir.parent.name
             for f in sorted(tdir.glob("*.csv")):
-                df = pd.read_csv(f)
+                df = _read_normalized_csv(f)
                 if "instrument" not in df.columns:
                     df.insert(0, "instrument", inst_name)
                 frames.append(df)
@@ -144,7 +160,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         raise FileNotFoundError(f"No CSV files found in normalized table directory: {tdir}")
     frames = []
     for f in files:
-        frames.append(pd.read_csv(f))
+        frames.append(_read_normalized_csv(f))
     df = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
     return df, files
 
@@ -463,12 +479,26 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     if missing:
         raise KeyError("Selected parameter columns not found: " + ", ".join(missing))
 
-    grouping = (request.grouping or "none").lower()
+    requested_grouping = (request.grouping or "none").lower()
+
+    # An explicit flat override is authoritative. This is the contract exposed by
+    # the CLI's --flat option: even if daily/monthly grouping was also supplied,
+    # the effective export shape is flat and must be named/described as such.
+    explicit_flat = request.pivot is False
+    grouping = "none" if explicit_flat else requested_grouping
     pivot = request.pivot if request.pivot is not None else grouping in {"monthly", "daily"}
+
     if pivot:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
-    elif grouping in {"monthly", "daily"}:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
+        out_df = _build_pivot(
+            df,
+            params,
+            grouping,
+            early_eff,
+            late_eff,
+            request.aggregation,
+            request.points,
+            request.instrument,
+        )
     else:
         out_df = _build_flat(df, params)
 
@@ -497,7 +527,7 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
         "output_stem": stem,
         "filename_pattern": "{table}_{date_range}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{date_range}_{shape}_{instrument}.{fmt}",
         "column_order": "period_major" if grouping in {"monthly", "daily"} else "flat",
-        "point_selection_rule": "numeric point tokens are treated as station codes; use idx:N or [N] to force index selection",
+        "point_selection_rule": "station selection uses exact station_id values; distinct prefixes/namespaces are not aliases",
         "row_count": int(len(out_df)),
         "source_files": [str(p) for p in source_files],
         "created_at": datetime.now().isoformat(timespec="seconds"),

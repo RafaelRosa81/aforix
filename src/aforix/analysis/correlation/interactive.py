@@ -19,7 +19,7 @@ def ask_date_range() -> Tuple[str | None, str | None]:
 
 
 def ask_points() -> List[str]:
-    raw = input("Enter Aforix points, e.g. 7003 7005 7008 (legacy P3,P5,P8 also accepted), or press Enter for all points: ").strip()
+    raw = input("Enter Aforix station IDs, e.g. 7003 7005 7008, or press Enter for all points: ").strip()
     if not raw: return []
     normalized = raw.replace(",", " ").replace(";", " ")
     return [canonical_station_id(token) for token in normalized.split() if token.strip()]

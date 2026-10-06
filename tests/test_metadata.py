@@ -10,12 +10,12 @@ from aforix.metadata import (
 )
 
 
-def test_canonical_station_id_maps_legacy_p_codes():
-    assert canonical_station_id("P1") == "7001"
-    assert canonical_station_id("p5") == "7005"
-    assert canonical_station_id("P11") == "7011"
-    assert canonical_station_id("P71") == "7071"
-    assert canonical_station_id("P101") == "7101"
+def test_canonical_station_id_preserves_distinct_prefixed_ids():
+    assert canonical_station_id("P1") == "P1"
+    assert canonical_station_id("p5") == "P5"
+    assert canonical_station_id("P11") == "P11"
+    assert canonical_station_id("P71") == "P71"
+    assert canonical_station_id("P101") == "P101"
 
 
 def test_canonical_station_id_preserves_canonical_ids():
@@ -33,9 +33,9 @@ def test_normalize_station_id_remains_backward_compatible():
     assert normalize_station_id("11", policy) == "11"
 
 
-def test_normalize_station_id_can_use_canonical_policy():
+def test_normalize_station_id_can_use_representation_only_canonical_policy():
     policy = {"canonical": True}
-    assert normalize_station_id("P11", policy) == "7011"
+    assert normalize_station_id("P11", policy) == "P11"
     assert normalize_station_id("7011", policy) == "7011"
 
 

@@ -45,9 +45,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"
@@ -251,9 +248,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"
@@ -326,6 +320,7 @@ tables:
           - distance_m
           - posicion_m
           - pos_m
+          - progr_m
         dtype: float
 
       depth_m:
