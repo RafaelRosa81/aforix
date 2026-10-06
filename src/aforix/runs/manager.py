@@ -19,10 +19,15 @@ def _project_root_from_config(config_path: Path) -> Path:
 
     # Standard Aforix layout:
     # <project>/configs/examples/<config>.yaml
-    if len(resolved.parents) >= 3:
+    if (
+        resolved.parent.name == "examples"
+        and resolved.parent.parent.name == "configs"
+    ):
         return resolved.parents[2]
 
-    return Path.cwd().resolve()
+    # Standalone configs outside a detectable repository resolve relative
+    # paths from the config location, not from an arbitrary ancestor or cwd.
+    return resolved.parent
 
 
 def _runs_root_from_config(config_path: Path) -> Path:

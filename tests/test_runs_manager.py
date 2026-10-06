@@ -35,3 +35,28 @@ paths:
     assert run_dir.resolve().parent == expected_root
     assert (run_dir / "config_used.yaml").exists()
     assert (run_dir / "manifest.json").exists()
+
+def test_create_run_standalone_config_anchors_runs_root_to_config_dir(tmp_path, monkeypatch):
+    config_dir = tmp_path / "job"
+    config_dir.mkdir()
+
+    config_path = config_dir / "main.yaml"
+    config_path.write_text(
+        """
+project:
+  name: standalone
+paths:
+  runs_root: runs
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    unrelated_cwd = tmp_path / "elsewhere"
+    unrelated_cwd.mkdir()
+    monkeypatch.chdir(unrelated_cwd)
+
+    run_dir = create_run("ingest_flowtracker", config_path)
+
+    expected_root = (config_dir / "runs" / "ingest_flowtracker").resolve()
+    assert run_dir.resolve().parent == expected_root
+
