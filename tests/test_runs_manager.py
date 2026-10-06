@@ -40,6 +40,9 @@ def test_create_run_standalone_config_anchors_runs_root_to_config_dir(tmp_path, 
     config_dir = tmp_path / "job"
     config_dir.mkdir()
 
+    raw_dir = config_dir / "data" / "raw"
+    raw_dir.mkdir(parents=True)
+
     config_path = config_dir / "main.yaml"
     config_path.write_text(
         """
