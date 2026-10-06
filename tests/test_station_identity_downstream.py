@@ -10,6 +10,7 @@ from aforix.analysis.stage_discharge.inputs import _normalize_station_id as stag
 from aforix.analysis.section_profiles.inputs import _norm_station as section_profile_station_id
 from aforix.analysis.quality.runner import _normalize_point as quality_station_id
 from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_model_point_id
+from aforix.analysis.correlation.io.gauges import _finalize_rows
 
 
 def test_canonical_station_id_is_representation_only_not_semantic_mapping():
@@ -66,3 +67,28 @@ def test_analysis_input_boundaries_preserve_authoritative_station_id():
 def test_model_point_namespace_remains_separate_from_measured_station_ids():
     assert _normalize_model_point_id("Pm71") == "71"
     assert _normalize_model_point_id("71") == "71"
+
+def test_correlation_gauge_finalize_preserves_prefixed_station_ids():
+    rows = pd.DataFrame(
+        [
+            {
+                "point": "P71",
+                "date": pd.Timestamp("2026-01-20"),
+                "source": "FT",
+                "q_gauge_l/s": 12.0,
+            },
+            {
+                "point": "7071",
+                "date": pd.Timestamp("2026-01-20"),
+                "source": "FT",
+                "q_gauge_l/s": 34.0,
+            },
+        ]
+    )
+
+    result = _finalize_rows(rows, ["FT"], {"FT": "FT"})
+
+    assert set(result) == {"P71", "7071"}
+    assert result["P71"]["q_gauge_l/s"].tolist() == [12.0]
+    assert result["7071"]["q_gauge_l/s"].tolist() == [34.0]
+

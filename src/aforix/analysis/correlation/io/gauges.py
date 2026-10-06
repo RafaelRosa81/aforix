@@ -78,7 +78,7 @@ def _load_summary_table(path: Path, default_source: str | None = None) -> pd.Dat
 
 def _finalize_rows(df: pd.DataFrame, ranking_codes: list[str], source_code_map: dict[str, str]) -> Dict[str, pd.DataFrame]:
     if df.empty: return {}
-    out = df.copy(); out["point"] = out["point"].map(canonical_station_id); out["source"] = _normalize_source_series(out["source"], source_code_map); out = out[out["point"].str.fullmatch(r"\d+")]
+    out = df.copy(); out["point"] = out["point"].map(canonical_station_id); out["source"] = _normalize_source_series(out["source"], source_code_map); out = out[out["point"] != ""]
     if out.empty: return {}
     out = out.groupby(["point", "date", "source"], as_index=False)["q_gauge_l/s"].mean().reset_index(drop=True)
     normalized_ranking = [source_code_map.get(_source_key(code), str(code).upper()) for code in ranking_codes]; rank = {code.upper(): idx for idx, code in enumerate(normalized_ranking)}; out["rank"] = out["source"].map(lambda c: rank.get(str(c).upper(), 10_000)); out = out.sort_values(["point", "date", "rank"]).drop_duplicates(["point", "date"], keep="first").drop(columns=["rank"])
