@@ -332,7 +332,6 @@ Columnas de trazabilidad esperadas:
 
 ```text
 station_id
-station_code
 station_name
 measurement_date
 measurement_time
@@ -492,3 +491,8 @@ aforix validate run -c configs/examples/main.yaml
 - Evitar hardcodear metadata de instrumentos en Python.
 - Incorporar nuevos instrumentos mediante adaptadores y reglas de normalización.
 - Auditar outputs antes de usarlos en exportación o análisis.
+
+
+### Station identity
+
+`station_id` is the authoritative station identity in the current pipeline. The normalized datasets do not generate a legacy P-prefixed `station_code`. The normalization engine still supports an optional `station_code` when a future/project-specific metadata policy explicitly enables one, but it is not part of the default normalized schema.
