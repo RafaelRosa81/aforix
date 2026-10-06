@@ -385,9 +385,11 @@ Ejemplo:
 
 ```csv
 station_id,measurement_date,measurement_time,instrument,export_id
-P8,20251215,124600,nivus,EXP001
-P11,20260119,141800,molinete,EXP002
+7001,20241219,214313,nivus,EXP001
+7071,20260120,142300,molinete,EXP002
 ```
+
+El `station_id` del selection file es autoritativo y debe coincidir exactamente con el valor normalizado. No se aplican alias semánticos del tipo `P<n> -> 7000+n`.
 
 Este archivo es importante porque:
 
@@ -444,9 +446,9 @@ Instrumentos disponibles
 Seleccione valores separados por coma: 2,3
 
 Estaciones disponibles
-[1] P8
-[2] P11
-[3] P13
+[1] 7001
+[2] 7071
+[3] 7008
 [A] Todos
 Seleccione valores separados por coma: 1,2
 
@@ -454,8 +456,8 @@ Fecha inicial YYYYMMDD (Enter = sin límite): 20251201
 Fecha final   YYYYMMDD (Enter = sin límite): 20260131
 
 Mediciones encontradas:
-[1] station_id=P8 | measurement_date=20251215 | measurement_time=124600 | instrument=nivus | q_total_m3s=0.1702
-[2] station_id=P11 | measurement_date=20260119 | measurement_time=141800 | instrument=molinete | q_total_m3s=0.082686
+[1] station_id=7001 | measurement_date=20241219 | measurement_time=214313 | instrument=nivus | q_total_m3s=0.075591
+[2] station_id=7071 | measurement_date=20260120 | measurement_time=142300 | instrument=molinete
 
 Exportar todas las mediciones listadas? [s/N]: s
 
@@ -464,7 +466,7 @@ Prefijo export_id (Enter = EXP): SIH
 Resumen de exportación
 Mediciones: 2
 Instrumentos: molinete, nivus
-Estaciones: P11, P8
+Estaciones: 7071, 7001
 
 Continuar con la exportación? [s/N]: s
 
@@ -474,10 +476,10 @@ Aforix — SIH export
 ====================
 Output directory: D:\repos\aforix\outputs\sih
 Generated files: 5
- - D:\repos\aforix\outputs\sih\ID_SIH001_actuacion_P8_20251215_124600.csv
- - D:\repos\aforix\outputs\sih\ID_SIH001_aforo_P8_20251215_124600.csv
- - D:\repos\aforix\outputs\sih\ID_SIH002_actuacion_P11_20260119_141800.csv
- - D:\repos\aforix\outputs\sih\ID_SIH002_aforo_P11_20260119_141800.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH001_actuacion_7001_20241219_214313.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH001_aforo_7001_20241219_214313.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH002_actuacion_7071_20260120_142300.csv
+ - D:\repos\aforix\outputs\sih\ID_SIH002_aforo_7071_20260120_142300.csv
  - D:\repos\aforix\outputs\sih\sih_export_metadata.csv
 ```
 
