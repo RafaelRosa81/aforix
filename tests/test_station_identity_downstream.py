@@ -11,6 +11,7 @@ from aforix.analysis.section_profiles.inputs import _norm_station as section_pro
 from aforix.analysis.quality.runner import _normalize_point as quality_station_id
 from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_model_point_id
 from aforix.analysis.correlation.io.gauges import _finalize_rows
+from aforix.analysis.correlation.workflows.gauges_vs_stations import _station_sort_key as gauge_station_sort_key
 
 
 def test_canonical_station_id_is_representation_only_not_semantic_mapping():
@@ -91,4 +92,7 @@ def test_correlation_gauge_finalize_preserves_prefixed_station_ids():
     assert set(result) == {"P71", "7071"}
     assert result["P71"]["q_gauge_l/s"].tolist() == [12.0]
     assert result["7071"]["q_gauge_l/s"].tolist() == [34.0]
+
+def test_gauges_vs_stations_all_pairs_sort_accepts_prefixed_station_ids():
+    assert sorted(["P71", "7071"], key=gauge_station_sort_key) == ["7071", "P71"]
 

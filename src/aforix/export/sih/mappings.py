@@ -86,6 +86,12 @@ def _lookup_value(
             raise ValueError(f"Lookup failed for {label}: key={key}")
         return ""
 
+    if len(matches) > 1:
+        raise ValueError(
+            f"Ambiguous lookup for {label}: key={key}; "
+            f"normalized_matches={len(matches)}"
+        )
+
     return str(matches.iloc[0][value_column])
 
 
