@@ -46,7 +46,9 @@ def test_create_run_standalone_config_anchors_runs_root_to_config_dir(tmp_path, 
 project:
   name: standalone
 paths:
+  raw_data_dir: data/raw
   runs_root: runs
+  database_root: database
 """.lstrip(),
         encoding="utf-8",
     )
