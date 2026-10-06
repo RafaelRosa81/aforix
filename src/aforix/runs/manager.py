@@ -4,30 +4,8 @@ import json
 import shutil
 
 from aforix.config.loader import load_config
+from aforix.config.paths import config_root_from_path
 
-
-def _project_root_from_config(config_path: Path) -> Path:
-    resolved = Path(config_path).resolve()
-
-    for candidate in [resolved.parent, *resolved.parents]:
-        if (
-            (candidate / ".git").exists()
-            or (candidate / "pyproject.toml").exists()
-            or (candidate / "src" / "aforix").exists()
-        ):
-            return candidate
-
-    # Standard Aforix layout:
-    # <project>/configs/examples/<config>.yaml
-    if (
-        resolved.parent.name == "examples"
-        and resolved.parent.parent.name == "configs"
-    ):
-        return resolved.parents[2]
-
-    # Standalone configs outside a detectable repository resolve relative
-    # paths from the config location, not from an arbitrary ancestor or cwd.
-    return resolved.parent
 
 
 def _runs_root_from_config(config_path: Path) -> Path:
@@ -38,7 +16,7 @@ def _runs_root_from_config(config_path: Path) -> Path:
     if runs_root.is_absolute():
         return runs_root.resolve()
 
-    return (_project_root_from_config(config_path) / runs_root).resolve()
+    return (config_root_from_path(config_path) / runs_root).resolve()
 
 
 def create_run(pipeline_name: str, config_path: Path) -> Path:
