@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 from aforix.config.loader import load_config
+from aforix.config.paths import config_root_from_path
 from aforix.runs.manager import create_run
 from aforix.normalize.registry import NormalizationRegistry
 from aforix.normalize.normalizer import normalize_table, TRACEABILITY_COLUMNS
@@ -24,11 +25,7 @@ def _resolve_config_path(path_value: str | Path, *, project_root: Path) -> Path:
 
 
 def _get_project_root(config_path: Path) -> Path:
-    resolved = config_path.resolve()
-    if len(resolved.parents) >= 3:
-        return resolved.parents[2]
-    return Path.cwd().resolve()
-
+    return config_root_from_path(config_path)
 
 def _get_enabled_instruments(cfg: dict[str, Any]) -> list[str]:
     ingest_cfg = cfg.get("ingest", {})
