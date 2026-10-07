@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 from aforix.batch.default_registry import _parse_points as batch_parse_points
 from aforix.export.tables.runner import available_points, normalize_point_token
-from aforix.external.manual_stage.convert import _normalize_station_id as manual_stage_station_id
+from aforix.external.manual_stage.convert import _normalize_station_id as manual_stage_station_id, run_manual_stage_conversion
 from aforix.analysis.stage_discharge.inputs import _normalize_station_id as stage_discharge_station_id
 from aforix.analysis.section_profiles.inputs import _norm_station as section_profile_station_id
 from aforix.analysis.quality.runner import _normalize_point as quality_station_id
 from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_model_point_id
-from aforix.analysis.correlation.io.gauges import _finalize_rows
+from aforix.analysis.correlation.io.gauges import _finalize_rows, _load_summary_table
 from aforix.analysis.correlation.io.model import load_model_data
 from aforix.analysis.correlation.workflows.gauges_vs_stations import _station_sort_key as gauge_station_sort_key
 
@@ -110,3 +110,43 @@ def test_model_filename_p_prefix_is_not_measured_station_namespace(tmp_path):
 
     assert set(model_data) == {"71"}
     assert "P71" not in model_data
+
+def test_csv_identity_reader_preserves_numeric_leading_zeros(tmp_path):
+    path = tmp_path / "ids.csv"
+    path.write_text(
+        "station_id,value\n0012,1\n12,2\n",
+        encoding="utf-8",
+    )
+
+    df = read_csv_preserving_station_identity(path)
+
+    assert df["station_id"].tolist() == ["0012", "12"]
+
+
+def test_correlation_summary_reader_keeps_leading_zero_station_distinct(tmp_path):
+    path = tmp_path / "Summary.csv"
+    path.write_text(
+        "station_id,measurement_date,instrument,q_total_ls\n"
+        "0012,20260120,FT,10\n"
+        "12,20260120,FT,20\n",
+        encoding="utf-8",
+    )
+
+    df = _load_summary_table(path)
+
+    assert df["point"].tolist() == ["0012", "12"]
+
+
+def test_manual_stage_conversion_preserves_leading_zero_station_ids(tmp_path):
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "output"
+    input_dir.mkdir()
+    (input_dir / "stage.csv").write_text(
+        "ID_punto,2026-01-20\n0012,1.23\n12,2.34\n",
+        encoding="utf-8",
+    )
+
+    out_path = run_manual_stage_conversion(input_dir, output_dir)
+    out = pd.read_csv(out_path, dtype={"station_id": "string"})
+
+    assert out["station_id"].tolist() == ["0012", "12"]
