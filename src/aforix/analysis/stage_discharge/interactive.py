@@ -7,6 +7,7 @@ import pandas as pd
 import typer
 
 from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
+from aforix.config.paths import resolve_config_path
 from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.runner import run_stage_discharge
 
@@ -17,7 +18,7 @@ INSTRUMENT_NAMES_TO_CODES = {v: k for k, v in INSTRUMENT_CODES.items()}
 def run_interactive(config_path: Path) -> Path:
     cfg = _copy_config(load_stage_discharge_config(config_path))
     typer.echo("\nStage-discharge interactive analysis"); typer.echo("Using main YAML as defaults. Press Enter to keep defaults.\n")
-    _configure_instruments(cfg); _configure_points(cfg); _configure_date_range(cfg); _configure_depth_modes(cfg); _configure_outputs(cfg)
+    _configure_instruments(cfg); _configure_points(cfg, config_path); _configure_date_range(cfg); _configure_depth_modes(cfg); _configure_outputs(cfg)
     return run_stage_discharge(config_path, override_config=cfg)
 
 
@@ -36,8 +37,9 @@ def _configure_instruments(cfg: dict[str, Any]) -> None:
     ranking_codes = _prompt_list("Instrument ranking", selected_codes, ranking_default_codes); cfg.setdefault("instrument_selection", {})["ranking"] = [_to_name(code) for code in ranking_codes]
 
 
-def _configure_points(cfg: dict[str, Any]) -> None:
-    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized")); summary_file = normalized_root / "Summary.csv"; available_points: list[str] = []
+def _configure_points(cfg: dict[str, Any], config_path: Path | None = None) -> None:
+    config_path = config_path or (Path.cwd() / "main.yaml")
+    normalized_root = resolve_config_path(config_path, cfg.get("input_dirs", {}).get("normalized_root", "database/normalized")); summary_file = normalized_root / "Summary.csv"; available_points: list[str] = []
     if summary_file.exists():
         df = read_csv_preserving_station_identity(summary_file, usecols=lambda c: c in {"station_id"})
         if "station_id" in df.columns: available_points = sorted({canonical_station_id(v) for v in df["station_id"].dropna()})

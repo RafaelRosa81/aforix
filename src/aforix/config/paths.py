@@ -29,3 +29,12 @@ def config_root_from_path(config_path: Path) -> Path:
         return resolved.parent.parent.parent
 
     return resolved.parent
+
+
+def resolve_config_path(config_path: Path, path_value: str | Path) -> Path:
+    """Resolve a configured path against the same root used by validation."""
+    path = Path(path_value)
+    if path.is_absolute():
+        return path.resolve()
+    return (config_root_from_path(config_path) / path).resolve()
+

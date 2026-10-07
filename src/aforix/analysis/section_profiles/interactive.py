@@ -9,10 +9,12 @@ import typer
 from aforix.analysis.section_profiles.inputs import load_points_by_instrument
 from aforix.analysis.section_profiles.filters import filter_date_range, filter_instruments, filter_points
 from aforix.metadata import canonical_station_id
+from aforix.config.paths import resolve_config_path
 
 
-def apply_interactive_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
-    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
+def apply_interactive_overrides(cfg: dict[str, Any], config_path: Path | None = None) -> dict[str, Any]:
+    config_path = config_path or (Path.cwd() / "main.yaml")
+    normalized_root = resolve_config_path(config_path, cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
     instruments_cfg = cfg.get("instruments", {})
     df = load_points_by_instrument(normalized_root, instruments_cfg)
 

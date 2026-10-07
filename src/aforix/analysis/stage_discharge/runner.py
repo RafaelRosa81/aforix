@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from aforix.metadata import canonical_station_id
+from aforix.config.paths import resolve_config_path
 from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.inputs import load_manual_stage, load_summary_tables, load_points_max_stage, add_points_max_stage
 from aforix.analysis.stage_discharge.matching import match_manual_and_instrument
@@ -17,9 +18,7 @@ from aforix.analysis.stage_discharge.excel import write_excel_report
 
 def run_stage_discharge(config_path: Path, override_config: dict | None = None) -> Path:
     cfg = override_config or load_stage_discharge_config(config_path)
-    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
-    manual_root = Path(cfg.get("input_dirs", {}).get("manual_stage_root", "database/external/normalized/manual_stage"))
-    output_root = Path(cfg.get("output", {}).get("run_output_root", "runs/analysis_stage_discharge"))
+    normalized_root, manual_root, output_root = _resolve_paths(config_path, cfg)
     instruments_cfg = cfg.get("instruments", {}); ranking = cfg.get("instrument_selection", {}).get("ranking", [])
     selection_cfg = cfg.get("selection", {}) or {}
     depth_mode = selection_cfg.get("depth_mode", cfg.get("depth_mode", "both")); instrument_stage_mode = selection_cfg.get("instrument_stage_mode", cfg.get("instrument_stage_mode", "both"))
@@ -62,3 +61,23 @@ def _filter_date_range(df, *, start_date=None, end_date=None):
         end = pd.to_datetime(end_date, errors="coerce")
         if pd.notna(end): mask &= dates <= end
     return out[mask].copy()
+
+
+def _resolve_paths(config_path: Path, cfg: dict) -> tuple[Path, Path, Path]:
+    normalized_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"),
+    )
+    manual_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get(
+            "manual_stage_root",
+            "database/external/normalized/manual_stage",
+        ),
+    )
+    output_root = resolve_config_path(
+        config_path,
+        cfg.get("output", {}).get("run_output_root", "runs/analysis_stage_discharge"),
+    )
+    return normalized_root, manual_root, output_root
+

@@ -28,7 +28,7 @@ def run_cmd(
     cfg = copy.deepcopy(load_section_profiles_config(cfg_path))
 
     if interactive:
-        cfg = apply_interactive_overrides(cfg)
+        cfg = apply_interactive_overrides(cfg, cfg_path)
     else:
         _apply_cli_overrides(
             cfg,
