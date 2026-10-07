@@ -10,7 +10,6 @@ import pandas as pd
 
 TRACEABILITY_COLUMNS = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
@@ -33,7 +32,6 @@ RAW_TRACEABILITY_COLUMNS = [
 
 NORMALIZED_SUMMARY_REQUIRED = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
@@ -48,7 +46,6 @@ NORMALIZED_SUMMARY_REQUIRED = [
 
 NORMALIZED_POINTS_REQUIRED = [
     "station_id",
-    "station_code",
     "station_name",
     "measurement_date",
     "measurement_time",
@@ -174,7 +171,12 @@ def _duplicate_key_columns(df: pd.DataFrame, group: str) -> tuple[list[str], lis
     for candidate in GROUP_KEY_CANDIDATES.get(group, []):
         if candidate in df.columns:
             key_cols.append(candidate)
+
+            if group == "Points" and "percent_depth" in df.columns:
+                key_cols.append("percent_depth")
+
             return key_cols, []
+
         missing_group_candidates.append(candidate)
 
     if group != "Summary" and GROUP_KEY_CANDIDATES.get(group):

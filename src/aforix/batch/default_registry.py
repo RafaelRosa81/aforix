@@ -22,6 +22,7 @@ from aforix.analysis.stage_discharge.runner import run_stage_discharge
 from aforix.batch.models import CommandResult
 from aforix.batch.registry import CommandRegistry, RegisteredCommand
 from aforix.config.loader import load_config
+from aforix.config.paths import resolve_config_path
 from aforix.export.sih.config import (
     get_default_selection_file,
     get_lookup_file_paths,
@@ -34,7 +35,7 @@ from aforix.export.tables.config import (
     get_normalized_root,
     load_config as load_export_tables_config,
 )
-from aforix.export.tables.runner import ExportRequest, run_export_tables
+from aforix.export.tables.runner import DEFAULT_EXPORT_GROUPING, ExportRequest, run_export_tables
 from aforix.groups.build import run as run_build_groups
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.m9 import run as run_m9
@@ -184,8 +185,11 @@ def _validation_issue_rows(summary_path: Path) -> int | None:
     return int(pd.to_numeric(df["n_rows"], errors="coerce").fillna(0).sum())
 
 
-def _raw_input_dir(cfg: dict[str, Any], instrument: str) -> Path:
-    raw_root = Path(cfg.get("paths", {}).get("raw_data_dir", "data/raw"))
+def _raw_input_dir(config_path: Path, cfg: dict[str, Any], instrument: str) -> Path:
+    raw_root = resolve_config_path(
+        config_path,
+        cfg.get("paths", {}).get("raw_data_dir", "data/raw"),
+    )
     instrument_cfg = cfg.get("ingest", {}).get(instrument, {}) or {}
     raw_subdir = instrument_cfg.get("raw_subdir")
     if raw_subdir:
@@ -201,7 +205,7 @@ def _ingest_result(
 ) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
     cfg = load_config(config_path)
-    input_dir = _raw_input_dir(cfg, instrument)
+    input_dir = _raw_input_dir(config_path, cfg, instrument)
 
     input_size_mb = _directory_size_mb(input_dir)
     run_dir = run_callable(config_path)
@@ -263,8 +267,14 @@ def _build_groups(params: dict[str, Any]) -> CommandResult:
     build_cfg = cfg.get("build_groups", {}) or {}
     paths_cfg = cfg.get("paths", {}) or {}
 
-    input_dir = Path(build_cfg.get("input_runs_root") or paths_cfg.get("runs_root") or "runs")
-    output_dir = Path(build_cfg.get("output_dir", "database/raw_canonical"))
+    input_dir = resolve_config_path(
+        config_path,
+        build_cfg.get("input_runs_root") or paths_cfg.get("runs_root") or "runs",
+    )
+    output_dir = resolve_config_path(
+        config_path,
+        build_cfg.get("output_dir", "database/raw_canonical"),
+    )
 
     input_size_mb = _directory_size_mb(input_dir)
     run_dir = run_build_groups(config_path)
@@ -294,8 +304,14 @@ def _normalize_run(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
     cfg = load_config(config_path)
     normalize_cfg = cfg.get("normalize", {}) or {}
-    input_dir = Path(normalize_cfg.get("input_dir", "database/raw_canonical"))
-    output_dir = Path(normalize_cfg.get("output_dir", "database/normalized"))
+    input_dir = resolve_config_path(
+        config_path,
+        normalize_cfg.get("input_dir", "database/raw_canonical"),
+    )
+    output_dir = resolve_config_path(
+        config_path,
+        normalize_cfg.get("output_dir", "database/normalized"),
+    )
 
     input_size_mb = _directory_size_mb(input_dir)
     run_dir = normalize_database(config_path)
@@ -325,7 +341,10 @@ def _validate_run(params: dict[str, Any]) -> CommandResult:
     config_path = _load_validated_config_from_params(params)
     cfg = load_config(config_path)
     validation_cfg = cfg.get("validation", {}) or {}
-    input_dir = Path(validation_cfg.get("input_dir", "database/normalized"))
+    input_dir = resolve_config_path(
+        config_path,
+        validation_cfg.get("input_dir", "database/normalized"),
+    )
 
     output_dir = run_validation(config_path)
     output_files = _list_output_files(output_dir)
@@ -356,7 +375,7 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
         raise ValueError("Missing required parameter for export.tables: table")
 
     export_config = load_export_tables_config(str(config_path))
-    grouping = params.get("grouping", "monthly")
+    grouping = params.get("grouping", DEFAULT_EXPORT_GROUPING)
     fmt = params.get("format", "xlsx")
     flat = bool(params.get("flat", False))
 
@@ -392,7 +411,8 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
             "output_size_mb": output_size_mb,
             "table": str(table),
             "instrument": request.instrument,
-            "grouping": request.grouping,
+            "grouping": result.effective_grouping,
+            "pivot": result.effective_pivot,
             "format": request.fmt,
             "aggregation": request.aggregation,
         },
@@ -614,8 +634,17 @@ def _analysis_stage_discharge(params: dict[str, Any]) -> CommandResult:
         max_plots=params.get("max_plots"),
     )
 
-    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
-    manual_root = Path(cfg.get("input_dirs", {}).get("manual_stage_root", "database/external/normalized/manual_stage"))
+    normalized_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"),
+    )
+    manual_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get(
+            "manual_stage_root",
+            "database/external/normalized/manual_stage",
+        ),
+    )
     input_size_mb = round(
         sum(
             value or 0
@@ -672,7 +701,10 @@ def _analysis_section_profiles(params: dict[str, Any]) -> CommandResult:
         chart_type=params.get("chart_type"),
     )
 
-    normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"))
+    normalized_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"),
+    )
     input_size_mb = _directory_size_mb(normalized_root)
 
     output_dir = run_section_profiles(config_path, override_config=cfg)

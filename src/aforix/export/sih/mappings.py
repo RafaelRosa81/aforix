@@ -73,12 +73,24 @@ def _lookup_value(
         return ""
 
     lookup_df = lookup_tables[table_name]
-    matches = lookup_df[lookup_df[key_column].astype(str) == str(key)]
+
+    # Textual lookup keys are identifiers by representation, not by case or
+    # accidental surrounding whitespace. Normalize only those superficial
+    # differences; do not create semantic aliases between different labels.
+    normalized_key = str(key).strip().casefold()
+    normalized_series = lookup_df[key_column].astype(str).str.strip().str.casefold()
+    matches = lookup_df[normalized_series == normalized_key]
 
     if matches.empty:
         if required:
             raise ValueError(f"Lookup failed for {label}: key={key}")
         return ""
+
+    if len(matches) > 1:
+        raise ValueError(
+            f"Ambiguous lookup for {label}: key={key}; "
+            f"normalized_matches={len(matches)}"
+        )
 
     return str(matches.iloc[0][value_column])
 
@@ -167,6 +179,9 @@ def resolve_tipo_aforo_lookup_id(
         return str(direct_value)
 
     lookup_key = instrument_cfg.get("tipo_aforo_lookup")
+    if lookup_key in (None, ""):
+        return ""
+
     lookup_cfg = sih_config["sih"]["lookup_tables"]["tipos_aforos"]
 
     return _lookup_value(
@@ -176,7 +191,7 @@ def resolve_tipo_aforo_lookup_id(
         value_column=lookup_cfg["value_column"],
         key=lookup_key,
         label=f"tipo_aforo={lookup_key}",
-        required=False,
+        required=True,
     )
 
 
@@ -191,6 +206,9 @@ def resolve_instrumentos_rangos_lookup_id(
         return str(direct_value)
 
     lookup_key = instrument_cfg.get("instrumentos_rangos_lookup")
+    if lookup_key in (None, ""):
+        return ""
+
     lookup_cfg = sih_config["sih"]["lookup_tables"]["instrumentos_rangos"]
 
     return _lookup_value(
@@ -200,7 +218,7 @@ def resolve_instrumentos_rangos_lookup_id(
         value_column=lookup_cfg["value_column"],
         key=lookup_key,
         label=f"instrumentos_rangos={lookup_key}",
-        required=False,
+        required=True,
     )
 
 

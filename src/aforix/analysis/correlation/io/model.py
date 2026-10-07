@@ -8,7 +8,14 @@ import pandas as pd
 
 
 def load_model_data(model_dir: Path) -> Dict[str, pd.DataFrame]:
-    """Load normalized model CSVs (P{point}_model_data.csv)."""
+    """Load normalized model CSVs using bare internal model-point IDs.
+
+    The optional P in P{point}_model_data.csv is a legacy/model filename
+    marker, not an Aforix measured-station namespace. Therefore
+    P71_model_data.csv maps to model point "71". A measured station whose
+    authoritative ID is P71 remains distinct and is not implicitly aliased
+    to model point 71.
+    """
 
     out: Dict[str, pd.DataFrame] = {}
     pattern = re.compile(r"P?(\d+)_model_data\.csv$")

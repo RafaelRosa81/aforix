@@ -47,6 +47,11 @@ def _apply_window_merge(df_g, df_s, days_window):
 def _available_station_ids(stations_dir, timestep): return sorted({p.name.split("_")[0] for p in stations_dir.glob(f"*_{timestep}_station_data.csv")})
 
 
+def _station_sort_key(value: object) -> tuple[int, object, str]:
+    station_id = canonical_station_id(value)
+    return (0, int(station_id), station_id) if station_id.isdigit() else (1, station_id, station_id)
+
+
 def _normalize_pairs(pairs: Iterable[tuple[str, str]] | None) -> list[tuple[str, str]]:
     out = []
     for station_id, point_id in pairs or []:
@@ -62,7 +67,7 @@ def run_gauges_vs_stations(*, normalized_root: Path, stations_dir: Path, output_
     for station_id in station_ids:
         df_station=load_station_series(stations_dir,station_id,timestep)
         if timestep!="daily": continue
-        point_ids=[p for s,p in selected_pairs if s==station_id] if selected_pairs else sorted(gauges.keys(),key=int)
+        point_ids=[p for s,p in selected_pairs if s==station_id] if selected_pairs else sorted(gauges.keys(), key=_station_sort_key)
         for point in point_ids:
             if point not in gauges: continue
             df_gauge=gauges[point].copy(); merged=pd.merge(df_gauge,df_station,on="date",how="inner") if match_mode=="exact" else _apply_window_merge(df_gauge,df_station,window_days)

@@ -7,7 +7,7 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 from .config import get_export_root, get_normalized_root, enabled_instruments
 from .writers import write_csv, write_metadata, write_xlsx
 
@@ -19,8 +19,27 @@ METADATA_COLUMNS = {
     "source_csv", "source_run_dir", "source_file", "source_path", "run_dir", "run_timestamp",
     "raw_file", "input_file", "config_used", "notes",
 }
+INTERNAL_COLUMNS = {"__date_str"}
 DATE_CANDIDATES = ["measurement_date", "Date", "date", "datetime", "timestamp"]
 POINT_CANDIDATES = ["station_id", "Point", "point", "station", "site_id"]
+
+NORMALIZED_ID_DTYPES = {
+    "station_id": "string",
+    "measurement_date": "string",
+    "measurement_time": "string",
+}
+
+DEFAULT_EXPORT_GROUPING = "none"
+
+
+def _read_normalized_csv(path: Path) -> pd.DataFrame:
+    """Read normalized CSVs without losing identity formatting.
+
+    Numeric measurement columns are still inferred normally, while station/date/time
+    identity fields are kept as strings so values such as 093425 remain six digits
+    in user-facing exports.
+    """
+    return read_csv_preserving_station_identity(path, dtype=NORMALIZED_ID_DTYPES)
 
 
 @dataclass(frozen=True)
@@ -31,7 +50,7 @@ class ExportRequest:
     parameters: tuple[str, ...] = ()
     early_date: str | None = None
     late_date: str | None = None
-    grouping: str = "none"
+    grouping: str = DEFAULT_EXPORT_GROUPING
     fmt: str = "xlsx"
     pivot: bool | None = None
     include_metadata_columns: bool = False
@@ -44,6 +63,8 @@ class ExportResult:
     metadata_file: Path | None
     row_count: int
     source_files: tuple[Path, ...]
+    effective_grouping: str
+    effective_pivot: bool
 
 
 def _has_csv_files(path: Path) -> bool:
@@ -116,7 +137,7 @@ def _instrument_scoped_table_dirs(config: dict, table: str, instrument: str = "a
 def load_normalized_table(config: dict, table: str, instrument: str = "all") -> tuple[pd.DataFrame, list[Path]]:
     root_csv = _root_table_csv(config, table)
     if root_csv is not None:
-        df = pd.read_csv(root_csv)
+        df = _read_normalized_csv(root_csv)
         if instrument and instrument.lower() != "all" and "instrument" in df.columns:
             df = df[df["instrument"].astype(str).str.lower() == instrument.lower()]
         return df, [root_csv]
@@ -131,7 +152,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         for tdir in table_dirs:
             inst_name = tdir.parent.name
             for f in sorted(tdir.glob("*.csv")):
-                df = pd.read_csv(f)
+                df = _read_normalized_csv(f)
                 if "instrument" not in df.columns:
                     df.insert(0, "instrument", inst_name)
                 frames.append(df)
@@ -144,7 +165,7 @@ def load_normalized_table(config: dict, table: str, instrument: str = "all") -> 
         raise FileNotFoundError(f"No CSV files found in normalized table directory: {tdir}")
     frames = []
     for f in files:
-        frames.append(pd.read_csv(f))
+        frames.append(_read_normalized_csv(f))
     df = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
     return df, files
 
@@ -184,12 +205,12 @@ def available_points(df: pd.DataFrame) -> list[str]:
         return []
     vals = [normalize_point_token(v) for v in df[col].dropna().astype(str).unique()]
     def key(x: str):
-        return (0, int(x)) if x.isdigit() else (1, x)
+        return (0, int(x), x) if x.isdigit() else (1, x, x)
     return sorted(set(vals), key=key)
 
 
 def parameter_columns(df: pd.DataFrame, include_metadata: bool = False) -> list[str]:
-    excluded = set(ID_COLUMNS)
+    excluded = set(ID_COLUMNS) | INTERNAL_COLUMNS
     if not include_metadata:
         excluded |= METADATA_COLUMNS
     candidates = [c for c in df.columns if c not in excluded]
@@ -463,12 +484,26 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     if missing:
         raise KeyError("Selected parameter columns not found: " + ", ".join(missing))
 
-    grouping = (request.grouping or "none").lower()
+    requested_grouping = (request.grouping or "none").lower()
+
+    # An explicit flat override is authoritative. This is the contract exposed by
+    # the CLI's --flat option: even if daily/monthly grouping was also supplied,
+    # the effective export shape is flat and must be named/described as such.
+    explicit_flat = request.pivot is False
+    grouping = "none" if explicit_flat else requested_grouping
     pivot = request.pivot if request.pivot is not None else grouping in {"monthly", "daily"}
+
     if pivot:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
-    elif grouping in {"monthly", "daily"}:
-        out_df = _build_pivot(df, params, grouping, early_eff, late_eff, request.aggregation, request.points, request.instrument)
+        out_df = _build_pivot(
+            df,
+            params,
+            grouping,
+            early_eff,
+            late_eff,
+            request.aggregation,
+            request.points,
+            request.instrument,
+        )
     else:
         out_df = _build_flat(df, params)
 
@@ -497,7 +532,7 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
         "output_stem": stem,
         "filename_pattern": "{table}_{date_range}_{period}_{aggregation}_{instrument}.{fmt}" if grouping in {"monthly", "daily"} else "{table}_{date_range}_{shape}_{instrument}.{fmt}",
         "column_order": "period_major" if grouping in {"monthly", "daily"} else "flat",
-        "point_selection_rule": "numeric point tokens are treated as station codes; use idx:N or [N] to force index selection",
+        "point_selection_rule": "station selection uses exact station_id values; distinct prefixes/namespaces are not aliases",
         "row_count": int(len(out_df)),
         "source_files": [str(p) for p in source_files],
         "created_at": datetime.now().isoformat(timespec="seconds"),
@@ -508,4 +543,11 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     else:
         write_csv(out_df, output_file)
     write_metadata(metadata_file, metadata)
-    return ExportResult(output_file=output_file, metadata_file=metadata_file, row_count=len(out_df), source_files=tuple(source_files))
+    return ExportResult(
+        output_file=output_file,
+        metadata_file=metadata_file,
+        row_count=len(out_df),
+        source_files=tuple(source_files),
+        effective_grouping=grouping,
+        effective_pivot=bool(pivot or grouping in {"monthly", "daily"}),
+    )

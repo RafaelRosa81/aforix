@@ -23,7 +23,7 @@
 # Opciones típicas:
 #   chart_type:
 #     scatter
-#     line
+#     bar
 #
 # x_axis/y_axis:
 #   deben corresponder a columnas reales existentes en los datasets
@@ -87,5 +87,5 @@ steps:
       # Eje Y. Debe existir en el dataset.
       y_axis: prof_m
 
-      # Opciones: scatter, line.
-      chart_type: line
+      # Opciones: scatter, bar.
+      chart_type: scatter

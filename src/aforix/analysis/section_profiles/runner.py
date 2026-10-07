@@ -20,13 +20,13 @@ from aforix.analysis.section_profiles.naming import (
     unique_sheet_name,
 )
 from aforix.analysis.section_profiles.excel import write_excel
+from aforix.config.paths import resolve_config_path
 
 
 def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | None = None) -> Path:
     cfg = override_config or load_section_profiles_config(config_path)
 
-    normalized_root = Path(cfg.get('input_dirs', {}).get('normalized_root', 'database/normalized'))
-    output_root = Path(cfg.get('output', {}).get('run_output_root', 'runs/analysis_section_profiles'))
+    normalized_root, output_root = _resolve_paths(config_path, cfg)
 
     instruments_cfg = cfg.get('instruments', {})
     selection = cfg.get('selection', {}) or {}
@@ -122,3 +122,16 @@ def run_section_profiles(config_path: Path, override_config: Dict[str, Any] | No
     )
 
     return out_dir
+
+
+def _resolve_paths(config_path: Path, cfg: Dict[str, Any]) -> tuple[Path, Path]:
+    normalized_root = resolve_config_path(
+        config_path,
+        cfg.get("input_dirs", {}).get("normalized_root", "database/normalized"),
+    )
+    output_root = resolve_config_path(
+        config_path,
+        cfg.get("output", {}).get("run_output_root", "runs/analysis_section_profiles"),
+    )
+    return normalized_root, output_root
+

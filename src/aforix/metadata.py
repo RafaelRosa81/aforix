@@ -16,6 +16,19 @@ DEFAULT_TIME_INPUT_FORMATS = [
     "%m/%d/%Y %H:%M:%S", "%d/%m/%Y %H:%M:%S",
 ]
 _EMPTY_STRINGS = {"", "nan", "none", "null", "nat", "<na>"}
+STATION_IDENTITY_COLUMNS = (
+    "station_id",
+    "point",
+    "point_id",
+    "measurement_point",
+    "punto",
+    "site",
+    "site_id",
+    "station",
+    "p",
+    "Point",
+    "ID_punto",
+)
 
 
 def _is_empty(value: Any) -> bool:
@@ -39,28 +52,61 @@ def _as_clean_string(value: Any) -> str:
 
 
 def canonical_station_id(value: Any) -> str:
-    """Return the canonical Aforix station id.
+    """Normalize station-id representation without changing its identity.
 
-    Legacy station codes P1..P999 are mapped into the 7000 namespace
-    (P1 -> 7001, P71 -> 7071). Canonical 7xxx ids are preserved.
-    Other numeric identifiers are preserved to avoid silently remapping
-    unrelated station namespaces.
+    This helper may clean representation artifacts (whitespace, case, and a
+    trailing .0 introduced by spreadsheet/CSV type inference), but it must not
+    infer aliases or renumber stations. P71 and 7071 remain distinct identifiers.
     """
-    text = _as_clean_string(value).upper()
-    if not text:
-        return ""
+    return _as_clean_string(value).upper()
 
-    legacy = re.fullmatch(r"P\s*(\d{1,3})", text)
-    if legacy:
-        return str(7000 + int(legacy.group(1)))
+def read_csv_preserving_station_identity(path_or_buffer: Any, **kwargs: Any) -> pd.DataFrame:
+    """Read CSV data without letting pandas coerce station IDs to numbers.
 
-    if re.fullmatch(r"7\d{3}", text):
-        return text
+    Numeric-looking station identifiers are semantic strings. Header matching
+    is case-insensitive so variants such as ``STATION_ID`` and ``Station_Id``
+    are protected before canonicalization.
+    """
+    requested_dtype = kwargs.pop("dtype", None)
+    if requested_dtype is None:
+        dtype: Any = {}
+    elif isinstance(requested_dtype, dict):
+        dtype = dict(requested_dtype)
+    else:
+        return pd.read_csv(path_or_buffer, dtype=requested_dtype, **kwargs)
 
-    if re.fullmatch(r"\d+", text):
-        return str(int(text))
+    identity_keys = {str(column).strip().casefold() for column in STATION_IDENTITY_COLUMNS}
+    names = kwargs.get("names")
 
-    return text
+    if names is not None:
+        actual_columns = list(names)
+    else:
+        header_kwargs = dict(kwargs)
+        header_kwargs.pop("nrows", None)
+        header_kwargs.pop("chunksize", None)
+        header_kwargs.pop("iterator", None)
+
+        original_position = None
+        if hasattr(path_or_buffer, "tell") and hasattr(path_or_buffer, "seek"):
+            try:
+                original_position = path_or_buffer.tell()
+            except Exception:
+                original_position = None
+
+        header = pd.read_csv(path_or_buffer, nrows=0, **header_kwargs)
+        actual_columns = list(header.columns)
+
+        if original_position is not None:
+            try:
+                path_or_buffer.seek(original_position)
+            except Exception:
+                pass
+
+    for column in actual_columns:
+        if str(column).strip().casefold() in identity_keys:
+            dtype[column] = "string"
+
+    return pd.read_csv(path_or_buffer, dtype=dtype, **kwargs)
 
 
 def _parse_datetime_with_formats(value: Any, input_formats: list[str]) -> datetime | None:

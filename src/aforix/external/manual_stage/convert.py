@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
+
 
 def run_manual_stage_conversion(input_dir: Path, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -14,7 +16,7 @@ def run_manual_stage_conversion(input_dir: Path, output_dir: Path) -> Path:
     diagnostics = []
 
     for f in files:
-        df = pd.read_csv(f)
+        df = read_csv_preserving_station_identity(f)
         if "ID_punto" not in df.columns:
             diagnostics.append({"source_file": f.name, "status": "skipped", "reason": "missing_ID_punto"})
             continue
@@ -52,13 +54,5 @@ def run_manual_stage_conversion(input_dir: Path, output_dir: Path) -> Path:
 def _normalize_station_id(value) -> str | None:
     if pd.isna(value):
         return None
-    s = str(value).strip().upper()
-    if not s:
-        return None
-    if s.startswith("P"):
-        digits = "".join(ch for ch in s[1:] if ch.isdigit())
-    else:
-        digits = "".join(ch for ch in s if ch.isdigit())
-    if not digits:
-        return s
-    return f"P{int(digits)}"
+    station_id = canonical_station_id(value)
+    return station_id or None

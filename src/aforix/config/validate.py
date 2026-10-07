@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from aforix.config.paths import config_root_from_path
+
 
 TOP_LEVEL_ALLOWED_KEYS = {
     "project",
@@ -483,11 +485,12 @@ def _validate_measuring_instruments_section(cfg: dict[str, Any]) -> list[str]:
     return errors
 
 
+
 def _validate_path_values(cfg: dict[str, Any], *, config_path: Path | None) -> list[str]:
     errors: list[str] = []
     if config_path is None:
         return errors
-    config_root = config_path.resolve().parents[2]
+    config_root = config_root_from_path(config_path)
 
     def visit(value: Any, path: str) -> None:
         if isinstance(value, dict):

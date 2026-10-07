@@ -5,6 +5,8 @@ from typing import Any
 
 import yaml
 
+from aforix.config.paths import config_root_from_path
+
 
 def load_config(path: str | Path) -> dict[str, Any]:
     p = Path(path)
@@ -20,11 +22,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
 
 
 def _infer_repo_root(config_path: Path) -> Path:
-    config_path = config_path.resolve()
-    for parent in [config_path.parent, *config_path.parents]:
-        if (parent / "pyproject.toml").exists() or (parent / "src" / "aforix").exists():
-            return parent
-    return Path.cwd().resolve()
+    return config_root_from_path(config_path)
 
 
 def resolve_project_path(config: dict[str, Any], value: str | Path | None, default: str | Path) -> Path:
@@ -34,28 +32,74 @@ def resolve_project_path(config: dict[str, Any], value: str | Path | None, defau
 
 
 def get_database_root(config: dict[str, Any]) -> Path:
+    paths = config.get("paths", {}) or {}
+    if paths.get("database_root"):
+        return resolve_project_path(config, paths.get("database_root"), "database")
+
     project = config.get("project", {}) or {}
     return resolve_project_path(config, project.get("database_root"), "database")
 
 
 def get_runs_root(config: dict[str, Any]) -> Path:
+    paths = config.get("paths", {}) or {}
+    if paths.get("runs_root"):
+        return resolve_project_path(config, paths.get("runs_root"), "runs")
+
     project = config.get("project", {}) or {}
     return resolve_project_path(config, project.get("runs_root"), "runs")
 
 
 def get_normalized_root(config: dict[str, Any]) -> Path:
-    export_cfg = config.get("export_tables", {}) or {}
-    if export_cfg.get("normalized_root"):
-        return resolve_project_path(config, export_cfg.get("normalized_root"), "database/normalized")
+    export_cfg = ((config.get("export", {}) or {}).get("tables", {}) or {})
+    if export_cfg.get("input_dir"):
+        return resolve_project_path(
+            config,
+            export_cfg.get("input_dir"),
+            get_database_root(config) / "normalized",
+        )
+
+    normalize_cfg = config.get("normalize", {}) or {}
+    if normalize_cfg.get("output_dir"):
+        return resolve_project_path(
+            config,
+            normalize_cfg.get("output_dir"),
+            get_database_root(config) / "normalized",
+        )
+
+    legacy_export_cfg = config.get("export_tables", {}) or {}
+    if legacy_export_cfg.get("normalized_root"):
+        return resolve_project_path(
+            config,
+            legacy_export_cfg.get("normalized_root"),
+            get_database_root(config) / "normalized",
+        )
+
     normalized_cfg = config.get("normalized_data", {}) or {}
     if normalized_cfg.get("root"):
-        return resolve_project_path(config, normalized_cfg.get("root"), "database/normalized")
+        return resolve_project_path(
+            config,
+            normalized_cfg.get("root"),
+            get_database_root(config) / "normalized",
+        )
+
     return get_database_root(config) / "normalized"
 
 
 def get_export_root(config: dict[str, Any]) -> Path:
-    export_cfg = config.get("export_tables", {}) or {}
-    return resolve_project_path(config, export_cfg.get("output_root") or export_cfg.get("output_dir"), get_runs_root(config) / "export_tables")
+    export_cfg = ((config.get("export", {}) or {}).get("tables", {}) or {})
+    if export_cfg.get("output_dir"):
+        return resolve_project_path(
+            config,
+            export_cfg.get("output_dir"),
+            get_runs_root(config) / "export_tables",
+        )
+
+    legacy_export_cfg = config.get("export_tables", {}) or {}
+    return resolve_project_path(
+        config,
+        legacy_export_cfg.get("output_root") or legacy_export_cfg.get("output_dir"),
+        get_runs_root(config) / "export_tables",
+    )
 
 
 def enabled_instruments(config: dict[str, Any]) -> set[str] | None:

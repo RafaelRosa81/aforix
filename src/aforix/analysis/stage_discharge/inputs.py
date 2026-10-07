@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 
 
 KEYS = ["station_id", "measurement_date", "measurement_time", "instrument"]
@@ -12,7 +12,7 @@ def load_manual_stage(manual_dir: Path) -> pd.DataFrame:
     f = manual_dir / "manual_stage.csv"
     if not f.exists():
         return pd.DataFrame()
-    df = pd.read_csv(f)
+    df = read_csv_preserving_station_identity(f)
     if "measurement_date" in df.columns:
         df["measurement_date"] = _normalize_measurement_date(df["measurement_date"])
     if "station_id" in df.columns:
@@ -26,7 +26,7 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
     summary_file = normalized_root / "Summary.csv"
     enabled_instruments = {name for name, cfg in instruments_cfg.items() if cfg.get("enabled", False)}
     if summary_file.exists():
-        df = _standardize_dates_ids_instrument(pd.read_csv(summary_file))
+        df = _standardize_dates_ids_instrument(read_csv_preserving_station_identity(summary_file))
         if "instrument" in df.columns and enabled_instruments:
             df = df[df["instrument"].isin(enabled_instruments)].copy()
         df["normalized_source_table"] = str(summary_file)
@@ -40,7 +40,7 @@ def load_summary_tables(normalized_root: Path, instruments_cfg: dict) -> pd.Data
         if not path.exists(): continue
         files = [path] if path.is_file() else sorted(path.glob("*.csv"))
         for f in files:
-            df = _standardize_dates_ids_instrument(pd.read_csv(f)); df["instrument"] = inst; df["normalized_source_table"] = str(f)
+            df = _standardize_dates_ids_instrument(read_csv_preserving_station_identity(f)); df["instrument"] = inst; df["normalized_source_table"] = str(f)
             if "source_file" in df.columns: df = df.rename(columns={"source_file": "original_source_file"})
             dfs.append(df)
     return pd.DataFrame() if not dfs else pd.concat(dfs, ignore_index=True)
@@ -50,7 +50,7 @@ def load_points_max_stage(normalized_root: Path, instruments_cfg: dict) -> pd.Da
     points_file = normalized_root / "Points.csv"
     enabled_instruments = {name for name, cfg in instruments_cfg.items() if cfg.get("enabled", False)}
     if not points_file.exists(): return pd.DataFrame(columns=KEYS + ["instrument_stage_max_m", "points_source_table"])
-    df = _standardize_dates_ids_instrument(pd.read_csv(points_file))
+    df = _standardize_dates_ids_instrument(read_csv_preserving_station_identity(points_file))
     if "instrument" in df.columns and enabled_instruments: df = df[df["instrument"].isin(enabled_instruments)].copy()
     if "depth_m" not in df.columns: return pd.DataFrame(columns=KEYS + ["instrument_stage_max_m", "points_source_table"])
     for key in KEYS:

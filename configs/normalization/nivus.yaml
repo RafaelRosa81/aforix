@@ -43,9 +43,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"
@@ -250,9 +247,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"
@@ -440,9 +434,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"
@@ -616,9 +607,6 @@ tables:
 
     metadata_policy:
       station_id: {}
-      station_code:
-        enabled: true
-        prefix: P
       measurement_date:
         input_formats:
           - "%Y%m%d"

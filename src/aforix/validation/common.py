@@ -5,6 +5,8 @@ from typing import Any
 
 import pandas as pd
 
+from aforix.config.paths import config_root_from_path
+
 
 DEFAULT_TRACEABILITY_COLUMNS = [
     "station_id",
@@ -26,11 +28,7 @@ DEFAULT_KEYS = [
 
 
 def project_root_from_config(config_path: Path) -> Path:
-    resolved = config_path.resolve()
-    if len(resolved.parents) >= 3:
-        return resolved.parents[2]
-    return Path.cwd()
-
+    return config_root_from_path(config_path)
 
 def resolve_project_path(path_value: str | Path, *, config_path: Path) -> Path:
     path = Path(path_value)

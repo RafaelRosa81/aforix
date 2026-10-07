@@ -50,14 +50,18 @@ def default_ranking(cfg: dict[str, Any], instruments: Iterable[MeasuringInstrume
     configured = cfg.get("analysis", {}).get("correlation", {}).get("default_ranking", None); return [str(x).upper() for x in configured] if configured else [inst.code.upper() for inst in instruments]
 
 
+def _station_sort_key(value: object) -> tuple[int, object, str]:
+    station_id = canonical_station_id(value)
+    return (0, int(station_id), station_id) if station_id.isdigit() else (1, station_id, station_id)
+
 def run_gauges_vs_model(*, normalized_root: Path, model_dir: Path, output_dir: Path, instruments: list[MeasuringInstrument], ranking_codes: list[str], start_date: str | None = None, end_date: str | None = None, points: list[str] | None = None, variable_roles: dict[str, str] | None = None) -> Path:
     roles = _require_roles(variable_roles, "gauges_vs_model"); x_col, y_col, pred_col, x_label, y_label = _role_columns(roles); start = _coerce_date(start_date); end = _coerce_date(end_date)
     if start is not None and end is not None and end < start: raise ValueError("end_date cannot be earlier than start_date")
-    selected_points = {canonical_station_id(p) for p in points or [] if str(p).strip()}; ranking_label = "_".join(ranking_codes); points_label = "all_points" if not selected_points else "points_" + "_".join(sorted(selected_points, key=lambda p: int(p))); out_dir = output_dir / "gauges_vs_model" / f"instruments_{ranking_label}" / points_label; plots_dir = out_dir / "plots"; out_dir.mkdir(parents=True, exist_ok=True)
+    selected_points = {canonical_station_id(p) for p in points or [] if str(p).strip()}; ranking_label = "_".join(ranking_codes); points_label = "all_points" if not selected_points else "points_" + "_".join(sorted(selected_points, key=_station_sort_key)); out_dir = output_dir / "gauges_vs_model" / f"instruments_{ranking_label}" / points_label; plots_dir = out_dir / "plots"; out_dir.mkdir(parents=True, exist_ok=True)
     wb = Workbook(); wb.remove(wb.active)
-    write_run_config_sheet(wb, {"analysis_type": "gauges_vs_model", "x_role": roles["x"], "y_role": roles["y"], "x_column": x_col, "y_column": y_col, "ranking": ranking_codes, "points": sorted(selected_points, key=lambda p: int(p)) if selected_points else "ALL", "start_date": start_date, "end_date": end_date, "normalized_root": str(normalized_root), "model_dir": str(model_dir), "output_dir": str(out_dir)})
+    write_run_config_sheet(wb, {"analysis_type": "gauges_vs_model", "x_role": roles["x"], "y_role": roles["y"], "x_column": x_col, "y_column": y_col, "ranking": ranking_codes, "points": sorted(selected_points, key=_station_sort_key) if selected_points else "ALL", "start_date": start_date, "end_date": end_date, "normalized_root": str(normalized_root), "model_dir": str(model_dir), "output_dir": str(out_dir)})
     gauges = load_gauges_daily(normalized_root, instruments, ranking_codes); modeled_raw = load_model_data(model_dir); modeled = {canonical_station_id(point): frame for point, frame in modeled_raw.items()}; summary_rows: list[dict[str, Any]] = []
-    common_points = sorted(set(gauges) & set(modeled), key=lambda p: int(p)); common_points = [p for p in common_points if p in selected_points] if selected_points else common_points
+    common_points = sorted(set(gauges) & set(modeled), key=_station_sort_key); common_points = [p for p in common_points if p in selected_points] if selected_points else common_points
     for point in common_points:
         df_model = modeled[point].copy(); df_gauge = gauges[point].copy(); df_model["date"] = pd.to_datetime(df_model["date"]).dt.normalize(); df_gauge["date"] = pd.to_datetime(df_gauge["date"]).dt.normalize(); merged = _date_window(pd.merge(df_gauge, df_model, on="date", how="inner"), start, end)
         if merged.empty: continue

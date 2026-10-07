@@ -674,7 +674,7 @@ El conversor DINAGUA usa `dayfirst=True`. En archivos normalizados, revisar que 
 
 ### No aparece un punto esperado
 
-Revisar que exista tanto en aforos como en modelo o estación según el workflow. Los puntos suelen normalizarse removiendo prefijo `P`.
+Revisar que exista tanto en aforos como en modelo o estación según el workflow. En los archivos del modelo, el prefijo `P` de nombres como `P71_model_data.csv` es un marcador del punto de modelo y se normaliza al ID interno `71`. Los `station_id` autoritativos de aforos no se renumeran ni pierden un prefijo `P`; por ejemplo, `P71` y `71` permanecen en namespaces distintos.
 
 ### Ranking no parece respetarse
 

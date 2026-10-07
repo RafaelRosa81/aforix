@@ -18,6 +18,13 @@ def write_excel(
     chart_type: str,
     excel_cfg: Dict[str, Any] | None = None,
 ) -> Path:
+    supported_chart_types = {"scatter", "bar"}
+    if chart_type not in supported_chart_types:
+        raise ValueError(
+            f"Unsupported section-profile chart type: {chart_type!r}. "
+            f"Supported types: {', '.join(sorted(supported_chart_types))}"
+        )
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     excel_cfg = excel_cfg or {}
 
