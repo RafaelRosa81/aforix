@@ -150,3 +150,28 @@ def test_manual_stage_conversion_preserves_leading_zero_station_ids(tmp_path):
     out = pd.read_csv(out_path, dtype={"station_id": "string"})
 
     assert out["station_id"].tolist() == ["0012", "12"]
+
+def test_csv_identity_reader_matches_station_headers_case_insensitively(tmp_path):
+    path = tmp_path / "ids_upper.csv"
+    path.write_text(
+        "STATION_ID,value\n0012,1\n12,2\n",
+        encoding="utf-8",
+    )
+
+    df = read_csv_preserving_station_identity(path)
+
+    assert df["STATION_ID"].tolist() == ["0012", "12"]
+
+
+def test_correlation_summary_reader_keeps_uppercase_station_id_distinct(tmp_path):
+    path = tmp_path / "Summary.csv"
+    path.write_text(
+        "STATION_ID,measurement_date,instrument,q_total_ls\n"
+        "0012,20260120,FT,10\n"
+        "12,20260120,FT,20\n",
+        encoding="utf-8",
+    )
+
+    df = _load_summary_table(path)
+
+    assert df["point"].tolist() == ["0012", "12"]
