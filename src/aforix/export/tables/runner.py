@@ -19,6 +19,7 @@ METADATA_COLUMNS = {
     "source_csv", "source_run_dir", "source_file", "source_path", "run_dir", "run_timestamp",
     "raw_file", "input_file", "config_used", "notes",
 }
+INTERNAL_COLUMNS = {"__date_str"}
 DATE_CANDIDATES = ["measurement_date", "Date", "date", "datetime", "timestamp"]
 POINT_CANDIDATES = ["station_id", "Point", "point", "station", "site_id"]
 
@@ -205,7 +206,7 @@ def available_points(df: pd.DataFrame) -> list[str]:
 
 
 def parameter_columns(df: pd.DataFrame, include_metadata: bool = False) -> list[str]:
-    excluded = set(ID_COLUMNS)
+    excluded = set(ID_COLUMNS) | INTERNAL_COLUMNS
     if not include_metadata:
         excluded |= METADATA_COLUMNS
     candidates = [c for c in df.columns if c not in excluded]

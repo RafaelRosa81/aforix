@@ -51,3 +51,24 @@ def test_config_root_consumers_honor_documented_examples_layout(tmp_path, resolv
     config_path.write_text('project: {}\npaths: {}\n', encoding='utf-8')
 
     assert resolver(config_path) == project_root.resolve()
+
+@pytest.mark.parametrize("module_name", ["sih", "normalization"])
+def test_config_root_consumers_honor_module_config_layout(tmp_path, module_name):
+    project_root = tmp_path / "project"
+    config_dir = project_root / "configs" / module_name
+    config_dir.mkdir(parents=True)
+    config_path = config_dir / "module.yaml"
+    config_path.write_text("project: {}\npaths: {}\n", encoding="utf-8")
+
+    assert config_root_from_path(config_path) == project_root.resolve()
+
+
+def test_sih_root_honors_documented_sih_layout(tmp_path):
+    project_root = tmp_path / "project"
+    config_dir = project_root / "configs" / "sih"
+    config_dir.mkdir(parents=True)
+    config_path = config_dir / "sih.yaml"
+    config_path.write_text("sih: {}\n", encoding="utf-8")
+
+    assert sih_root(config_path) == project_root.resolve()
+

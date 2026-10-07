@@ -6,8 +6,9 @@ from pathlib import Path
 def config_root_from_path(config_path: Path) -> Path:
     """Resolve the project root used for config-relative paths.
 
-    Repository-local configs anchor at the detected repository root. The
-    documented <project>/configs/examples/<config>.yaml layout anchors at
+    Repository-local configs anchor at the detected repository root. Configs
+    stored directly under <project>/configs or one module directory below it
+    (for example configs/examples/main.yaml or configs/sih/sih.yaml) anchor at
     <project> even outside a repository. Other standalone configs anchor at
     the directory containing the config file.
     """
@@ -21,10 +22,10 @@ def config_root_from_path(config_path: Path) -> Path:
         ):
             return candidate
 
-    if (
-        resolved.parent.name == "examples"
-        and resolved.parent.parent.name == "configs"
-    ):
-        return resolved.parents[2]
+    if resolved.parent.name == "configs":
+        return resolved.parent.parent
+
+    if resolved.parent.parent.name == "configs":
+        return resolved.parent.parent.parent
 
     return resolved.parent
