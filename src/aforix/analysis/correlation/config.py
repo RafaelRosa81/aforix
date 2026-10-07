@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from aforix.config.loader import load_config
+from aforix.config.paths import config_root_from_path
 from aforix.analysis.correlation.types import CorrelationPaths
 
 ALLOWED_VARIABLE_ROLES: dict[str, set[str]] = {
@@ -29,19 +30,7 @@ def _get_nested(cfg: dict[str, Any], keys: list[str], default: Any = None) -> An
 
 
 def _project_root_from_config(config_path: Path) -> Path:
-    """Resolve project root from a config path.
-
-    For configs/examples/main.yaml, the project root is two levels above the
-    config file directory: <repo>/configs/examples/main.yaml -> <repo>.
-    """
-
-    resolved = config_path.resolve()
-    if resolved.parent.name == "examples" and resolved.parent.parent.name == "configs":
-        return resolved.parent.parent.parent
-    if resolved.parent.name == "configs":
-        return resolved.parent.parent
-    return Path.cwd().resolve()
-
+    return config_root_from_path(config_path)
 
 def resolve_correlation_paths(config_path: Path) -> CorrelationPaths:
     """Resolve correlation input/output paths with backward-compatible fallbacks."""

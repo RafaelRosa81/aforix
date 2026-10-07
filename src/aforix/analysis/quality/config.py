@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from aforix.config.loader import load_config
+from aforix.config.paths import config_root_from_path
 
 
 @dataclass(frozen=True)
@@ -79,15 +80,7 @@ def _get_nested(cfg: dict[str, Any], keys: list[str], default: Any = None) -> An
 
 
 def _project_root_from_config(config_path: Path) -> Path:
-    resolved = config_path.resolve()
-    if resolved.parent.name == "examples" and resolved.parent.parent.name == "configs":
-        return resolved.parent.parent.parent
-    if resolved.parent.name == "configs":
-        return resolved.parent.parent
-    if len(resolved.parents) >= 3:
-        return resolved.parents[2]
-    return Path.cwd().resolve()
-
+    return config_root_from_path(config_path)
 
 def _resolve_path(value: str | Path, *, project_root: Path) -> Path:
     path = Path(value)
