@@ -34,7 +34,7 @@ from aforix.export.tables.config import (
     get_normalized_root,
     load_config as load_export_tables_config,
 )
-from aforix.export.tables.runner import ExportRequest, run_export_tables
+from aforix.export.tables.runner import DEFAULT_EXPORT_GROUPING, ExportRequest, run_export_tables
 from aforix.groups.build import run as run_build_groups
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.m9 import run as run_m9
@@ -356,7 +356,7 @@ def _export_tables(params: dict[str, Any]) -> CommandResult:
         raise ValueError("Missing required parameter for export.tables: table")
 
     export_config = load_export_tables_config(str(config_path))
-    grouping = params.get("grouping", "monthly")
+    grouping = params.get("grouping", DEFAULT_EXPORT_GROUPING)
     fmt = params.get("format", "xlsx")
     flat = bool(params.get("flat", False))
 

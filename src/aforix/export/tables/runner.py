@@ -29,6 +29,8 @@ NORMALIZED_ID_DTYPES = {
     "measurement_time": "string",
 }
 
+DEFAULT_EXPORT_GROUPING = "none"
+
 
 def _read_normalized_csv(path: Path) -> pd.DataFrame:
     """Read normalized CSVs without losing identity formatting.
@@ -48,7 +50,7 @@ class ExportRequest:
     parameters: tuple[str, ...] = ()
     early_date: str | None = None
     late_date: str | None = None
-    grouping: str = "none"
+    grouping: str = DEFAULT_EXPORT_GROUPING
     fmt: str = "xlsx"
     pivot: bool | None = None
     include_metadata_columns: bool = False
