@@ -50,9 +50,9 @@ def default_ranking(cfg: dict[str, Any], instruments: Iterable[MeasuringInstrume
     configured = cfg.get("analysis", {}).get("correlation", {}).get("default_ranking", None); return [str(x).upper() for x in configured] if configured else [inst.code.upper() for inst in instruments]
 
 
-def _station_sort_key(value: object) -> tuple[int, object]:
+def _station_sort_key(value: object) -> tuple[int, object, str]:
     station_id = canonical_station_id(value)
-    return (0, int(station_id)) if station_id.isdigit() else (1, station_id)
+    return (0, int(station_id), station_id) if station_id.isdigit() else (1, station_id, station_id)
 
 def run_gauges_vs_model(*, normalized_root: Path, model_dir: Path, output_dir: Path, instruments: list[MeasuringInstrument], ranking_codes: list[str], start_date: str | None = None, end_date: str | None = None, points: list[str] | None = None, variable_roles: dict[str, str] | None = None) -> Path:
     roles = _require_roles(variable_roles, "gauges_vs_model"); x_col, y_col, pred_col, x_label, y_label = _role_columns(roles); start = _coerce_date(start_date); end = _coerce_date(end_date)

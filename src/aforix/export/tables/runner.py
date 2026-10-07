@@ -7,7 +7,7 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 from .config import get_export_root, get_normalized_root, enabled_instruments
 from .writers import write_csv, write_metadata, write_xlsx
 
@@ -39,7 +39,7 @@ def _read_normalized_csv(path: Path) -> pd.DataFrame:
     identity fields are kept as strings so values such as 093425 remain six digits
     in user-facing exports.
     """
-    return pd.read_csv(path, dtype=NORMALIZED_ID_DTYPES)
+    return read_csv_preserving_station_identity(path, dtype=NORMALIZED_ID_DTYPES)
 
 
 @dataclass(frozen=True)
@@ -203,7 +203,7 @@ def available_points(df: pd.DataFrame) -> list[str]:
         return []
     vals = [normalize_point_token(v) for v in df[col].dropna().astype(str).unique()]
     def key(x: str):
-        return (0, int(x)) if x.isdigit() else (1, x)
+        return (0, int(x), x) if x.isdigit() else (1, x, x)
     return sorted(set(vals), key=key)
 
 

@@ -23,6 +23,7 @@ STATION_IDENTITY_COLUMNS = (
     "measurement_point",
     "punto",
     "site",
+    "site_id",
     "station",
     "p",
     "Point",

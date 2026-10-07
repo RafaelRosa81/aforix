@@ -13,6 +13,7 @@ from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_m
 from aforix.analysis.correlation.io.gauges import _finalize_rows, _load_summary_table
 from aforix.analysis.correlation.io.model import load_model_data
 from aforix.analysis.correlation.workflows.gauges_vs_stations import _station_sort_key as gauge_station_sort_key
+from aforix.analysis.correlation.workflows.gauges_vs_model import _station_sort_key as model_station_sort_key
 
 
 def test_canonical_station_id_is_representation_only_not_semantic_mapping():
@@ -175,3 +176,13 @@ def test_correlation_summary_reader_keeps_uppercase_station_id_distinct(tmp_path
     df = _load_summary_table(path)
 
     assert df["point"].tolist() == ["0012", "12"]
+
+
+def test_station_sort_keys_are_deterministic_for_leading_zero_ids():
+    expected = ["0012", "12", "P12"]
+    values = {"12", "P12", "0012"}
+
+    assert sorted(values, key=gauge_station_sort_key) == expected
+    assert sorted(values, key=model_station_sort_key) == expected
+    assert available_points(pd.DataFrame({"station_id": list(values)})) == expected
+
