@@ -70,6 +70,8 @@ def test_flat_override_disables_grouping_and_pivot_semantics(tmp_path: Path):
     ]
     assert len(exported) == 2
     assert result.output_file.name == "summary_20260120-20260121_flat_ft.csv"
+    assert result.effective_grouping == "none"
+    assert result.effective_pivot is False
     assert "grouping: none" in metadata
     assert "pivot: False" in metadata
     assert "column_order: flat" in metadata

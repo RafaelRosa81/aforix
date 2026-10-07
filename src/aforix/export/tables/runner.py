@@ -63,6 +63,8 @@ class ExportResult:
     metadata_file: Path | None
     row_count: int
     source_files: tuple[Path, ...]
+    effective_grouping: str
+    effective_pivot: bool
 
 
 def _has_csv_files(path: Path) -> bool:
@@ -541,4 +543,11 @@ def run_export_tables(config: dict, request: ExportRequest) -> ExportResult:
     else:
         write_csv(out_df, output_file)
     write_metadata(metadata_file, metadata)
-    return ExportResult(output_file=output_file, metadata_file=metadata_file, row_count=len(out_df), source_files=tuple(source_files))
+    return ExportResult(
+        output_file=output_file,
+        metadata_file=metadata_file,
+        row_count=len(out_df),
+        source_files=tuple(source_files),
+        effective_grouping=grouping,
+        effective_pivot=bool(pivot or grouping in {"monthly", "daily"}),
+    )
