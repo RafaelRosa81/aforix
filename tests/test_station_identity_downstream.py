@@ -11,6 +11,7 @@ from aforix.analysis.section_profiles.inputs import _norm_station as section_pro
 from aforix.analysis.quality.runner import _normalize_point as quality_station_id
 from aforix.analysis.correlation.workflows.model_vs_stations import _normalize_model_point_id
 from aforix.analysis.correlation.io.gauges import _finalize_rows
+from aforix.analysis.correlation.io.model import load_model_data
 from aforix.analysis.correlation.workflows.gauges_vs_stations import _station_sort_key as gauge_station_sort_key
 
 
@@ -96,3 +97,16 @@ def test_correlation_gauge_finalize_preserves_prefixed_station_ids():
 def test_gauges_vs_stations_all_pairs_sort_accepts_prefixed_station_ids():
     assert sorted(["P71", "7071"], key=gauge_station_sort_key) == ["7071", "P71"]
 
+def test_model_filename_p_prefix_is_not_measured_station_namespace(tmp_path):
+    model_file = tmp_path / "P71_model_data.csv"
+    pd.DataFrame(
+        {
+            "date": ["2026-01-20"],
+            "q(m3/s)": [0.123],
+        }
+    ).to_csv(model_file, index=False)
+
+    model_data = load_model_data(tmp_path)
+
+    assert set(model_data) == {"71"}
+    assert "P71" not in model_data

@@ -5,6 +5,8 @@ from typing import Any
 
 import yaml
 
+from aforix.config.paths import config_root_from_path
+
 
 def load_config(path: str | Path) -> dict[str, Any]:
     p = Path(path)
@@ -20,14 +22,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
 
 
 def _infer_repo_root(config_path: Path) -> Path:
-    config_path = config_path.resolve()
-    for parent in [config_path.parent, *config_path.parents]:
-        if (parent / "pyproject.toml").exists() or (parent / "src" / "aforix").exists():
-            return parent
-
-    # For standalone/legacy configs outside a repository tree, resolve relative
-    # paths from the config file location rather than from the caller's cwd.
-    return config_path.parent
+    return config_root_from_path(config_path)
 
 
 def resolve_project_path(config: dict[str, Any], value: str | Path | None, default: str | Path) -> Path:

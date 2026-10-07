@@ -47,3 +47,31 @@ export_tables:
     assert get_export_root(config) == (
         tmp_path / "out_legacy" / "tables"
     ).resolve()
+
+def test_export_tables_standalone_examples_layout_uses_project_root(tmp_path):
+    project_root = tmp_path / "project"
+    config_dir = project_root / "configs" / "examples"
+    config_dir.mkdir(parents=True)
+
+    config_path = config_dir / "main.yaml"
+    config_path.write_text(
+        """
+paths:
+  database_root: database
+  runs_root: runs
+export:
+  tables:
+    input_dir: database/normalized
+    output_dir: outputs/tables
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert get_normalized_root(config) == (
+        project_root / "database" / "normalized"
+    ).resolve()
+    assert get_export_root(config) == (
+        project_root / "outputs" / "tables"
+    ).resolve()
