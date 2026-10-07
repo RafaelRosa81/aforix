@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 
 
 def run_manual_stage_conversion(input_dir: Path, output_dir: Path) -> Path:
@@ -16,7 +16,7 @@ def run_manual_stage_conversion(input_dir: Path, output_dir: Path) -> Path:
     diagnostics = []
 
     for f in files:
-        df = pd.read_csv(f)
+        df = read_csv_preserving_station_identity(f)
         if "ID_punto" not in df.columns:
             diagnostics.append({"source_file": f.name, "status": "skipped", "reason": "missing_ID_punto"})
             continue

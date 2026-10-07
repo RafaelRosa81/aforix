@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 from aforix.analysis.correlation.types import MeasuringInstrument
 
 _SUMMARY_RE = re.compile(r"^(P?\d+)_Summary_(\d{8})_(\d{6})\.csv$", re.IGNORECASE)
@@ -62,7 +62,7 @@ def _normalize_source_series(series: pd.Series, source_code_map: dict[str, str])
 
 def _load_summary_table(path: Path, default_source: str | None = None) -> pd.DataFrame:
     if not path.exists(): return pd.DataFrame()
-    df = pd.read_csv(path)
+    df = read_csv_preserving_station_identity(path)
     if df.empty: return pd.DataFrame()
     point_col = _find_col(df, ["station_id", "point", "point_id", "measurement_point", "punto", "site", "station", "p"])
     date_col = _find_col(df, ["measurement_date", "date", "fecha", "datetime"], allow_contains=False)

@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 import typer
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 from aforix.analysis.stage_discharge.config import load_stage_discharge_config
 from aforix.analysis.stage_discharge.runner import run_stage_discharge
 
@@ -39,7 +39,7 @@ def _configure_instruments(cfg: dict[str, Any]) -> None:
 def _configure_points(cfg: dict[str, Any]) -> None:
     normalized_root = Path(cfg.get("input_dirs", {}).get("normalized_root", "database/normalized")); summary_file = normalized_root / "Summary.csv"; available_points: list[str] = []
     if summary_file.exists():
-        df = pd.read_csv(summary_file, usecols=lambda c: c in {"station_id"})
+        df = read_csv_preserving_station_identity(summary_file, usecols=lambda c: c in {"station_id"})
         if "station_id" in df.columns: available_points = sorted({canonical_station_id(v) for v in df["station_id"].dropna()})
     default_points = cfg.get("selection", {}).get("points", "all"); typer.echo(f"Available points detected: {len(available_points)}")
     value = typer.prompt("Points to analyze (all or comma-separated list)", default=str(default_points)).strip()

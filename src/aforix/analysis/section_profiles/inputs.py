@@ -6,7 +6,7 @@ from typing import Dict
 
 import pandas as pd
 
-from aforix.metadata import canonical_station_id
+from aforix.metadata import canonical_station_id, read_csv_preserving_station_identity
 
 FILENAME_RE = re.compile(
     r"(?P<station>P?\d+)_Points_(?P<date>\d{8})(?:_(?P<time>\d{6}))?",
@@ -24,7 +24,7 @@ def load_points_by_instrument(normalized_root: Path, instruments_cfg: Dict) -> p
         if not path.exists(): continue
         files = [path] if path.is_file() else sorted(path.glob("*.csv"))
         for f in files:
-            try: df = pd.read_csv(f)
+            try: df = read_csv_preserving_station_identity(f)
             except Exception: continue
             if df.empty: continue
             meta = _metadata_from_filename(f)

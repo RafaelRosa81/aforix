@@ -16,6 +16,18 @@ DEFAULT_TIME_INPUT_FORMATS = [
     "%m/%d/%Y %H:%M:%S", "%d/%m/%Y %H:%M:%S",
 ]
 _EMPTY_STRINGS = {"", "nan", "none", "null", "nat", "<na>"}
+STATION_IDENTITY_COLUMNS = (
+    "station_id",
+    "point",
+    "point_id",
+    "measurement_point",
+    "punto",
+    "site",
+    "station",
+    "p",
+    "Point",
+    "ID_punto",
+)
 
 
 def _is_empty(value: Any) -> bool:
@@ -46,6 +58,25 @@ def canonical_station_id(value: Any) -> str:
     infer aliases or renumber stations. P71 and 7071 remain distinct identifiers.
     """
     return _as_clean_string(value).upper()
+
+def read_csv_preserving_station_identity(path_or_buffer: Any, **kwargs: Any) -> pd.DataFrame:
+    """Read CSV data without letting pandas coerce station IDs to numbers.
+
+    Numeric-looking station identifiers are semantic strings. Values such as
+    0012 and 12 must remain distinct before canonicalization.
+    """
+    requested_dtype = kwargs.pop("dtype", None)
+    if requested_dtype is None:
+        dtype: Any = {}
+    elif isinstance(requested_dtype, dict):
+        dtype = dict(requested_dtype)
+    else:
+        return pd.read_csv(path_or_buffer, dtype=requested_dtype, **kwargs)
+
+    for column in STATION_IDENTITY_COLUMNS:
+        dtype[column] = "string"
+
+    return pd.read_csv(path_or_buffer, dtype=dtype, **kwargs)
 
 
 def _parse_datetime_with_formats(value: Any, input_formats: list[str]) -> datetime | None:
