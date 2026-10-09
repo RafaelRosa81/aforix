@@ -8,7 +8,11 @@ import yaml
 
 from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 from aforix.normalize.normalizer import normalize_table
-from aforix.normalize.run import _enrich_points_with_summary_width
+from aforix.normalize.run import (
+    _enrich_points_with_summary_width,
+    _enrich_written_points_width,
+    _write_cross_instrument_concat,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -197,3 +201,112 @@ def test_points_width_rejects_conflicting_summary_values():
             summary,
             label="flowtracker/fixture",
         )
+
+
+def test_written_width_enrichment_supports_summary_file_group(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument = "molinete"
+
+    summary_dir = output_root / instrument / "Summary"
+    points_dir = output_root / instrument / "Points"
+    summary_dir.mkdir(parents=True)
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.825,
+            }
+        ]
+    ).to_csv(summary_dir / "7071_Summary.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "width_m": pd.NA,
+            },
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 2,
+                "width_m": pd.NA,
+            },
+        ]
+    ).to_csv(points_dir / "7071_Points.csv", index=False)
+
+    frames = _enrich_written_points_width(
+        output_root=output_root,
+        instrument=instrument,
+    )
+
+    written = pd.read_csv(points_dir / "7071_Points.csv")
+    assert written["width_m"].tolist() == pytest.approx([14.825, 14.825])
+    assert len(frames) == 1
+    assert frames[0]["width_m"].tolist() == pytest.approx([14.825, 14.825])
+
+
+def test_cross_instrument_points_concat_uses_enriched_frames(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument = "flowtracker"
+
+    instrument_dir = output_root / instrument
+    instrument_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    ).to_csv(instrument_dir / "Summary.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "width_m": pd.NA,
+            },
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 2,
+                "width_m": pd.NA,
+            },
+        ]
+    ).to_csv(instrument_dir / "Points.csv", index=False)
+
+    enriched_frames = _enrich_written_points_width(
+        output_root=output_root,
+        instrument=instrument,
+    )
+    _write_cross_instrument_concat(
+        enriched_frames,
+        group="Points",
+        output_root=output_root,
+        write_policy="overwrite",
+    )
+
+    global_points = pd.read_csv(output_root / "Points.csv")
+    assert global_points["width_m"].tolist() == pytest.approx([14.7, 14.7])
+
