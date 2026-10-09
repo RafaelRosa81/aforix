@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from aforix.config.loader import load_config
 from aforix.config.paths import config_root_from_path
 from aforix.runs.manager import create_run
+from aforix.normalize.rejections import find_rejections, purge_rejected_outputs
 from aforix.normalize.registry import NormalizationRegistry
 from aforix.normalize.normalizer import normalize_table, TRACEABILITY_COLUMNS
 
@@ -136,7 +138,9 @@ def _normalize_single_csv(
 ) -> pd.DataFrame:
     spec = registry.get(instrument, group)
     df_raw = _read_csv(csv_path)
-    return normalize_table(df_raw, spec)
+    return normalize_table(
+        df_raw, spec, excluded_measurements=registry.excluded_measurements
+    )
 
 
 def _write_normalized_file(
@@ -369,6 +373,8 @@ def _enrich_written_points_width(
             summary_df,
             label=f"{instrument}/{points_path.name}",
         )
+        if instrument == "nivus":
+            _validate_zero_flow_summary(enriched, summary_df)
         _write_normalized_file(
             enriched,
             output_path=points_path,
@@ -377,6 +383,37 @@ def _enrich_written_points_width(
         enriched_frames.append(enriched)
 
     return enriched_frames
+
+
+def _sections_have_zero_total(sections: pd.DataFrame) -> bool:
+    """A relative discharge share is undefined when finite section flows sum to zero."""
+    if "q_ls" not in sections or sections.empty:
+        return False
+    flow = pd.to_numeric(sections["q_ls"], errors="coerce")
+    return bool(
+        np.isfinite(flow.to_numpy(dtype=float, na_value=np.nan)).all()
+        and flow.sum() == 0.0
+    )
+
+
+def _validate_zero_flow_summary(points: pd.DataFrame, summary: pd.DataFrame) -> None:
+    """Confirm a missing share denotes zero total flow in the matching Summary."""
+    missing_share = pd.to_numeric(points["percent_q"], errors="coerce").isna()
+    if not missing_share.any():
+        return
+    point_keys = _normalized_measurement_keys(points)
+    summary_keys = _normalized_measurement_keys(summary)
+    for key, indices in point_keys.groupby(POINT_MEASUREMENT_KEYS, dropna=False).groups.items():
+        if not missing_share.loc[indices].any():
+            continue
+        mask = pd.Series(True, index=summary.index)
+        for column, value in zip(POINT_MEASUREMENT_KEYS, key):
+            mask &= summary_keys[column].eq(value).fillna(False)
+        total = pd.to_numeric(summary.loc[mask, "q_total_ls"], errors="coerce")
+        if total.empty or not total.eq(0.0).all():
+            raise ValueError(
+                f"Nivus undefined percent_q requires a matching zero-flow Summary: {key}"
+            )
 
 
 def _enrich_nivus_points_from_sections(
@@ -435,6 +472,7 @@ def _enrich_nivus_points_from_sections(
             "Expected sections = points + 2."
         )
 
+    zero_flow = _sections_have_zero_total(sec)
     point_indices = pts.index.tolist()
 
     for i, row_idx in enumerate(point_indices):
@@ -447,7 +485,9 @@ def _enrich_nivus_points_from_sections(
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        hydraulic_cols = ["width_m", "depth_m", "q_ls", "percent_q"]
+        hydraulic_cols = ["width_m", "depth_m", "q_ls"]
+        if not zero_flow:
+            hydraulic_cols.append("percent_q")
         missing_cols = [
             col
             for col in hydraulic_cols
@@ -463,7 +503,7 @@ def _enrich_nivus_points_from_sections(
             assigned_sections["width_m"] * assigned_sections["depth_m"]
         ).sum(min_count=1)
         q_ls = assigned_sections["q_ls"].sum(min_count=1)
-        percent_q = assigned_sections["percent_q"].sum(min_count=1)
+        percent_q = np.nan if zero_flow else assigned_sections["percent_q"].sum(min_count=1)
 
         out.loc[row_idx, "area_m2"] = area_m2
         out.loc[row_idx, "q_ls"] = q_ls
@@ -498,6 +538,7 @@ def _enrich_nivus_points_by_measurement(
     sections_keys = _normalized_measurement_keys(sections_df)
     out = points_df.copy()
 
+    zero_flow_rows = pd.Series(False, index=points_df.index)
     grouped = points_keys.groupby(
         POINT_MEASUREMENT_KEYS,
         dropna=False,
@@ -520,6 +561,7 @@ def _enrich_nivus_points_by_measurement(
                 f"No matching Nivus Sections rows for {label}: {key_values}"
             )
 
+        zero_flow_rows.loc[point_index] = _sections_have_zero_total(section_group)
         enriched = _enrich_nivus_points_from_sections(
             points_df.loc[point_index],
             section_group,
@@ -531,8 +573,9 @@ def _enrich_nivus_points_by_measurement(
                 out.loc[point_index, col] = enriched[col]
 
     percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
-    if percent.isna().any():
-        missing = int(percent.isna().sum())
+    invalid_share = percent.isna() & ~zero_flow_rows
+    if invalid_share.any():
+        missing = int(invalid_share.sum())
         raise ValueError(
             f"Nivus percent_q enrichment incomplete for {label}: "
             f"{missing} Points rows remain empty."
@@ -587,6 +630,9 @@ def _normalize_nivus_points_with_sections(
         group="Points",
         registry=registry,
     )
+
+    if points_df.empty:
+        return points_df
 
     sections_csv_path = _matching_nivus_sections_path(points_csv_path)
 
@@ -657,6 +703,16 @@ def _normalize_concat_group(
     if not input_path.exists():
         return None
 
+    if write_policy == "fail_if_exists":
+        existing = output_root / instrument / f"{group}.csv"
+        group_dir = output_root / instrument / group
+        prior_files = sorted(group_dir.glob("*.csv"))
+        if existing.exists() or prior_files:
+            path = existing if existing.exists() else prior_files[0]
+            raise FileExistsError(
+                f"Normalize output already exists and write_policy=fail_if_exists: {path}"
+            )
+
     if instrument == "nivus" and group == "Points":
         points_df = _normalize_single_csv(
             input_path,
@@ -664,10 +720,11 @@ def _normalize_concat_group(
             group=group,
             registry=registry,
         )
-        sections_df = _normalize_nivus_sections_for_points_input(
-            input_path,
-            registry=registry,
-        )
+        sections_df = pd.DataFrame()
+        if not points_df.empty:
+            sections_df = _normalize_nivus_sections_for_points_input(
+                input_path, registry=registry,
+            )
         df_norm = _enrich_nivus_points_by_measurement(
             points_df,
             sections_df,
@@ -688,6 +745,9 @@ def _normalize_concat_group(
         layout="concat",
         write_policy=write_policy,
     )
+
+    if df_norm.empty:
+        return None
 
     outpath = output_root / instrument / f"{group}.csv"
     _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
@@ -747,7 +807,8 @@ def _normalize_file_group(
                 registry=registry,
             )
 
-        prepared.append((csv_path, df_norm))
+        if not df_norm.empty:
+            prepared.append((csv_path, df_norm))
 
     outputs: list[pd.DataFrame] = []
     for csv_path, df_norm in prepared:
@@ -836,6 +897,17 @@ def normalize_database(config_path: Path) -> Path:
     if not input_root.exists():
         raise FileNotFoundError(f"Normalize input directory not found: {input_root}")
 
+    registry = NormalizationRegistry(registry_dir)
+
+    rejected, report = find_rejections(input_root, instruments, registry)
+    registry.excluded_measurements = rejected
+    report_path = run_dir / "outputs" / "rejected_measurements.csv"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report.to_csv(report_path, index=False)
+    print(f"Rejected measurements: {len(rejected)}; report: {report_path}")
+    if rejected and write_policy == "overwrite":
+        purge_rejected_outputs(output_root, rejected)
+
     output_root.mkdir(parents=True, exist_ok=True)
 
     if write_policy == "overwrite":
@@ -843,8 +915,6 @@ def normalize_database(config_path: Path) -> Path:
             output_root=output_root,
             concat_groups=active_concat_groups,
         )
-
-    registry = NormalizationRegistry(registry_dir)
 
     print("Normalizing raw_canonical database")
     print(f"Input root: {input_root}")
@@ -916,6 +986,7 @@ def normalize_database(config_path: Path) -> Path:
                     written_group_paths[group] = [
                         output_root / instrument / group / path.name
                         for path in sorted(input_dir.glob("*.csv"))
+                        if (output_root / instrument / group / path.name).exists()
                     ]
                     if group == "Points" and frames:
                         points_written = True

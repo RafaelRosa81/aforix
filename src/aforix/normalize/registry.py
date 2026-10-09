@@ -6,6 +6,7 @@ class NormalizationRegistry:
     def __init__(self, registry_dir: Path):
         self.registry_dir = Path(registry_dir)
         self._specs = {}
+        self.excluded_measurements: set[tuple[str, ...]] = set()
         self.load()
 
     def load(self):

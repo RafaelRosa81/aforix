@@ -269,6 +269,51 @@ configs/normalization/molinete.yaml
 configs/normalization/nivus.yaml
 ```
 
+### Rechazo de mediciones sin velocidad válida
+
+Antes de publicar salidas, `normalize` revisa Points de todas las fuentes seleccionadas,
+incluso si Points no figura en `groups`. Una velocidad media ausente, no numérica
+(por ejemplo, `#-1`) o infinita rechaza la medición completa, identificada por
+`instrument`, `station_id`, `measurement_date` y `measurement_time`.
+Los valores numéricos cero y negativos son válidos.
+
+La medición se excluye de Summary, Points, Sections, Gates y sus concatenaciones.
+Los archivos raw y raw canonical se conservan. Con `write_policy: overwrite`,
+también se eliminan filas rechazadas de salidas anteriores de esos grupos,
+aunque el grupo no esté seleccionado en esta corrida.
+`fail_if_exists` conserva su protección contra sobrescritura.
+
+Cada corrida genera `runs/normalize/<timestamp>/outputs/rejected_measurements.csv`:
+una fila por vertical afectada, con la identidad del aforo, archivo fuente,
+CSV canónico (ruta relativa a la entrada), número de fila, índice/etiqueta de la vertical, distancia, valor
+original de velocidad y motivo. El reporte vacío conserva sus encabezados.
+La consola informa el número de mediciones rechazadas y la ruta del reporte.
+El rechazo esperado permite continuar con las demás mediciones; otros errores
+siguen provocando un fallo. Una identidad incompleta impide una exclusión segura
+y detiene la ejecución.
+
+Si ingest y build-groups ya terminaron correctamente, basta repetir:
+
+```powershell
+aforix normalize run -c configs/examples/main.yaml
+if ($LASTEXITCODE -ne 0) { throw "Falló la normalización" }
+```
+
+### Mediciones de caudal cero
+
+Un aforo Nivus de caudal cero se conserva como medición válida. Si los caudales
+numéricos finitos de sus secciones suman exactamente cero, `Points.percent_q`
+queda vacío (no aplicable): el cociente `100 * q_i / Q` no está definido.
+No se reemplazan los porcentajes por cero ni se exige que sumen 100 %.
+El Summary correspondiente debe confirmar `q_total_ls = 0`; un total ausente
+o diferente de cero provoca un fallo. Se mantienen los controles de geometría,
+velocidad y caudales faltantes. Los aforos de caudal distinto de cero siguen
+requiriendo porcentajes completos.
+
+La auditoría identifica estos porcentajes con `not_applicable_zero_flow`;
+en completitud, cuenta esas filas en `n_not_applicable`, separadas de `n_missing`.
+La incertidumbre relativa del caudal tampoco está definida para `Q = 0`.
+
 ### 7.1 Política de escritura
 
 La escritura de outputs normalizados se controla con:
