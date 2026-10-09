@@ -8,9 +8,11 @@ import yaml
 
 from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 from aforix.normalize.normalizer import normalize_table
+import aforix.normalize.run as normalize_run_module
 from aforix.normalize.run import (
     _enrich_points_with_summary_width,
     _enrich_written_points_width,
+    _normalize_concat_group,
     _write_cross_instrument_concat,
 )
 
@@ -310,3 +312,85 @@ def test_cross_instrument_points_concat_uses_enriched_frames(tmp_path):
     global_points = pd.read_csv(output_root / "Points.csv")
     assert global_points["width_m"].tolist() == pytest.approx([14.7, 14.7])
 
+
+def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeypatch):
+    input_dir = tmp_path / "raw_canonical" / "nivus"
+    output_root = tmp_path / "normalized"
+    input_dir.mkdir(parents=True)
+
+    points_path = input_dir / "Points.csv"
+    sections_path = input_dir / "Sections.csv"
+    points_path.write_text("placeholder\n", encoding="utf-8")
+    sections_path.write_text("placeholder\n", encoding="utf-8")
+
+    points = pd.DataFrame(
+        [
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "area_m2": pd.NA,
+                "q_ls": pd.NA,
+                "q_m3s": pd.NA,
+                "percent_q": pd.NA,
+            }
+        ]
+    )
+    sections = pd.DataFrame(
+        [
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 1,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 20.0,
+                "percent_q": 25.0,
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 2,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 30.0,
+                "percent_q": 35.0,
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 3,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 30.0,
+                "percent_q": 40.0,
+            },
+        ]
+    )
+
+    def fake_normalize(path, *, instrument, group, registry):
+        return points.copy() if group == "Points" else sections.copy()
+
+    monkeypatch.setattr(normalize_run_module, "_normalize_single_csv", fake_normalize)
+
+    result = _normalize_concat_group(
+        points_path,
+        instrument="nivus",
+        group="Points",
+        output_root=output_root,
+        registry=object(),
+        write_policy="overwrite",
+    )
+
+    assert result is not None
+    assert result["percent_q"].tolist() == pytest.approx([100.0])
+    assert result["q_ls"].tolist() == pytest.approx([80.0])
+    assert result["q_m3s"].tolist() == pytest.approx([0.08])
