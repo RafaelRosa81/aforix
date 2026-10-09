@@ -8,6 +8,7 @@ import yaml
 
 from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 from aforix.normalize.normalizer import normalize_table
+from aforix.normalize.validators import validate_qc_rules
 import aforix.normalize.run as normalize_run_module
 from aforix.normalize.run import (
     _clear_stale_concat_outputs,
@@ -988,4 +989,46 @@ def test_points_only_overwrite_preserves_unselected_root_summary(tmp_path, monke
     normalize_database(config_path)
 
     assert root_summary.read_text(encoding="utf-8") == "keep-me\n"
+
+
+def test_non_empty_qc_rejects_partially_missing_numeric_values():
+    df = pd.DataFrame(
+        {
+            "velocity_mean_m_s": [0.2, pd.NA],
+        }
+    )
+
+    with pytest.raises(ValueError, match="value in every row"):
+        validate_qc_rules(
+            df,
+            {"non_empty": ["velocity_mean_m_s"]},
+        )
+
+
+def test_non_empty_qc_rejects_blank_string_rows():
+    df = pd.DataFrame(
+        {
+            "point_label": ["1", "   "],
+        }
+    )
+
+    with pytest.raises(ValueError, match="value in every row"):
+        validate_qc_rules(
+            df,
+            {"non_empty": ["point_label"]},
+        )
+
+
+def test_non_empty_qc_accepts_fully_populated_values():
+    df = pd.DataFrame(
+        {
+            "velocity_mean_m_s": [0.2, 0.3],
+            "point_label": ["1", "2"],
+        }
+    )
+
+    assert validate_qc_rules(
+        df,
+        {"non_empty": ["velocity_mean_m_s", "point_label"]},
+    )
 
