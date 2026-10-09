@@ -174,6 +174,131 @@ def _numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+POINT_MEASUREMENT_KEYS = [
+    "instrument",
+    "station_id",
+    "measurement_date",
+    "measurement_time",
+]
+
+
+def _normalized_measurement_keys(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    for col in POINT_MEASUREMENT_KEYS:
+        if col in out.columns:
+            out[col] = out[col].astype("string").str.strip()
+    return out
+
+
+def _enrich_points_with_summary_width(
+    points_df: pd.DataFrame,
+    summary_df: pd.DataFrame,
+    *,
+    label: str,
+) -> pd.DataFrame:
+    """Repeat Summary.width_total_m on every normalized Points row."""
+    required_points = [*POINT_MEASUREMENT_KEYS, "width_m"]
+    required_summary = [*POINT_MEASUREMENT_KEYS, "width_total_m"]
+
+    missing_points = [col for col in required_points if col not in points_df.columns]
+    missing_summary = [col for col in required_summary if col not in summary_df.columns]
+    if missing_points or missing_summary:
+        raise ValueError(
+            f"Cannot enrich Points width for {label}. "
+            f"Missing point columns={missing_points}; "
+            f"missing summary columns={missing_summary}"
+        )
+
+    points = _normalized_measurement_keys(points_df)
+    summary = _normalized_measurement_keys(summary_df)
+
+    summary = summary[required_summary].copy()
+    summary["width_total_m"] = pd.to_numeric(summary["width_total_m"], errors="coerce")
+
+    conflicts = (
+        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False)["width_total_m"]
+        .nunique(dropna=True)
+    )
+    conflicting_keys = conflicts[conflicts > 1]
+    if not conflicting_keys.empty:
+        raise ValueError(
+            f"Conflicting Summary.width_total_m values for {label}: "
+            f"{list(conflicting_keys.index)}"
+        )
+
+    width_lookup = (
+        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False, as_index=False)["width_total_m"]
+        .first()
+    )
+
+    merged = points.merge(
+        width_lookup,
+        on=POINT_MEASUREMENT_KEYS,
+        how="left",
+        validate="many_to_one",
+    )
+
+    existing = pd.to_numeric(merged["width_m"], errors="coerce")
+    from_summary = pd.to_numeric(merged["width_total_m"], errors="coerce")
+
+    conflict_mask = (
+        existing.notna()
+        & from_summary.notna()
+        & ((existing - from_summary).abs() > 1e-9)
+    )
+    if conflict_mask.any():
+        raise ValueError(
+            f"Points.width_m conflicts with Summary.width_total_m for {label}."
+        )
+
+    merged["width_m"] = existing.combine_first(from_summary)
+    merged = merged.drop(columns=["width_total_m"])
+
+    if merged["width_m"].isna().any():
+        missing = int(merged["width_m"].isna().sum())
+        raise ValueError(
+            f"Missing width_m for {missing} normalized Points rows in {label}."
+        )
+
+    return merged[points_df.columns]
+
+
+def _enrich_written_points_width(
+    *,
+    output_root: Path,
+    instrument: str,
+) -> None:
+    summary_path = output_root / instrument / "Summary.csv"
+    if not summary_path.exists():
+        raise FileNotFoundError(
+            f"Normalized Summary required for Points.width_m: {summary_path}"
+        )
+
+    summary_df = _read_csv(summary_path)
+
+    concat_path = output_root / instrument / "Points.csv"
+    points_dir = output_root / instrument / "Points"
+    if concat_path.exists():
+        point_paths = [concat_path]
+    elif points_dir.exists():
+        point_paths = sorted(points_dir.glob("*.csv"))
+    else:
+        point_paths = []
+
+    for points_path in point_paths:
+        points_df = _read_csv(points_path)
+        enriched = _enrich_points_with_summary_width(
+            points_df,
+            summary_df,
+            label=f"{instrument}/{points_path.name}",
+        )
+        _write_normalized_file(
+            enriched,
+            output_path=points_path,
+            write_policy="overwrite",
+        )
+
+
 def _enrich_nivus_points_from_sections(
     points_df: pd.DataFrame,
     sections_df: pd.DataFrame,
@@ -414,6 +539,8 @@ def normalize_database(config_path: Path) -> Path:
     failed: list[tuple[str, str]] = []
 
     for instrument in instruments:
+        points_written = False
+
         for group in groups:
             try:
                 registry.get(instrument, group)
@@ -437,6 +564,8 @@ def normalize_database(config_path: Path) -> Path:
 
                     if df_norm is not None:
                         normalized_count += 1
+                        if group == "Points":
+                            points_written = True
 
                         if group in concat_groups:
                             cross_instrument_frames[group].append(df_norm)
@@ -452,6 +581,8 @@ def normalize_database(config_path: Path) -> Path:
                     )
 
                     normalized_count += len(frames)
+                    if group == "Points" and frames:
+                        points_written = True
 
                     if group in concat_groups:
                         cross_instrument_frames[group].extend(frames)
@@ -464,6 +595,16 @@ def normalize_database(config_path: Path) -> Path:
             except Exception as exc:
                 failed.append((f"{instrument}/{group}", str(exc)))
                 print(f"ERROR normalizing {instrument}/{group}: {exc}")
+
+        if points_written:
+            try:
+                _enrich_written_points_width(
+                    output_root=output_root,
+                    instrument=instrument,
+                )
+            except Exception as exc:
+                failed.append((f"{instrument}/Points.width_m", str(exc)))
+                print(f"ERROR enriching {instrument}/Points.width_m: {exc}")
 
     for group, frames in cross_instrument_frames.items():
         _write_cross_instrument_concat(
