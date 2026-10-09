@@ -406,6 +406,104 @@ def _enrich_nivus_points_from_sections(
     return out
 
 
+def _enrich_nivus_points_by_measurement(
+    points_df: pd.DataFrame,
+    sections_df: pd.DataFrame,
+    *,
+    label: str,
+) -> pd.DataFrame:
+    """Enrich one or many Nivus measurements from matching Sections rows."""
+    if points_df.empty:
+        return points_df
+
+    missing_keys = [
+        col
+        for col in POINT_MEASUREMENT_KEYS
+        if col not in points_df.columns or col not in sections_df.columns
+    ]
+    if missing_keys:
+        raise ValueError(
+            f"Cannot match Nivus Points/Sections for {label}; "
+            f"missing measurement keys: {missing_keys}"
+        )
+
+    points_keys = _normalized_measurement_keys(points_df)
+    sections_keys = _normalized_measurement_keys(sections_df)
+    out = points_df.copy()
+
+    grouped = points_keys.groupby(
+        POINT_MEASUREMENT_KEYS,
+        dropna=False,
+        sort=False,
+    ).groups
+
+    for key, point_index in grouped.items():
+        key_values = key if isinstance(key, tuple) else (key,)
+        mask = pd.Series(True, index=sections_keys.index)
+
+        for col, value in zip(POINT_MEASUREMENT_KEYS, key_values):
+            if pd.isna(value):
+                mask &= sections_keys[col].isna()
+            else:
+                mask &= sections_keys[col].eq(value)
+
+        section_group = sections_df.loc[mask]
+        enriched = _enrich_nivus_points_from_sections(
+            points_df.loc[point_index],
+            section_group,
+            label=f"{label}:{key_values}",
+        )
+
+        for col in ["area_m2", "q_ls", "q_m3s", "percent_q"]:
+            if col in enriched.columns:
+                out.loc[point_index, col] = enriched[col]
+
+    percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
+    if percent.isna().any():
+        missing = int(percent.isna().sum())
+        raise ValueError(
+            f"Nivus percent_q enrichment incomplete for {label}: "
+            f"{missing} Points rows remain empty."
+        )
+
+    return out
+
+
+def _normalize_nivus_sections_for_points_input(
+    points_csv_path: Path,
+    *,
+    registry: NormalizationRegistry,
+) -> pd.DataFrame:
+    """Load normalized Nivus Sections from either concat or file-group layout."""
+    sections_file = points_csv_path.parent / "Sections.csv"
+    sections_dir = points_csv_path.parent / "Sections"
+
+    if sections_file.exists():
+        return _normalize_single_csv(
+            sections_file,
+            instrument="nivus",
+            group="Sections",
+            registry=registry,
+        )
+
+    if sections_dir.exists():
+        frames = [
+            _normalize_single_csv(
+                path,
+                instrument="nivus",
+                group="Sections",
+                registry=registry,
+            )
+            for path in sorted(sections_dir.glob("*.csv"))
+        ]
+        if frames:
+            return pd.concat(frames, ignore_index=True, sort=False)
+
+    raise FileNotFoundError(
+        f"Matching Nivus Sections input not found for Points: {points_csv_path}"
+    )
+
+
 def _normalize_nivus_points_with_sections(
     points_csv_path: Path,
     *,
@@ -434,7 +532,7 @@ def _normalize_nivus_points_with_sections(
         registry=registry,
     )
 
-    return _enrich_nivus_points_from_sections(
+    return _enrich_nivus_points_by_measurement(
         points_df,
         sections_df,
         label=points_csv_path.name,
@@ -453,12 +551,29 @@ def _normalize_concat_group(
     if not input_path.exists():
         return None
 
-    df_norm = _normalize_single_csv(
-        input_path,
-        instrument=instrument,
-        group=group,
-        registry=registry,
-    )
+    if instrument == "nivus" and group == "Points":
+        points_df = _normalize_single_csv(
+            input_path,
+            instrument=instrument,
+            group=group,
+            registry=registry,
+        )
+        sections_df = _normalize_nivus_sections_for_points_input(
+            input_path,
+            registry=registry,
+        )
+        df_norm = _enrich_nivus_points_by_measurement(
+            points_df,
+            sections_df,
+            label=input_path.name,
+        )
+    else:
+        df_norm = _normalize_single_csv(
+            input_path,
+            instrument=instrument,
+            group=group,
+            registry=registry,
+        )
 
     outpath = output_root / instrument / f"{group}.csv"
     _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
