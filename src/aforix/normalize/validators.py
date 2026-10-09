@@ -1,3 +1,5 @@
+from pandas.api.types import is_string_dtype
+
 def validate_required_columns(df, required):
     missing = [col for col in required if col not in df.columns]
 
@@ -9,7 +11,7 @@ def _all_values_meaningful(series):
     if series.empty:
         return False
 
-    if str(series.dtype) in {"object", "string"}:
+    if is_string_dtype(series.dtype) or str(series.dtype) == "object":
         cleaned = series.astype("string").str.strip()
         cleaned = cleaned.mask(cleaned == "")
         return bool(cleaned.notna().all())
