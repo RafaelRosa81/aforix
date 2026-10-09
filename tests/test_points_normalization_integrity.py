@@ -248,8 +248,9 @@ def test_written_width_enrichment_supports_summary_file_group(tmp_path):
     ).to_csv(points_dir / "7071_Points.csv", index=False)
 
     frames = _enrich_written_points_width(
-        output_root=output_root,
         instrument=instrument,
+        summary_paths=[summary_dir / "7071_Summary.csv"],
+        point_paths=[points_dir / "7071_Points.csv"],
     )
 
     written = pd.read_csv(points_dir / "7071_Points.csv")
@@ -299,8 +300,9 @@ def test_cross_instrument_points_concat_uses_enriched_frames(tmp_path):
     ).to_csv(instrument_dir / "Points.csv", index=False)
 
     enriched_frames = _enrich_written_points_width(
-        output_root=output_root,
         instrument=instrument,
+        summary_paths=[instrument_dir / "Summary.csv"],
+        point_paths=[instrument_dir / "Points.csv"],
     )
     _write_cross_instrument_concat(
         enriched_frames,
@@ -416,3 +418,68 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
     assert result["percent_q"].tolist() == pytest.approx([30.0, 70.0])
     assert result["q_ls"].tolist() == pytest.approx([30.0, 70.0])
     assert result["q_m3s"].tolist() == pytest.approx([0.03, 0.07])
+
+
+def test_width_enrichment_uses_only_current_run_point_paths(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument = "molinete"
+    summary_dir = output_root / instrument / "Summary"
+    points_dir = output_root / instrument / "Points"
+    summary_dir.mkdir(parents=True)
+    points_dir.mkdir(parents=True)
+
+    current_summary = summary_dir / "current_Summary.csv"
+    current_points = points_dir / "current_Points.csv"
+    stale_points = points_dir / "stale_Points.csv"
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.8,
+            }
+        ]
+    ).to_csv(current_summary, index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "width_m": pd.NA,
+            }
+        ]
+    ).to_csv(current_points, index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": instrument,
+                "station_id": "9999",
+                "measurement_date": "20250101",
+                "measurement_time": "000000",
+                "point_index": 1,
+                "width_m": 99.0,
+            }
+        ]
+    ).to_csv(stale_points, index=False)
+
+    frames = _enrich_written_points_width(
+        instrument=instrument,
+        summary_paths=[current_summary],
+        point_paths=[current_points],
+    )
+
+    assert len(frames) == 1
+    assert frames[0]["station_id"].tolist() == ["7071"]
+    assert frames[0]["width_m"].tolist() == pytest.approx([14.8])
+
+    stale = pd.read_csv(stale_points, dtype={"station_id": "string"})
+    assert stale["station_id"].tolist() == ["9999"]
+
