@@ -263,38 +263,20 @@ def _enrich_points_with_summary_width(
     return merged[points_df.columns]
 
 
-def _written_normalized_group_paths(
-    *,
-    output_root: Path,
-    instrument: str,
-    group: str,
-) -> list[Path]:
-    concat_path = output_root / instrument / f"{group}.csv"
-    group_dir = output_root / instrument / group
-
-    if concat_path.exists():
-        return [concat_path]
-
-    if group_dir.exists():
-        return sorted(group_dir.glob("*.csv"))
-
-    return []
-
-
 def _enrich_written_points_width(
     *,
-    output_root: Path,
     instrument: str,
+    summary_paths: list[Path],
+    point_paths: list[Path],
 ) -> list[pd.DataFrame]:
-    summary_paths = _written_normalized_group_paths(
-        output_root=output_root,
-        instrument=instrument,
-        group="Summary",
-    )
+    """Enrich only Points files produced by the current normalization run."""
     if not summary_paths:
         raise FileNotFoundError(
-            "Normalized Summary required for Points.width_m: "
-            f"{output_root / instrument}"
+            f"Normalized Summary required for Points.width_m: {instrument}"
+        )
+    if not point_paths:
+        raise FileNotFoundError(
+            f"Normalized Points required for Points.width_m: {instrument}"
         )
 
     summary_df = pd.concat(
@@ -303,14 +285,7 @@ def _enrich_written_points_width(
         sort=False,
     )
 
-    point_paths = _written_normalized_group_paths(
-        output_root=output_root,
-        instrument=instrument,
-        group="Points",
-    )
-
     enriched_frames: list[pd.DataFrame] = []
-
     for points_path in point_paths:
         points_df = _read_csv(points_path)
         enriched = _enrich_points_with_summary_width(
@@ -684,6 +659,10 @@ def normalize_database(config_path: Path) -> Path:
 
     for instrument in instruments:
         points_written = False
+        written_group_paths: dict[str, list[Path]] = {
+            group: []
+            for group in groups
+        }
 
         for group in groups:
             try:
@@ -708,6 +687,9 @@ def normalize_database(config_path: Path) -> Path:
 
                     if df_norm is not None:
                         normalized_count += 1
+                        written_group_paths[group] = [
+                            output_root / instrument / f"{group}.csv"
+                        ]
                         if group == "Points":
                             points_written = True
 
@@ -725,6 +707,10 @@ def normalize_database(config_path: Path) -> Path:
                     )
 
                     normalized_count += len(frames)
+                    written_group_paths[group] = [
+                        output_root / instrument / group / path.name
+                        for path in sorted(input_dir.glob("*.csv"))
+                    ]
                     if group == "Points" and frames:
                         points_written = True
 
@@ -743,8 +729,9 @@ def normalize_database(config_path: Path) -> Path:
         if points_written:
             try:
                 enriched_points_frames = _enrich_written_points_width(
-                    output_root=output_root,
                     instrument=instrument,
+                    summary_paths=written_group_paths.get("Summary", []),
+                    point_paths=written_group_paths.get("Points", []),
                 )
                 if "Points" in concat_groups:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
