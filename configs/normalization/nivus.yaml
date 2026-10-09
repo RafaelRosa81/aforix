@@ -326,6 +326,11 @@ tables:
           - pos [m]
         dtype: float
 
+      width_m:
+        sources:
+          - width_m
+        dtype: float
+
       depth_m:
         sources:
           - depth_m
@@ -351,11 +356,7 @@ tables:
         dtype: float
 
       percent_q:
-        sources:
-          - percent_q
-          - tq [%]
-          - atq [%]
-          - hq [%]
+        source: percent_q
         dtype: float
 
       temperature_c:
@@ -378,8 +379,12 @@ tables:
       - measurement_time
       - instrument
       - point_index
+      - point_label
       - distance_m
+      - width_m
       - depth_m
+      - velocity_mean_m_s
+      - percent_q
 
     transforms:
       - name: strip_strings
@@ -391,6 +396,9 @@ tables:
         - distance_m
         - depth_m
         - measured_depth_m
+      non_empty:
+        - point_label
+        - velocity_mean_m_s
 
 
   Sections:

@@ -174,6 +174,211 @@ def _numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+POINT_MEASUREMENT_KEYS = [
+    "instrument",
+    "station_id",
+    "measurement_date",
+    "measurement_time",
+]
+
+
+def _normalized_measurement_keys(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    for col in POINT_MEASUREMENT_KEYS:
+        if col in out.columns:
+            out[col] = out[col].astype("string").str.strip()
+    return out
+
+
+def _validate_measurement_keys_populated(
+    df: pd.DataFrame,
+    *,
+    label: str,
+    frame_name: str,
+) -> None:
+    invalid: dict[str, int] = {}
+
+    for col in POINT_MEASUREMENT_KEYS:
+        values = df[col].astype("string").str.strip()
+        bad = values.isna() | values.eq("")
+        if bad.any():
+            invalid[col] = int(bad.sum())
+
+    if invalid:
+        raise ValueError(
+            f"Blank measurement keys in {frame_name} for {label}: {invalid}"
+        )
+
+
+def _enrich_points_with_summary_width(
+    points_df: pd.DataFrame,
+    summary_df: pd.DataFrame,
+    *,
+    label: str,
+) -> pd.DataFrame:
+    """Repeat Summary.width_total_m on every normalized Points row."""
+    required_points = [*POINT_MEASUREMENT_KEYS, "width_m"]
+    required_summary = [*POINT_MEASUREMENT_KEYS, "width_total_m"]
+
+    missing_points = [col for col in required_points if col not in points_df.columns]
+    missing_summary = [col for col in required_summary if col not in summary_df.columns]
+    if missing_points or missing_summary:
+        raise ValueError(
+            f"Cannot enrich Points width for {label}. "
+            f"Missing point columns={missing_points}; "
+            f"missing summary columns={missing_summary}"
+        )
+
+    points = _normalized_measurement_keys(points_df)
+    summary = _normalized_measurement_keys(summary_df)
+
+    _validate_measurement_keys_populated(
+        points,
+        label=label,
+        frame_name="Points",
+    )
+    _validate_measurement_keys_populated(
+        summary,
+        label=label,
+        frame_name="Summary",
+    )
+
+    summary = summary[required_summary].copy()
+    summary["width_total_m"] = pd.to_numeric(summary["width_total_m"], errors="coerce")
+
+    conflicts = (
+        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False)["width_total_m"]
+        .nunique(dropna=True)
+    )
+    conflicting_keys = conflicts[conflicts > 1]
+    if not conflicting_keys.empty:
+        raise ValueError(
+            f"Conflicting Summary.width_total_m values for {label}: "
+            f"{list(conflicting_keys.index)}"
+        )
+
+    width_lookup = (
+        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False, as_index=False)["width_total_m"]
+        .first()
+    )
+
+    merged = points.merge(
+        width_lookup,
+        on=POINT_MEASUREMENT_KEYS,
+        how="left",
+        validate="many_to_one",
+    )
+
+    existing = pd.to_numeric(merged["width_m"], errors="coerce")
+    from_summary = pd.to_numeric(merged["width_total_m"], errors="coerce")
+
+    if from_summary.isna().any():
+        missing = int(from_summary.isna().sum())
+        raise ValueError(
+            f"Missing matching Summary.width_total_m for {missing} "
+            f"Points rows in {label}."
+        )
+
+    conflict_mask = (
+        existing.notna()
+        & from_summary.notna()
+        & ((existing - from_summary).abs() > 1e-9)
+    )
+    if conflict_mask.any():
+        raise ValueError(
+            f"Points.width_m conflicts with Summary.width_total_m for {label}."
+        )
+
+    merged["width_m"] = existing.combine_first(from_summary)
+    merged = merged.drop(columns=["width_total_m"])
+
+    if merged["width_m"].isna().any():
+        missing = int(merged["width_m"].isna().sum())
+        raise ValueError(
+            f"Missing width_m for {missing} normalized Points rows in {label}."
+        )
+
+    return merged[points_df.columns]
+
+
+def _normalize_summary_dependency_for_points(
+    *,
+    input_root: Path,
+    instrument: str,
+    registry: NormalizationRegistry,
+) -> pd.DataFrame:
+    """Normalize raw Summary only as a Points width dependency."""
+    summary_file = input_root / instrument / "Summary.csv"
+    summary_dir = input_root / instrument / "Summary"
+
+    if summary_file.exists():
+        return _normalize_single_csv(
+            summary_file,
+            instrument=instrument,
+            group="Summary",
+            registry=registry,
+        )
+
+    if summary_dir.exists():
+        frames = [
+            _normalize_single_csv(
+                path,
+                instrument=instrument,
+                group="Summary",
+                registry=registry,
+            )
+            for path in sorted(summary_dir.glob("*.csv"))
+        ]
+        if frames:
+            return pd.concat(frames, ignore_index=True, sort=False)
+
+    raise FileNotFoundError(
+        f"Raw Summary required for Points.width_m: {input_root / instrument}"
+    )
+
+
+def _enrich_written_points_width(
+    *,
+    instrument: str,
+    summary_paths: list[Path],
+    point_paths: list[Path],
+    summary_df: pd.DataFrame | None = None,
+) -> list[pd.DataFrame]:
+    """Enrich only Points files produced by the current normalization run."""
+    if summary_df is None:
+        if not summary_paths:
+            raise FileNotFoundError(
+                f"Normalized Summary required for Points.width_m: {instrument}"
+            )
+        summary_df = pd.concat(
+            [_read_csv(path) for path in summary_paths],
+            ignore_index=True,
+            sort=False,
+        )
+
+    if not point_paths:
+        raise FileNotFoundError(
+            f"Normalized Points required for Points.width_m: {instrument}"
+        )
+
+    enriched_frames: list[pd.DataFrame] = []
+    for points_path in point_paths:
+        points_df = _read_csv(points_path)
+        enriched = _enrich_points_with_summary_width(
+            points_df,
+            summary_df,
+            label=f"{instrument}/{points_path.name}",
+        )
+        _write_normalized_file(
+            enriched,
+            output_path=points_path,
+            write_policy="overwrite",
+        )
+        enriched_frames.append(enriched)
+
+    return enriched_frames
+
+
 def _enrich_nivus_points_from_sections(
     points_df: pd.DataFrame,
     sections_df: pd.DataFrame,
@@ -192,8 +397,10 @@ def _enrich_nivus_points_from_sections(
       middle point -> one corresponding section
     """
 
-    if points_df.empty or sections_df.empty:
+    if points_df.empty:
         return points_df
+    if sections_df.empty:
+        raise ValueError(f"No Nivus Sections rows available for {label}")
 
     required_point_cols = ["point_index"]
     required_section_cols = ["section_index", "width_m", "depth_m", "q_ls", "percent_q"]
@@ -202,12 +409,11 @@ def _enrich_nivus_points_from_sections(
     missing_sections = [col for col in required_section_cols if col not in sections_df.columns]
 
     if missing_points or missing_sections:
-        print(
-            f"WARNING: cannot enrich Nivus Points for {label}. "
+        raise ValueError(
+            f"Cannot enrich Nivus Points for {label}. "
             f"Missing point columns={missing_points}; "
             f"missing section columns={missing_sections}"
         )
-        return points_df
 
     out = points_df.copy()
     pts = out.copy()
@@ -223,26 +429,41 @@ def _enrich_nivus_points_from_sections(
     sec = sec.sort_values("section_index")
 
     if len(sec) != len(pts) + 2:
-        print(
-            f"WARNING: Nivus Points/Sections mismatch for {label}: "
+        raise ValueError(
+            f"Nivus Points/Sections mismatch for {label}: "
             f"points={len(pts)}, sections={len(sec)}. "
-            "Expected sections = points + 2. Enrichment skipped."
+            "Expected sections = points + 2."
         )
-        return out
 
     point_indices = pts.index.tolist()
 
     for i, row_idx in enumerate(point_indices):
-        if i == 0:
+        if len(point_indices) == 1:
+            assigned_sections = sec
+        elif i == 0:
             assigned_sections = sec.iloc[[0, 1]]
         elif i == len(point_indices) - 1:
             assigned_sections = sec.iloc[[-2, -1]]
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        area_m2 = (assigned_sections["width_m"] * assigned_sections["depth_m"]).sum()
-        q_ls = assigned_sections["q_ls"].sum()
-        percent_q = assigned_sections["percent_q"].sum()
+        hydraulic_cols = ["width_m", "depth_m", "q_ls", "percent_q"]
+        missing_cols = [
+            col
+            for col in hydraulic_cols
+            if assigned_sections[col].isna().any()
+        ]
+        if missing_cols:
+            raise ValueError(
+                f"Nivus Sections contain missing hydraulic values for {label}: "
+                f"{missing_cols}"
+            )
+
+        area_m2 = (
+            assigned_sections["width_m"] * assigned_sections["depth_m"]
+        ).sum(min_count=1)
+        q_ls = assigned_sections["q_ls"].sum(min_count=1)
+        percent_q = assigned_sections["percent_q"].sum(min_count=1)
 
         out.loc[row_idx, "area_m2"] = area_m2
         out.loc[row_idx, "q_ls"] = q_ls
@@ -250,6 +471,109 @@ def _enrich_nivus_points_from_sections(
         out.loc[row_idx, "percent_q"] = percent_q
 
     return out
+
+
+def _enrich_nivus_points_by_measurement(
+    points_df: pd.DataFrame,
+    sections_df: pd.DataFrame,
+    *,
+    label: str,
+) -> pd.DataFrame:
+    """Enrich one or many Nivus measurements from matching Sections rows."""
+    if points_df.empty:
+        return points_df
+
+    missing_keys = [
+        col
+        for col in POINT_MEASUREMENT_KEYS
+        if col not in points_df.columns or col not in sections_df.columns
+    ]
+    if missing_keys:
+        raise ValueError(
+            f"Cannot match Nivus Points/Sections for {label}; "
+            f"missing measurement keys: {missing_keys}"
+        )
+
+    points_keys = _normalized_measurement_keys(points_df)
+    sections_keys = _normalized_measurement_keys(sections_df)
+    out = points_df.copy()
+
+    grouped = points_keys.groupby(
+        POINT_MEASUREMENT_KEYS,
+        dropna=False,
+        sort=False,
+    ).groups
+
+    for key, point_index in grouped.items():
+        key_values = key if isinstance(key, tuple) else (key,)
+        mask = pd.Series(True, index=sections_keys.index)
+
+        for col, value in zip(POINT_MEASUREMENT_KEYS, key_values):
+            if pd.isna(value):
+                mask &= sections_keys[col].isna()
+            else:
+                mask &= sections_keys[col].eq(value)
+
+        section_group = sections_df.loc[mask]
+        if section_group.empty:
+            raise ValueError(
+                f"No matching Nivus Sections rows for {label}: {key_values}"
+            )
+
+        enriched = _enrich_nivus_points_from_sections(
+            points_df.loc[point_index],
+            section_group,
+            label=f"{label}:{key_values}",
+        )
+
+        for col in ["area_m2", "q_ls", "q_m3s", "percent_q"]:
+            if col in enriched.columns:
+                out.loc[point_index, col] = enriched[col]
+
+    percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
+    if percent.isna().any():
+        missing = int(percent.isna().sum())
+        raise ValueError(
+            f"Nivus percent_q enrichment incomplete for {label}: "
+            f"{missing} Points rows remain empty."
+        )
+
+    return out
+
+
+def _normalize_nivus_sections_for_points_input(
+    points_csv_path: Path,
+    *,
+    registry: NormalizationRegistry,
+) -> pd.DataFrame:
+    """Load normalized Nivus Sections from either concat or file-group layout."""
+    sections_file = points_csv_path.parent / "Sections.csv"
+    sections_dir = points_csv_path.parent / "Sections"
+
+    if sections_file.exists():
+        return _normalize_single_csv(
+            sections_file,
+            instrument="nivus",
+            group="Sections",
+            registry=registry,
+        )
+
+    if sections_dir.exists():
+        frames = [
+            _normalize_single_csv(
+                path,
+                instrument="nivus",
+                group="Sections",
+                registry=registry,
+            )
+            for path in sorted(sections_dir.glob("*.csv"))
+        ]
+        if frames:
+            return pd.concat(frames, ignore_index=True, sort=False)
+
+    raise FileNotFoundError(
+        f"Matching Nivus Sections input not found for Points: {points_csv_path}"
+    )
 
 
 def _normalize_nivus_points_with_sections(
@@ -267,11 +591,9 @@ def _normalize_nivus_points_with_sections(
     sections_csv_path = _matching_nivus_sections_path(points_csv_path)
 
     if not sections_csv_path.exists():
-        print(
-            f"WARNING: matching Nivus Sections file not found for Points file: "
-            f"{points_csv_path}"
+        raise FileNotFoundError(
+            f"Matching Nivus Sections file not found for Points: {points_csv_path}"
         )
-        return points_df
 
     sections_df = _normalize_single_csv(
         sections_csv_path,
@@ -280,11 +602,47 @@ def _normalize_nivus_points_with_sections(
         registry=registry,
     )
 
-    return _enrich_nivus_points_from_sections(
+    return _enrich_nivus_points_by_measurement(
         points_df,
         sections_df,
         label=points_csv_path.name,
     )
+
+
+def _prepare_group_output_layout(
+    *,
+    output_root: Path,
+    instrument: str,
+    group: str,
+    layout: str,
+    write_policy: str,
+) -> None:
+    """Remove stale outputs from the opposite normalized layout on overwrite."""
+    if write_policy != "overwrite":
+        return
+
+    concat_path = output_root / instrument / f"{group}.csv"
+    group_dir = output_root / instrument / group
+
+    if layout == "concat":
+        concat_path.unlink(missing_ok=True)
+        if group_dir.exists():
+            for stale_path in group_dir.glob("*.csv"):
+                stale_path.unlink()
+            try:
+                group_dir.rmdir()
+            except OSError:
+                pass
+        return
+
+    if layout == "file_group":
+        concat_path.unlink(missing_ok=True)
+        if group_dir.exists():
+            for stale_path in group_dir.glob("*.csv"):
+                stale_path.unlink()
+        return
+
+    raise ValueError(f"Unsupported normalized output layout: {layout}")
 
 
 def _normalize_concat_group(
@@ -299,11 +657,36 @@ def _normalize_concat_group(
     if not input_path.exists():
         return None
 
-    df_norm = _normalize_single_csv(
-        input_path,
+    if instrument == "nivus" and group == "Points":
+        points_df = _normalize_single_csv(
+            input_path,
+            instrument=instrument,
+            group=group,
+            registry=registry,
+        )
+        sections_df = _normalize_nivus_sections_for_points_input(
+            input_path,
+            registry=registry,
+        )
+        df_norm = _enrich_nivus_points_by_measurement(
+            points_df,
+            sections_df,
+            label=input_path.name,
+        )
+    else:
+        df_norm = _normalize_single_csv(
+            input_path,
+            instrument=instrument,
+            group=group,
+            registry=registry,
+        )
+
+    _prepare_group_output_layout(
+        output_root=output_root,
         instrument=instrument,
         group=group,
-        registry=registry,
+        layout="concat",
+        write_policy=write_policy,
     )
 
     outpath = output_root / instrument / f"{group}.csv"
@@ -325,9 +708,32 @@ def _normalize_file_group(
     if not input_dir.exists():
         return []
 
-    outputs: list[pd.DataFrame] = []
+    input_paths = sorted(input_dir.glob("*.csv"))
+    output_dir = output_root / instrument / group
+    target_paths = [output_dir / path.name for path in input_paths]
 
-    for csv_path in sorted(input_dir.glob("*.csv")):
+    _prepare_group_output_layout(
+        output_root=output_root,
+        instrument=instrument,
+        group=group,
+        layout="file_group",
+        write_policy=write_policy,
+    )
+
+    if write_policy == "fail_if_exists":
+        concat_path = output_root / instrument / f"{group}.csv"
+        existing = [path for path in target_paths if path.exists()]
+        if concat_path.exists():
+            existing.insert(0, concat_path)
+        if existing:
+            raise FileExistsError(
+                "Normalize output already exists and "
+                f"write_policy=fail_if_exists: {existing[0]}"
+            )
+
+    prepared: list[tuple[Path, pd.DataFrame]] = []
+
+    for csv_path in input_paths:
         if instrument == "nivus" and group == "Points":
             df_norm = _normalize_nivus_points_with_sections(
                 csv_path,
@@ -341,9 +747,16 @@ def _normalize_file_group(
                 registry=registry,
             )
 
-        outpath = output_root / instrument / group / csv_path.name
-        _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
+        prepared.append((csv_path, df_norm))
 
+    outputs: list[pd.DataFrame] = []
+    for csv_path, df_norm in prepared:
+        outpath = output_dir / csv_path.name
+        _write_normalized_file(
+            df_norm,
+            output_path=outpath,
+            write_policy="overwrite" if write_policy == "overwrite" else write_policy,
+        )
         print(f"Normalized: {csv_path} -> {outpath}")
         outputs.append(df_norm)
 
@@ -368,6 +781,36 @@ def _write_cross_instrument_concat(
     print(f"Concatenated normalized group: {group} -> {outpath}")
 
 
+def _clear_stale_concat_outputs(
+    *,
+    output_root: Path,
+    concat_groups: set[str],
+) -> None:
+    """Remove prior root concatenations before an overwrite rebuild."""
+    for group in concat_groups:
+        path = output_root / f"{group}.csv"
+        if path.exists():
+            path.unlink()
+
+
+def _raise_width_enrichment_failure(
+    *,
+    instrument: str,
+    point_paths: list[Path],
+    output_root: Path,
+    exc: Exception,
+) -> None:
+    """Remove invalid Points outputs and fail normalization visibly."""
+    for path in point_paths:
+        path.unlink(missing_ok=True)
+
+    (output_root / "Points.csv").unlink(missing_ok=True)
+
+    raise RuntimeError(
+        f"Failed enriching {instrument}/Points.width_m: {exc}"
+    ) from exc
+
+
 def normalize_database(config_path: Path) -> Path:
     config_path = Path(config_path).resolve()
     cfg = load_config(config_path)
@@ -387,12 +830,19 @@ def normalize_database(config_path: Path) -> Path:
     instruments = _get_normalize_sources(cfg)
     groups = _get_normalize_groups(cfg)
     concat_groups = _get_concat_groups(cfg)
+    active_concat_groups = concat_groups.intersection(groups)
     write_policy = _get_write_policy(cfg)
 
     if not input_root.exists():
         raise FileNotFoundError(f"Normalize input directory not found: {input_root}")
 
     output_root.mkdir(parents=True, exist_ok=True)
+
+    if write_policy == "overwrite":
+        _clear_stale_concat_outputs(
+            output_root=output_root,
+            concat_groups=active_concat_groups,
+        )
 
     registry = NormalizationRegistry(registry_dir)
 
@@ -407,13 +857,19 @@ def normalize_database(config_path: Path) -> Path:
 
     cross_instrument_frames: dict[str, list[pd.DataFrame]] = {
         group: []
-        for group in concat_groups
+        for group in active_concat_groups
     }
 
     normalized_count = 0
     failed: list[tuple[str, str]] = []
 
     for instrument in instruments:
+        points_written = False
+        written_group_paths: dict[str, list[Path]] = {
+            group: []
+            for group in groups
+        }
+
         for group in groups:
             try:
                 registry.get(instrument, group)
@@ -437,8 +893,13 @@ def normalize_database(config_path: Path) -> Path:
 
                     if df_norm is not None:
                         normalized_count += 1
+                        written_group_paths[group] = [
+                            output_root / instrument / f"{group}.csv"
+                        ]
+                        if group == "Points":
+                            points_written = True
 
-                        if group in concat_groups:
+                        if group in active_concat_groups and group != "Points":
                             cross_instrument_frames[group].append(df_norm)
 
                 elif input_dir.exists():
@@ -452,8 +913,14 @@ def normalize_database(config_path: Path) -> Path:
                     )
 
                     normalized_count += len(frames)
+                    written_group_paths[group] = [
+                        output_root / instrument / group / path.name
+                        for path in sorted(input_dir.glob("*.csv"))
+                    ]
+                    if group == "Points" and frames:
+                        points_written = True
 
-                    if group in concat_groups:
+                    if group in active_concat_groups and group != "Points":
                         cross_instrument_frames[group].extend(frames)
 
                 else:
@@ -464,6 +931,33 @@ def normalize_database(config_path: Path) -> Path:
             except Exception as exc:
                 failed.append((f"{instrument}/{group}", str(exc)))
                 print(f"ERROR normalizing {instrument}/{group}: {exc}")
+
+        if points_written:
+            try:
+                summary_paths = written_group_paths.get("Summary", [])
+                summary_dependency_df = None
+                if not summary_paths:
+                    summary_dependency_df = _normalize_summary_dependency_for_points(
+                        input_root=input_root,
+                        instrument=instrument,
+                        registry=registry,
+                    )
+
+                enriched_points_frames = _enrich_written_points_width(
+                    instrument=instrument,
+                    summary_paths=summary_paths,
+                    point_paths=written_group_paths.get("Points", []),
+                    summary_df=summary_dependency_df,
+                )
+                if "Points" in active_concat_groups:
+                    cross_instrument_frames["Points"].extend(enriched_points_frames)
+            except Exception as exc:
+                _raise_width_enrichment_failure(
+                    instrument=instrument,
+                    point_paths=written_group_paths.get("Points", []),
+                    output_root=output_root,
+                    exc=exc,
+                )
 
     for group, frames in cross_instrument_frames.items():
         _write_cross_instrument_concat(
@@ -479,6 +973,8 @@ def normalize_database(config_path: Path) -> Path:
         print("Failed normalize groups:")
         for label, error in failed:
             print(f" - {label}: {error}")
+        details = "; ".join(f"{label}: {error}" for label, error in failed)
+        raise RuntimeError(f"Normalization failed: {details}")
 
     print(f"Run created: {run_dir}")
     return run_dir

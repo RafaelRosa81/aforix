@@ -54,11 +54,15 @@ NORMALIZED_POINTS_REQUIRED = [
     "source_run_dir",
     "run_id",
     "point_index",
+    "point_label",
     "distance_m",
+    "width_m",
     "depth_m",
+    "velocity_mean_m_s",
     "area_m2",
     "q_m3s",
     "q_ls",
+    "percent_q",
 ]
 
 KEY_COLUMNS = ["instrument", "station_id", "measurement_date", "measurement_time"]
@@ -85,6 +89,13 @@ DEFAULT_ABS_TOL = 1e-9
 DEFAULT_Q_M3S_ABS_TOL = 5e-4
 DEFAULT_Q_LS_ABS_TOL = 0.5
 DEFAULT_AREA_M2_ABS_TOL = 1e-3
+DEFAULT_PERCENT_Q_ABS_TOL = 0.1
+CRITICAL_POINTS_NON_EMPTY = [
+    "point_label",
+    "velocity_mean_m_s",
+    "percent_q",
+    "width_m",
+]
 
 
 @dataclass(frozen=True)
@@ -203,6 +214,8 @@ def _abs_tolerance_for_check(check_name: str) -> float:
         return DEFAULT_Q_LS_ABS_TOL
     if check_name == "area_m2":
         return DEFAULT_AREA_M2_ABS_TOL
+    if check_name == "percent_q":
+        return DEFAULT_PERCENT_Q_ABS_TOL
     return DEFAULT_ABS_TOL
 
 
@@ -346,10 +359,20 @@ def _relative_diff_pct(observed: float, expected: float, *, abs_tol: float) -> f
 
 
 def _load_normalized_summary(normalized_root: Path, instrument: str) -> pd.DataFrame | None:
-    path = normalized_root / instrument / "Summary.csv"
-    if not path.exists():
+    concat_path = normalized_root / instrument / "Summary.csv"
+    group_dir = normalized_root / instrument / "Summary"
+
+    frames: list[pd.DataFrame] = []
+    if concat_path.exists():
+        frames.append(_read_csv(concat_path))
+    elif group_dir.exists():
+        for path in sorted(group_dir.glob("*.csv")):
+            frames.append(_read_csv(path))
+
+    if not frames:
         return None
-    df = _read_csv(path)
+
+    df = pd.concat(frames, ignore_index=True, sort=False)
     if "instrument" not in df.columns:
         df["instrument"] = instrument
     return df
@@ -429,6 +452,9 @@ def audit_hydraulic_consistency(
         if "area_m2" in points.columns:
             points["area_m2_num"] = _to_numeric(points["area_m2"])
             point_aggs["points_area_m2_sum"] = ("area_m2_num", _sum_preserve_all_missing)
+        if "percent_q" in points.columns:
+            points["percent_q_num"] = _to_numeric(points["percent_q"])
+            point_aggs["points_percent_q_sum"] = ("percent_q_num", _sum_preserve_all_missing)
 
         if not point_aggs:
             rows.append(
@@ -499,8 +525,224 @@ def audit_hydraulic_consistency(
                 )
                 any_check = True
 
+            if "points_percent_q_sum" in merged.columns:
+                points_val = pd.to_numeric(
+                    pd.Series([row.get("points_percent_q_sum")]),
+                    errors="coerce",
+                ).iloc[0]
+                expected = 100.0
+                check_abs_tol = max(abs_tol, _abs_tolerance_for_check("percent_q"))
+                if pd.isna(points_val):
+                    status = "missing_values"
+                    diff_abs = pd.NA
+                    diff_pct = pd.NA
+                else:
+                    diff_abs = float(expected - points_val)
+                    diff_pct = _relative_diff_pct(
+                        float(points_val),
+                        expected,
+                        abs_tol=check_abs_tol,
+                    )
+                    status = (
+                        "ok"
+                        if abs(diff_abs) <= check_abs_tol or diff_pct <= tolerance_pct
+                        else "mismatch"
+                    )
+
+                rows.append(
+                    {
+                        **base,
+                        "check": "percent_q",
+                        "summary_column": "expected_100_percent",
+                        "points_column": "points_percent_q_sum",
+                        "summary_value": expected,
+                        "points_sum": points_val,
+                        "diff_abs_summary_minus_points": diff_abs,
+                        "diff_pct": diff_pct,
+                        "tolerance_pct": tolerance_pct,
+                        "abs_tolerance": check_abs_tol,
+                        "status": status,
+                    }
+                )
+                any_check = True
+
             if not any_check:
                 rows.append({**base, "status": "no_comparable_columns"})
+
+    return pd.DataFrame(rows)
+
+
+def audit_points_completeness(normalized_root: Path) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+
+    if not normalized_root.exists():
+        return _empty_report()
+
+    instruments = sorted(
+        p.name
+        for p in normalized_root.iterdir()
+        if p.is_dir() and not p.name.startswith("_")
+    )
+
+    for instrument in instruments:
+        points = _load_normalized_points(normalized_root, instrument)
+        if points is None:
+            continue
+
+        for col in CRITICAL_POINTS_NON_EMPTY:
+            if col not in points.columns:
+                rows.append(
+                    {
+                        "instrument": instrument,
+                        "column": col,
+                        "n_rows": len(points),
+                        "n_populated": 0,
+                        "status": "missing_column",
+                    }
+                )
+                continue
+
+            values = points[col].astype("string").str.strip()
+            values = values.mask(values == "")
+            n_populated = int(values.notna().sum())
+            n_rows = len(points)
+            if n_populated == 0:
+                status = "all_missing"
+            elif n_populated < n_rows:
+                status = "incomplete"
+            else:
+                status = "ok"
+
+            rows.append(
+                {
+                    "instrument": instrument,
+                    "column": col,
+                    "n_rows": n_rows,
+                    "n_populated": n_populated,
+                    "n_missing": n_rows - n_populated,
+                    "status": status,
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def audit_points_width_consistency(
+    normalized_root: Path,
+    *,
+    abs_tol: float = DEFAULT_ABS_TOL,
+) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+
+    if not normalized_root.exists():
+        return _empty_report()
+
+    instruments = sorted(
+        p.name
+        for p in normalized_root.iterdir()
+        if p.is_dir() and not p.name.startswith("_")
+    )
+
+    for instrument in instruments:
+        summary = _load_normalized_summary(normalized_root, instrument)
+        points = _load_normalized_points(normalized_root, instrument)
+
+        if summary is None or points is None:
+            continue
+
+        if "width_total_m" not in summary.columns or "width_m" not in points.columns:
+            rows.append(
+                {
+                    "instrument": instrument,
+                    "status": "missing_width_columns",
+                }
+            )
+            continue
+
+        missing_summary_keys = [col for col in KEY_COLUMNS if col not in summary.columns]
+        missing_points_keys = [col for col in KEY_COLUMNS if col not in points.columns]
+        if missing_summary_keys or missing_points_keys:
+            rows.append(
+                {
+                    "instrument": instrument,
+                    "status": "missing_key_columns",
+                    "missing_summary_keys": ";".join(missing_summary_keys),
+                    "missing_points_keys": ";".join(missing_points_keys),
+                }
+            )
+            continue
+
+        summary = summary.copy()
+        points = points.copy()
+        for col in KEY_COLUMNS:
+            summary[col] = summary[col].astype("string").str.strip()
+            points[col] = points[col].astype("string").str.strip()
+
+        summary["width_total_m_num"] = _to_numeric(summary["width_total_m"])
+        points["width_m_num"] = _to_numeric(points["width_m"])
+
+        summary_width = (
+            summary.groupby(KEY_COLUMNS, dropna=False, as_index=False)
+            .agg(
+                summary_width_total_m=("width_total_m_num", "first"),
+                summary_width_unique=(
+                    "width_total_m_num",
+                    lambda values: values.dropna().nunique(),
+                ),
+            )
+        )
+        grouped = (
+            points.groupby(KEY_COLUMNS, dropna=False)["width_m_num"]
+            .agg(
+                points_rows="size",
+                points_width_non_null="count",
+                points_width_unique=lambda x: x.dropna().nunique(),
+                points_width_m="first",
+            )
+            .reset_index()
+        )
+        merged_width = summary_width.merge(grouped, on=KEY_COLUMNS, how="outer")
+
+        for _, row in merged_width.iterrows():
+            summary_val = row.get("summary_width_total_m")
+            summary_unique = row.get("summary_width_unique")
+            points_val = row.get("points_width_m")
+            rows_count = row.get("points_rows")
+            non_null = row.get("points_width_non_null")
+            unique = row.get("points_width_unique")
+
+            if pd.notna(summary_unique) and summary_unique > 1:
+                status = "conflicting_summary_widths"
+            elif pd.isna(rows_count):
+                status = "missing_points"
+            elif pd.isna(summary_val):
+                status = "missing_summary_width"
+            elif non_null != rows_count:
+                status = "missing_point_width"
+            elif unique != 1:
+                status = "multiple_point_widths"
+            elif pd.isna(points_val):
+                status = "missing_point_width"
+            elif abs(float(points_val) - float(summary_val)) > abs_tol:
+                status = "width_mismatch"
+            else:
+                status = "ok"
+
+            rows.append(
+                {
+                    "instrument": instrument,
+                    "station_id": row.get("station_id"),
+                    "measurement_date": row.get("measurement_date"),
+                    "measurement_time": row.get("measurement_time"),
+                    "summary_width_total_m": summary_val,
+                    "summary_width_unique": summary_unique,
+                    "points_width_m": points_val,
+                    "points_rows": rows_count,
+                    "points_width_non_null": non_null,
+                    "points_width_unique": unique,
+                    "status": status,
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -660,6 +902,11 @@ def run_audit(
         "raw_column_report": audit_columns(raw_tables),
         "normalized_column_report": audit_columns(normalized_tables),
         "duplicates_report": audit_duplicates(normalized_root),
+        "points_completeness_report": audit_points_completeness(normalized_root),
+        "points_width_consistency_report": audit_points_width_consistency(
+            normalized_root,
+            abs_tol=abs_tol,
+        ),
         "hydraulic_consistency_report": audit_hydraulic_consistency(
             normalized_root,
             tolerance_pct=tolerance_pct,

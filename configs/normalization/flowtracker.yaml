@@ -261,6 +261,10 @@ tables:
           - distance_m
           - location_m
         dtype: float
+      width_m:
+        sources:
+          - width_m
+        dtype: float
       depth_m:
         source: depth_m
         dtype: float
@@ -273,8 +277,8 @@ tables:
       velocity_mean_m_s:
         sources:
           - velocity_mean_m_s
-          - velocity_m_s
           - mean_velocity_m_s
+          - velocity_m_s
         dtype: float
       area_m2:
         source: area_m2
@@ -307,8 +311,12 @@ tables:
       - measurement_date
       - measurement_time
       - instrument
+      - point_label
       - distance_m
+      - width_m
       - depth_m
+      - velocity_mean_m_s
+      - percent_q
 
     transforms:
       - name: strip_strings
@@ -319,3 +327,7 @@ tables:
       non_negative:
         - depth_m
         - area_m2
+      non_empty:
+        - point_label
+        - velocity_mean_m_s
+        - percent_q
