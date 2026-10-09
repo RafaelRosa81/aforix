@@ -18,7 +18,11 @@ def _load_audit_module():
     return module
 
 
-audit_duplicates = _load_audit_module().audit_duplicates
+audit_module = _load_audit_module()
+audit_duplicates = audit_module.audit_duplicates
+audit_points_completeness = audit_module.audit_points_completeness
+audit_points_width_consistency = audit_module.audit_points_width_consistency
+audit_hydraulic_consistency = audit_module.audit_hydraulic_consistency
 
 
 MEASUREMENT = {
@@ -119,3 +123,108 @@ def test_audit_duplicates_percent_depth_key_is_instrument_name_agnostic(tmp_path
     assert report.loc[0, "n_duplicated_rows"] == 0
     assert "percent_depth" in report.loc[0, "key_columns_used"].split(";")
 
+
+def test_audit_points_completeness_flags_all_missing_velocity(tmp_path):
+    points_dir = tmp_path / "normalized" / "molinete" / "Points"
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {
+                **MEASUREMENT,
+                "instrument": "molinete",
+                "point_label": "1",
+                "velocity_mean_m_s": None,
+                "percent_q": "40",
+                "width_m": "14.8",
+            },
+            {
+                **MEASUREMENT,
+                "instrument": "molinete",
+                "point_label": "2",
+                "velocity_mean_m_s": None,
+                "percent_q": "60",
+                "width_m": "14.8",
+            },
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_points_completeness(tmp_path / "normalized")
+    row = report[
+        (report["instrument"] == "molinete")
+        & (report["column"] == "velocity_mean_m_s")
+    ].iloc[0]
+
+    assert row["status"] == "all_missing"
+    assert row["n_populated"] == 0
+
+
+def test_audit_points_width_requires_same_summary_width_on_every_row(tmp_path):
+    root = tmp_path / "normalized"
+    instrument_dir = root / "flowtracker"
+    points_dir = instrument_dir / "Points"
+    points_dir.mkdir(parents=True)
+
+    summary = {
+        **MEASUREMENT,
+        "width_total_m": "14.7",
+    }
+    pd.DataFrame([summary]).to_csv(instrument_dir / "Summary.csv", index=False)
+    pd.DataFrame(
+        [
+            {**MEASUREMENT, "width_m": "14.7"},
+            {**MEASUREMENT, "width_m": "14.6"},
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_points_width_consistency(root)
+    assert len(report) == 1
+    assert report.loc[0, "status"] == "multiple_point_widths"
+
+
+def test_audit_hydraulic_consistency_checks_percent_q_sums_to_100(tmp_path):
+    root = tmp_path / "normalized"
+    instrument_dir = root / "flowtracker"
+    points_dir = instrument_dir / "Points"
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {
+                **MEASUREMENT,
+                "q_total_m3s": "0.03",
+                "q_total_ls": "30",
+                "area_total_m2": "1.0",
+            }
+        ]
+    ).to_csv(instrument_dir / "Summary.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                **MEASUREMENT,
+                "point_index": "1",
+                "distance_m": "1",
+                "depth_m": "1",
+                "area_m2": "0.5",
+                "q_m3s": "0.01",
+                "q_ls": "10",
+                "percent_q": "40",
+            },
+            {
+                **MEASUREMENT,
+                "point_index": "2",
+                "distance_m": "2",
+                "depth_m": "1",
+                "area_m2": "0.5",
+                "q_m3s": "0.02",
+                "q_ls": "20",
+                "percent_q": "50",
+            },
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_hydraulic_consistency(root)
+    percent_row = report[report["check"] == "percent_q"].iloc[0]
+
+    assert percent_row["points_sum"] == 90.0
+    assert percent_row["status"] == "mismatch"
