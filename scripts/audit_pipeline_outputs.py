@@ -359,10 +359,20 @@ def _relative_diff_pct(observed: float, expected: float, *, abs_tol: float) -> f
 
 
 def _load_normalized_summary(normalized_root: Path, instrument: str) -> pd.DataFrame | None:
-    path = normalized_root / instrument / "Summary.csv"
-    if not path.exists():
+    concat_path = normalized_root / instrument / "Summary.csv"
+    group_dir = normalized_root / instrument / "Summary"
+
+    frames: list[pd.DataFrame] = []
+    if concat_path.exists():
+        frames.append(_read_csv(concat_path))
+    elif group_dir.exists():
+        for path in sorted(group_dir.glob("*.csv")):
+            frames.append(_read_csv(path))
+
+    if not frames:
         return None
-    df = _read_csv(path)
+
+    df = pd.concat(frames, ignore_index=True, sort=False)
     if "instrument" not in df.columns:
         df["instrument"] = instrument
     return df
