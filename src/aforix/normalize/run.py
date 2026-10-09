@@ -263,27 +263,53 @@ def _enrich_points_with_summary_width(
     return merged[points_df.columns]
 
 
+def _written_normalized_group_paths(
+    *,
+    output_root: Path,
+    instrument: str,
+    group: str,
+) -> list[Path]:
+    concat_path = output_root / instrument / f"{group}.csv"
+    group_dir = output_root / instrument / group
+
+    if concat_path.exists():
+        return [concat_path]
+
+    if group_dir.exists():
+        return sorted(group_dir.glob("*.csv"))
+
+    return []
+
+
 def _enrich_written_points_width(
     *,
     output_root: Path,
     instrument: str,
-) -> None:
-    summary_path = output_root / instrument / "Summary.csv"
-    if not summary_path.exists():
+) -> list[pd.DataFrame]:
+    summary_paths = _written_normalized_group_paths(
+        output_root=output_root,
+        instrument=instrument,
+        group="Summary",
+    )
+    if not summary_paths:
         raise FileNotFoundError(
-            f"Normalized Summary required for Points.width_m: {summary_path}"
+            "Normalized Summary required for Points.width_m: "
+            f"{output_root / instrument}"
         )
 
-    summary_df = _read_csv(summary_path)
+    summary_df = pd.concat(
+        [_read_csv(path) for path in summary_paths],
+        ignore_index=True,
+        sort=False,
+    )
 
-    concat_path = output_root / instrument / "Points.csv"
-    points_dir = output_root / instrument / "Points"
-    if concat_path.exists():
-        point_paths = [concat_path]
-    elif points_dir.exists():
-        point_paths = sorted(points_dir.glob("*.csv"))
-    else:
-        point_paths = []
+    point_paths = _written_normalized_group_paths(
+        output_root=output_root,
+        instrument=instrument,
+        group="Points",
+    )
+
+    enriched_frames: list[pd.DataFrame] = []
 
     for points_path in point_paths:
         points_df = _read_csv(points_path)
@@ -297,6 +323,9 @@ def _enrich_written_points_width(
             output_path=points_path,
             write_policy="overwrite",
         )
+        enriched_frames.append(enriched)
+
+    return enriched_frames
 
 
 def _enrich_nivus_points_from_sections(
@@ -567,7 +596,7 @@ def normalize_database(config_path: Path) -> Path:
                         if group == "Points":
                             points_written = True
 
-                        if group in concat_groups:
+                        if group in concat_groups and group != "Points":
                             cross_instrument_frames[group].append(df_norm)
 
                 elif input_dir.exists():
@@ -584,7 +613,7 @@ def normalize_database(config_path: Path) -> Path:
                     if group == "Points" and frames:
                         points_written = True
 
-                    if group in concat_groups:
+                    if group in concat_groups and group != "Points":
                         cross_instrument_frames[group].extend(frames)
 
                 else:
@@ -598,10 +627,12 @@ def normalize_database(config_path: Path) -> Path:
 
         if points_written:
             try:
-                _enrich_written_points_width(
+                enriched_points_frames = _enrich_written_points_width(
                     output_root=output_root,
                     instrument=instrument,
                 )
+                if "Points" in concat_groups:
+                    cross_instrument_frames["Points"].extend(enriched_points_frames)
             except Exception as exc:
                 failed.append((f"{instrument}/Points.width_m", str(exc)))
                 print(f"ERROR enriching {instrument}/Points.width_m: {exc}")
