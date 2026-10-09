@@ -17,6 +17,7 @@ from aforix.normalize.run import (
     _normalize_concat_group,
     _normalize_file_group,
     _normalize_nivus_points_with_sections,
+    _prepare_group_output_layout,
     normalize_database,
     _raise_width_enrichment_failure,
     _write_cross_instrument_concat,
@@ -665,5 +666,81 @@ def test_nivus_enrichment_rejects_missing_section_hydraulic_values():
             points,
             sections,
             label="fixture",
+        )
+
+
+def test_file_group_overwrite_removes_stale_concat_layout(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument_dir = output_root / "flowtracker"
+    group_dir = instrument_dir / "Points"
+    instrument_dir.mkdir(parents=True)
+    group_dir.mkdir()
+
+    stale_concat = instrument_dir / "Points.csv"
+    stale_concat.write_text("stale\n", encoding="utf-8")
+    (group_dir / "old.csv").write_text("old\n", encoding="utf-8")
+
+    _prepare_group_output_layout(
+        output_root=output_root,
+        instrument="flowtracker",
+        group="Points",
+        layout="file_group",
+        write_policy="overwrite",
+    )
+
+    assert not stale_concat.exists()
+    assert list(group_dir.glob("*.csv")) == []
+
+
+def test_concat_overwrite_removes_stale_file_group_layout(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument_dir = output_root / "flowtracker"
+    group_dir = instrument_dir / "Points"
+    group_dir.mkdir(parents=True)
+
+    stale_group_file = group_dir / "old.csv"
+    stale_group_file.write_text("old\n", encoding="utf-8")
+
+    _prepare_group_output_layout(
+        output_root=output_root,
+        instrument="flowtracker",
+        group="Points",
+        layout="concat",
+        write_policy="overwrite",
+    )
+
+    assert not stale_group_file.exists()
+    assert not group_dir.exists()
+
+
+def test_points_width_requires_non_null_matching_summary_even_if_already_present():
+    points = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_m": 14.7,
+            }
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "9999",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    with pytest.raises(ValueError, match="Missing matching Summary.width_total_m"):
+        _enrich_points_with_summary_width(
+            points,
+            summary,
+            label="flowtracker/fixture",
         )
 

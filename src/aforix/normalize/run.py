@@ -241,6 +241,13 @@ def _enrich_points_with_summary_width(
     existing = pd.to_numeric(merged["width_m"], errors="coerce")
     from_summary = pd.to_numeric(merged["width_total_m"], errors="coerce")
 
+    if from_summary.isna().any():
+        missing = int(from_summary.isna().sum())
+        raise ValueError(
+            f"Missing matching Summary.width_total_m for {missing} "
+            f"Points rows in {label}."
+        )
+
     conflict_mask = (
         existing.notna()
         & from_summary.notna()
@@ -524,6 +531,42 @@ def _normalize_nivus_points_with_sections(
     )
 
 
+def _prepare_group_output_layout(
+    *,
+    output_root: Path,
+    instrument: str,
+    group: str,
+    layout: str,
+    write_policy: str,
+) -> None:
+    """Remove stale outputs from the opposite normalized layout on overwrite."""
+    if write_policy != "overwrite":
+        return
+
+    concat_path = output_root / instrument / f"{group}.csv"
+    group_dir = output_root / instrument / group
+
+    if layout == "concat":
+        concat_path.unlink(missing_ok=True)
+        if group_dir.exists():
+            for stale_path in group_dir.glob("*.csv"):
+                stale_path.unlink()
+            try:
+                group_dir.rmdir()
+            except OSError:
+                pass
+        return
+
+    if layout == "file_group":
+        concat_path.unlink(missing_ok=True)
+        if group_dir.exists():
+            for stale_path in group_dir.glob("*.csv"):
+                stale_path.unlink()
+        return
+
+    raise ValueError(f"Unsupported normalized output layout: {layout}")
+
+
 def _normalize_concat_group(
     input_path: Path,
     *,
@@ -560,6 +603,14 @@ def _normalize_concat_group(
             registry=registry,
         )
 
+    _prepare_group_output_layout(
+        output_root=output_root,
+        instrument=instrument,
+        group=group,
+        layout="concat",
+        write_policy=write_policy,
+    )
+
     outpath = output_root / instrument / f"{group}.csv"
     _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
 
@@ -583,12 +634,19 @@ def _normalize_file_group(
     output_dir = output_root / instrument / group
     target_paths = [output_dir / path.name for path in input_paths]
 
-    if write_policy == "overwrite" and output_dir.exists():
-        for stale_path in output_dir.glob("*.csv"):
-            stale_path.unlink()
+    _prepare_group_output_layout(
+        output_root=output_root,
+        instrument=instrument,
+        group=group,
+        layout="file_group",
+        write_policy=write_policy,
+    )
 
     if write_policy == "fail_if_exists":
+        concat_path = output_root / instrument / f"{group}.csv"
         existing = [path for path in target_paths if path.exists()]
+        if concat_path.exists():
+            existing.insert(0, concat_path)
         if existing:
             raise FileExistsError(
                 "Normalize output already exists and "
