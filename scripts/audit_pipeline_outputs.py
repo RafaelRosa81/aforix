@@ -605,13 +605,22 @@ def audit_points_completeness(normalized_root: Path) -> pd.DataFrame:
             values = points[col].astype("string").str.strip()
             values = values.mask(values == "")
             n_populated = int(values.notna().sum())
+            n_rows = len(points)
+            if n_populated == 0:
+                status = "all_missing"
+            elif n_populated < n_rows:
+                status = "incomplete"
+            else:
+                status = "ok"
+
             rows.append(
                 {
                     "instrument": instrument,
                     "column": col,
-                    "n_rows": len(points),
+                    "n_rows": n_rows,
                     "n_populated": n_populated,
-                    "status": "all_missing" if n_populated == 0 else "ok",
+                    "n_missing": n_rows - n_populated,
+                    "status": status,
                 }
             )
 
@@ -646,6 +655,19 @@ def audit_points_width_consistency(
                 {
                     "instrument": instrument,
                     "status": "missing_width_columns",
+                }
+            )
+            continue
+
+        missing_summary_keys = [col for col in KEY_COLUMNS if col not in summary.columns]
+        missing_points_keys = [col for col in KEY_COLUMNS if col not in points.columns]
+        if missing_summary_keys or missing_points_keys:
+            rows.append(
+                {
+                    "instrument": instrument,
+                    "status": "missing_key_columns",
+                    "missing_summary_keys": ";".join(missing_summary_keys),
+                    "missing_points_keys": ";".join(missing_points_keys),
                 }
             )
             continue
