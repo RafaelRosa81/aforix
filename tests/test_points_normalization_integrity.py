@@ -17,6 +17,7 @@ from aforix.normalize.run import (
     _normalize_concat_group,
     _normalize_file_group,
     _normalize_nivus_points_with_sections,
+    _normalize_summary_dependency_for_points,
     _prepare_group_output_layout,
     normalize_database,
     _raise_width_enrichment_failure,
@@ -742,5 +743,137 @@ def test_points_width_requires_non_null_matching_summary_even_if_already_present
             points,
             summary,
             label="flowtracker/fixture",
+        )
+
+
+def test_points_only_can_load_summary_as_raw_dependency(tmp_path, monkeypatch):
+    input_root = tmp_path / "raw_canonical"
+    instrument_dir = input_root / "flowtracker"
+    instrument_dir.mkdir(parents=True)
+    summary_path = instrument_dir / "Summary.csv"
+    summary_path.write_text("placeholder\n", encoding="utf-8")
+
+    expected = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    def fake_normalize(path, *, instrument, group, registry):
+        assert path == summary_path
+        assert instrument == "flowtracker"
+        assert group == "Summary"
+        return expected.copy()
+
+    monkeypatch.setattr(normalize_run_module, "_normalize_single_csv", fake_normalize)
+
+    result = _normalize_summary_dependency_for_points(
+        input_root=input_root,
+        instrument="flowtracker",
+        registry=object(),
+    )
+
+    pd.testing.assert_frame_equal(result, expected)
+
+
+def test_written_points_width_accepts_in_memory_summary_dependency(tmp_path):
+    point_path = tmp_path / "Points.csv"
+    pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "width_m": pd.NA,
+            }
+        ]
+    ).to_csv(point_path, index=False)
+
+    summary_df = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    frames = _enrich_written_points_width(
+        instrument="flowtracker",
+        summary_paths=[],
+        point_paths=[point_path],
+        summary_df=summary_df,
+    )
+
+    assert frames[0]["width_m"].tolist() == pytest.approx([14.7])
+
+
+def test_nivus_concat_rejects_measurement_without_matching_sections():
+    points = pd.DataFrame(
+        [
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "percent_q": 100.0,
+            }
+        ]
+    )
+    sections = pd.DataFrame(
+        [
+            {
+                "instrument": "nivus",
+                "station_id": "9999",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 1,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 10.0,
+                "percent_q": 50.0,
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "9999",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 2,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 10.0,
+                "percent_q": 50.0,
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "9999",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 3,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 10.0,
+                "percent_q": 0.0,
+            },
+        ]
+    )
+
+    with pytest.raises(ValueError, match="No matching Nivus Sections rows"):
+        normalize_run_module._enrich_nivus_points_by_measurement(
+            points,
+            sections,
+            label="fixture",
         )
 

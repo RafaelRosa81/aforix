@@ -270,27 +270,65 @@ def _enrich_points_with_summary_width(
     return merged[points_df.columns]
 
 
+def _normalize_summary_dependency_for_points(
+    *,
+    input_root: Path,
+    instrument: str,
+    registry: NormalizationRegistry,
+) -> pd.DataFrame:
+    """Normalize raw Summary only as a Points width dependency."""
+    summary_file = input_root / instrument / "Summary.csv"
+    summary_dir = input_root / instrument / "Summary"
+
+    if summary_file.exists():
+        return _normalize_single_csv(
+            summary_file,
+            instrument=instrument,
+            group="Summary",
+            registry=registry,
+        )
+
+    if summary_dir.exists():
+        frames = [
+            _normalize_single_csv(
+                path,
+                instrument=instrument,
+                group="Summary",
+                registry=registry,
+            )
+            for path in sorted(summary_dir.glob("*.csv"))
+        ]
+        if frames:
+            return pd.concat(frames, ignore_index=True, sort=False)
+
+    raise FileNotFoundError(
+        f"Raw Summary required for Points.width_m: {input_root / instrument}"
+    )
+
+
 def _enrich_written_points_width(
     *,
     instrument: str,
     summary_paths: list[Path],
     point_paths: list[Path],
+    summary_df: pd.DataFrame | None = None,
 ) -> list[pd.DataFrame]:
     """Enrich only Points files produced by the current normalization run."""
-    if not summary_paths:
-        raise FileNotFoundError(
-            f"Normalized Summary required for Points.width_m: {instrument}"
+    if summary_df is None:
+        if not summary_paths:
+            raise FileNotFoundError(
+                f"Normalized Summary required for Points.width_m: {instrument}"
+            )
+        summary_df = pd.concat(
+            [_read_csv(path) for path in summary_paths],
+            ignore_index=True,
+            sort=False,
         )
+
     if not point_paths:
         raise FileNotFoundError(
             f"Normalized Points required for Points.width_m: {instrument}"
         )
-
-    summary_df = pd.concat(
-        [_read_csv(path) for path in summary_paths],
-        ignore_index=True,
-        sort=False,
-    )
 
     enriched_frames: list[pd.DataFrame] = []
     for points_path in point_paths:
@@ -328,8 +366,10 @@ def _enrich_nivus_points_from_sections(
       middle point -> one corresponding section
     """
 
-    if points_df.empty or sections_df.empty:
+    if points_df.empty:
         return points_df
+    if sections_df.empty:
+        raise ValueError(f"No Nivus Sections rows available for {label}")
 
     required_point_cols = ["point_index"]
     required_section_cols = ["section_index", "width_m", "depth_m", "q_ls", "percent_q"]
@@ -442,6 +482,11 @@ def _enrich_nivus_points_by_measurement(
                 mask &= sections_keys[col].eq(value)
 
         section_group = sections_df.loc[mask]
+        if section_group.empty:
+            raise ValueError(
+                f"No matching Nivus Sections rows for {label}: {key_values}"
+            )
+
         enriched = _enrich_nivus_points_from_sections(
             points_df.loc[point_index],
             section_group,
@@ -855,10 +900,20 @@ def normalize_database(config_path: Path) -> Path:
 
         if points_written:
             try:
+                summary_paths = written_group_paths.get("Summary", [])
+                summary_dependency_df = None
+                if not summary_paths:
+                    summary_dependency_df = _normalize_summary_dependency_for_points(
+                        input_root=input_root,
+                        instrument=instrument,
+                        registry=registry,
+                    )
+
                 enriched_points_frames = _enrich_written_points_width(
                     instrument=instrument,
-                    summary_paths=written_group_paths.get("Summary", []),
+                    summary_paths=summary_paths,
                     point_paths=written_group_paths.get("Points", []),
+                    summary_df=summary_dependency_df,
                 )
                 if "Points" in concat_groups:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
