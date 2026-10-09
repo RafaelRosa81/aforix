@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -398,6 +399,34 @@ def _load_normalized_points(normalized_root: Path, instrument: str) -> pd.DataFr
     return df
 
 
+def _zero_flow_keys(points: pd.DataFrame, summary: pd.DataFrame | None) -> set[tuple]:
+    """Identify zero totals only when complete Points and Summary flows agree."""
+    if summary is None or any(c not in points or c not in summary for c in KEY_COLUMNS):
+        return set()
+    pairs = [(p, s) for p, s in [("q_ls", "q_total_ls"), ("q_m3s", "q_total_m3s")]
+             if p in points and s in summary]
+    if not pairs:
+        return set()
+    points, _, _ = _deduplicate_points_for_hydraulic_audit(points)
+    zero = set()
+    for key, group in points.groupby(KEY_COLUMNS, dropna=False):
+        mask = pd.Series(True, index=summary.index)
+        for column, value in zip(KEY_COLUMNS, key):
+            mask &= summary[column].eq(value).fillna(False)
+        matching = summary.loc[mask]
+        if matching.empty:
+            continue
+        valid = True
+        for point_col, summary_col in pairs:
+            flows = _to_numeric(group[point_col])
+            totals = _to_numeric(matching[summary_col])
+            valid &= bool(flows.notna().all() and flows.map(math.isfinite).all()
+                          and flows.sum() == 0.0 and totals.eq(0.0).all())
+        if valid:
+            zero.add(key)
+    return zero
+
+
 def audit_hydraulic_consistency(
     normalized_root: Path,
     *,
@@ -439,6 +468,7 @@ def audit_hydraulic_consistency(
             )
             continue
 
+        zero_flow_keys = _zero_flow_keys(points, summary)
         points, points_rows_raw, points_rows_after_dedup = _deduplicate_points_for_hydraulic_audit(points)
         points_rows_dropped = points_rows_raw - points_rows_after_dedup
 
@@ -532,7 +562,13 @@ def audit_hydraulic_consistency(
                 ).iloc[0]
                 expected = 100.0
                 check_abs_tol = max(abs_tol, _abs_tolerance_for_check("percent_q"))
-                if pd.isna(points_val):
+                zero_flow = tuple(row.get(c) for c in KEY_COLUMNS) in zero_flow_keys
+                if zero_flow:
+                    expected = pd.NA
+                    status = "not_applicable_zero_flow"
+                    diff_abs = pd.NA
+                    diff_pct = pd.NA
+                elif pd.isna(points_val):
                     status = "missing_values"
                     diff_abs = pd.NA
                     diff_pct = pd.NA
@@ -553,7 +589,7 @@ def audit_hydraulic_consistency(
                     {
                         **base,
                         "check": "percent_q",
-                        "summary_column": "expected_100_percent",
+                        "summary_column": "not_applicable" if zero_flow else "expected_100_percent",
                         "points_column": "points_percent_q_sum",
                         "summary_value": expected,
                         "points_sum": points_val,
@@ -589,6 +625,11 @@ def audit_points_completeness(normalized_root: Path) -> pd.DataFrame:
         if points is None:
             continue
 
+        zero_flow_keys = _zero_flow_keys(points, _load_normalized_summary(normalized_root, instrument))
+        not_applicable = pd.Series(False, index=points.index)
+        if zero_flow_keys:
+            not_applicable = points[KEY_COLUMNS].apply(tuple, axis=1).isin(zero_flow_keys)
+
         for col in CRITICAL_POINTS_NON_EMPTY:
             if col not in points.columns:
                 rows.append(
@@ -606,7 +647,14 @@ def audit_points_completeness(normalized_root: Path) -> pd.DataFrame:
             values = values.mask(values == "")
             n_populated = int(values.notna().sum())
             n_rows = len(points)
-            if n_populated == 0:
+            exempt = values.isna() & not_applicable if col == "percent_q" else pd.Series(False, index=points.index)
+            n_not_applicable = int(exempt.sum())
+            n_missing = n_rows - n_populated - n_not_applicable
+            if n_not_applicable == n_rows:
+                status = "not_applicable_zero_flow"
+            elif n_missing == 0:
+                status = "ok"
+            elif n_populated == 0:
                 status = "all_missing"
             elif n_populated < n_rows:
                 status = "incomplete"
@@ -619,7 +667,8 @@ def audit_points_completeness(normalized_root: Path) -> pd.DataFrame:
                     "column": col,
                     "n_rows": n_rows,
                     "n_populated": n_populated,
-                    "n_missing": n_rows - n_populated,
+                    "n_missing": n_missing,
+                    "n_not_applicable": n_not_applicable,
                     "status": status,
                 }
             )

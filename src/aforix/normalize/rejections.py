@@ -53,7 +53,7 @@ def find_rejections(
                 records.append({
                     **dict(zip(KEY_COLUMNS, key)),
                     "source_file": row.get("source_file"),
-                    "canonical_file": str(path),
+                    "canonical_file": path.relative_to(input_root).as_posix(),
                     "csv_row": int(index) + 2,
                     "point_index": row.get("point_index"),
                     "point_label": row.get("point_label"),

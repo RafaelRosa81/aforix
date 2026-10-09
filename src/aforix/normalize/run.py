@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from aforix.config.loader import load_config
@@ -372,6 +373,8 @@ def _enrich_written_points_width(
             summary_df,
             label=f"{instrument}/{points_path.name}",
         )
+        if instrument == "nivus":
+            _validate_zero_flow_summary(enriched, summary_df)
         _write_normalized_file(
             enriched,
             output_path=points_path,
@@ -380,6 +383,37 @@ def _enrich_written_points_width(
         enriched_frames.append(enriched)
 
     return enriched_frames
+
+
+def _sections_have_zero_total(sections: pd.DataFrame) -> bool:
+    """A relative discharge share is undefined when finite section flows sum to zero."""
+    if "q_ls" not in sections or sections.empty:
+        return False
+    flow = pd.to_numeric(sections["q_ls"], errors="coerce")
+    return bool(
+        np.isfinite(flow.to_numpy(dtype=float, na_value=np.nan)).all()
+        and flow.sum() == 0.0
+    )
+
+
+def _validate_zero_flow_summary(points: pd.DataFrame, summary: pd.DataFrame) -> None:
+    """Confirm a missing share denotes zero total flow in the matching Summary."""
+    missing_share = pd.to_numeric(points["percent_q"], errors="coerce").isna()
+    if not missing_share.any():
+        return
+    point_keys = _normalized_measurement_keys(points)
+    summary_keys = _normalized_measurement_keys(summary)
+    for key, indices in point_keys.groupby(POINT_MEASUREMENT_KEYS, dropna=False).groups.items():
+        if not missing_share.loc[indices].any():
+            continue
+        mask = pd.Series(True, index=summary.index)
+        for column, value in zip(POINT_MEASUREMENT_KEYS, key):
+            mask &= summary_keys[column].eq(value).fillna(False)
+        total = pd.to_numeric(summary.loc[mask, "q_total_ls"], errors="coerce")
+        if total.empty or not total.eq(0.0).all():
+            raise ValueError(
+                f"Nivus undefined percent_q requires a matching zero-flow Summary: {key}"
+            )
 
 
 def _enrich_nivus_points_from_sections(
@@ -438,6 +472,7 @@ def _enrich_nivus_points_from_sections(
             "Expected sections = points + 2."
         )
 
+    zero_flow = _sections_have_zero_total(sec)
     point_indices = pts.index.tolist()
 
     for i, row_idx in enumerate(point_indices):
@@ -450,7 +485,9 @@ def _enrich_nivus_points_from_sections(
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        hydraulic_cols = ["width_m", "depth_m", "q_ls", "percent_q"]
+        hydraulic_cols = ["width_m", "depth_m", "q_ls"]
+        if not zero_flow:
+            hydraulic_cols.append("percent_q")
         missing_cols = [
             col
             for col in hydraulic_cols
@@ -466,7 +503,7 @@ def _enrich_nivus_points_from_sections(
             assigned_sections["width_m"] * assigned_sections["depth_m"]
         ).sum(min_count=1)
         q_ls = assigned_sections["q_ls"].sum(min_count=1)
-        percent_q = assigned_sections["percent_q"].sum(min_count=1)
+        percent_q = np.nan if zero_flow else assigned_sections["percent_q"].sum(min_count=1)
 
         out.loc[row_idx, "area_m2"] = area_m2
         out.loc[row_idx, "q_ls"] = q_ls
@@ -501,6 +538,7 @@ def _enrich_nivus_points_by_measurement(
     sections_keys = _normalized_measurement_keys(sections_df)
     out = points_df.copy()
 
+    zero_flow_rows = pd.Series(False, index=points_df.index)
     grouped = points_keys.groupby(
         POINT_MEASUREMENT_KEYS,
         dropna=False,
@@ -523,6 +561,7 @@ def _enrich_nivus_points_by_measurement(
                 f"No matching Nivus Sections rows for {label}: {key_values}"
             )
 
+        zero_flow_rows.loc[point_index] = _sections_have_zero_total(section_group)
         enriched = _enrich_nivus_points_from_sections(
             points_df.loc[point_index],
             section_group,
@@ -534,8 +573,9 @@ def _enrich_nivus_points_by_measurement(
                 out.loc[point_index, col] = enriched[col]
 
     percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
-    if percent.isna().any():
-        missing = int(percent.isna().sum())
+    invalid_share = percent.isna() & ~zero_flow_rows
+    if invalid_share.any():
+        missing = int(invalid_share.sum())
         raise ValueError(
             f"Nivus percent_q enrichment incomplete for {label}: "
             f"{missing} Points rows remain empty."
@@ -662,6 +702,16 @@ def _normalize_concat_group(
 ) -> pd.DataFrame | None:
     if not input_path.exists():
         return None
+
+    if write_policy == "fail_if_exists":
+        existing = output_root / instrument / f"{group}.csv"
+        group_dir = output_root / instrument / group
+        prior_files = sorted(group_dir.glob("*.csv"))
+        if existing.exists() or prior_files:
+            path = existing if existing.exists() else prior_files[0]
+            raise FileExistsError(
+                f"Normalize output already exists and write_policy=fail_if_exists: {path}"
+            )
 
     if instrument == "nivus" and group == "Points":
         points_df = _normalize_single_csv(

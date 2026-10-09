@@ -199,6 +199,8 @@ def normalize_table(
         spec.get("derived", {}),
     )
 
+    missing_time = out["measurement_time"].astype("string").str.strip()
+    missing_time = missing_time.isna() | missing_time.eq("")
     out = apply_metadata_policy(
         out,
         spec.get("metadata_policy", {}),
@@ -211,6 +213,9 @@ def normalize_table(
         spec.get("transforms", []),
         columns_spec,
     )
+
+    # Restore missingness after transforms that stringify nulls.
+    out.loc[missing_time, "measurement_time"] = pd.NA
 
     if excluded_measurements and not out.empty:
         keys = measurement_keys(out)

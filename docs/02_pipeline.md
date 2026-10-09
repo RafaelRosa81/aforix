@@ -285,7 +285,7 @@ aunque el grupo no esté seleccionado en esta corrida.
 
 Cada corrida genera `runs/normalize/<timestamp>/outputs/rejected_measurements.csv`:
 una fila por vertical afectada, con la identidad del aforo, archivo fuente,
-CSV canónico, número de fila, índice/etiqueta de la vertical, distancia, valor
+CSV canónico (ruta relativa a la entrada), número de fila, índice/etiqueta de la vertical, distancia, valor
 original de velocidad y motivo. El reporte vacío conserva sus encabezados.
 La consola informa el número de mediciones rechazadas y la ruta del reporte.
 El rechazo esperado permite continuar con las demás mediciones; otros errores
@@ -298,6 +298,21 @@ Si ingest y build-groups ya terminaron correctamente, basta repetir:
 aforix normalize run -c configs/examples/main.yaml
 if ($LASTEXITCODE -ne 0) { throw "Falló la normalización" }
 ```
+
+### Mediciones de caudal cero
+
+Un aforo Nivus de caudal cero se conserva como medición válida. Si los caudales
+numéricos finitos de sus secciones suman exactamente cero, `Points.percent_q`
+queda vacío (no aplicable): el cociente `100 * q_i / Q` no está definido.
+No se reemplazan los porcentajes por cero ni se exige que sumen 100 %.
+El Summary correspondiente debe confirmar `q_total_ls = 0`; un total ausente
+o diferente de cero provoca un fallo. Se mantienen los controles de geometría,
+velocidad y caudales faltantes. Los aforos de caudal distinto de cero siguen
+requiriendo porcentajes completos.
+
+La auditoría identifica estos porcentajes con `not_applicable_zero_flow`;
+en completitud, cuenta esas filas en `n_not_applicable`, separadas de `n_missing`.
+La incertidumbre relativa del caudal tampoco está definida para `Q = 0`.
 
 ### 7.1 Política de escritura
 

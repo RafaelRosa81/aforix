@@ -353,3 +353,33 @@ def test_width_audit_flags_conflicting_summary_widths(tmp_path):
     assert report.loc[0, "status"] == "conflicting_summary_widths"
     assert report.loc[0, "summary_width_unique"] == 2
 
+
+
+def test_zero_flow_percentages_are_not_applicable_in_both_audits(tmp_path):
+    root = tmp_path / "normalized"
+    instrument_dir = root / "nivus"
+    instrument_dir.mkdir(parents=True)
+    metadata = {**MEASUREMENT, "instrument": "nivus"}
+    pd.DataFrame([{**metadata, "q_total_ls": 0, "q_total_m3s": 0}]).to_csv(
+        instrument_dir / "Summary.csv", index=False,
+    )
+    pd.DataFrame([{**metadata, "point_index": i, "point_label": str(i),
+                   "velocity_mean_m_s": 0, "q_ls": 0, "q_m3s": 0,
+                   "percent_q": None, "width_m": 1} for i in (1, 2)]).to_csv(
+        instrument_dir / "Points.csv", index=False,
+    )
+    hydraulic = audit_hydraulic_consistency(root)
+    share = hydraulic.loc[hydraulic.check.eq("percent_q")].iloc[0]
+    assert share.status == "not_applicable_zero_flow"
+    assert pd.isna(share.summary_value)
+    complete = audit_points_completeness(root)
+    share = complete.loc[complete.column.eq("percent_q")].iloc[0]
+    assert share.status == "not_applicable_zero_flow"
+    assert share.n_not_applicable == 2
+    assert share.n_missing == 0
+    # A conflicting total must remove the exemption.
+    pd.DataFrame([{**metadata, "q_total_ls": 1, "q_total_m3s": 0.001}]).to_csv(
+        instrument_dir / "Summary.csv", index=False,
+    )
+    complete = audit_points_completeness(root)
+    assert complete.loc[complete.column.eq("percent_q"), "status"].iloc[0] == "all_missing"
