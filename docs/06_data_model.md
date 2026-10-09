@@ -149,6 +149,7 @@ Columnas típicas:
 | `point_index` | índice numérico del punto o vertical | entero |
 | `point_label` | etiqueta del punto o vertical | texto |
 | `distance_m` | distancia progresiva o posición transversal | m |
+| `width_m` | ancho total de la medición, repetido en todas las filas de la misma medición | m |
 | `depth_m` | profundidad local | m |
 | `velocity_mean_m_s` | velocidad media local | m/s |
 | `area_m2` | área asociada al punto o vertical | m² |
@@ -204,6 +205,8 @@ Chequeos típicos:
 ```text
 sum(Points.q_m3s) ≈ Summary.q_total_m3s
 sum(Points.area_m2) ≈ Summary.area_total_m2
+sum(Points.percent_q) ≈ 100
+Points.width_m == Summary.width_total_m en todas las filas de la medición
 ```
 
 Las diferencias aceptables dependen del instrumento, redondeos y criterios de cálculo.
