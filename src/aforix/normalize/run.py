@@ -407,7 +407,9 @@ def _enrich_nivus_points_from_sections(
     point_indices = pts.index.tolist()
 
     for i, row_idx in enumerate(point_indices):
-        if i == 0:
+        if len(point_indices) == 1:
+            assigned_sections = sec
+        elif i == 0:
             assigned_sections = sec.iloc[[0, 1]]
         elif i == len(point_indices) - 1:
             assigned_sections = sec.iloc[[-2, -1]]
@@ -797,6 +799,7 @@ def normalize_database(config_path: Path) -> Path:
     instruments = _get_normalize_sources(cfg)
     groups = _get_normalize_groups(cfg)
     concat_groups = _get_concat_groups(cfg)
+    active_concat_groups = concat_groups.intersection(groups)
     write_policy = _get_write_policy(cfg)
 
     if not input_root.exists():
@@ -807,7 +810,7 @@ def normalize_database(config_path: Path) -> Path:
     if write_policy == "overwrite":
         _clear_stale_concat_outputs(
             output_root=output_root,
-            concat_groups=concat_groups,
+            concat_groups=active_concat_groups,
         )
 
     registry = NormalizationRegistry(registry_dir)
@@ -823,7 +826,7 @@ def normalize_database(config_path: Path) -> Path:
 
     cross_instrument_frames: dict[str, list[pd.DataFrame]] = {
         group: []
-        for group in concat_groups
+        for group in active_concat_groups
     }
 
     normalized_count = 0
@@ -865,7 +868,7 @@ def normalize_database(config_path: Path) -> Path:
                         if group == "Points":
                             points_written = True
 
-                        if group in concat_groups and group != "Points":
+                        if group in active_concat_groups and group != "Points":
                             cross_instrument_frames[group].append(df_norm)
 
                 elif input_dir.exists():
@@ -886,7 +889,7 @@ def normalize_database(config_path: Path) -> Path:
                     if group == "Points" and frames:
                         points_written = True
 
-                    if group in concat_groups and group != "Points":
+                    if group in active_concat_groups and group != "Points":
                         cross_instrument_frames[group].extend(frames)
 
                 else:
@@ -915,7 +918,7 @@ def normalize_database(config_path: Path) -> Path:
                     point_paths=written_group_paths.get("Points", []),
                     summary_df=summary_dependency_df,
                 )
-                if "Points" in concat_groups:
+                if "Points" in active_concat_groups:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
             except Exception as exc:
                 _raise_width_enrichment_failure(

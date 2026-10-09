@@ -877,3 +877,115 @@ def test_nivus_concat_rejects_measurement_without_matching_sections():
             label="fixture",
         )
 
+
+def test_nivus_single_point_uses_all_three_sections():
+    points = pd.DataFrame(
+        [
+            {
+                "point_index": 1,
+                "area_m2": pd.NA,
+                "q_ls": pd.NA,
+                "q_m3s": pd.NA,
+                "percent_q": pd.NA,
+            }
+        ]
+    )
+    sections = pd.DataFrame(
+        [
+            {"section_index": 1, "width_m": 0.5, "depth_m": 0.2, "q_ls": 10.0, "percent_q": 10.0},
+            {"section_index": 2, "width_m": 0.5, "depth_m": 0.2, "q_ls": 20.0, "percent_q": 20.0},
+            {"section_index": 3, "width_m": 0.5, "depth_m": 0.2, "q_ls": 30.0, "percent_q": 70.0},
+        ]
+    )
+
+    result = _enrich_nivus_points_from_sections(
+        points,
+        sections,
+        label="single-point",
+    )
+
+    assert result.loc[0, "area_m2"] == pytest.approx(0.3)
+    assert result.loc[0, "q_ls"] == pytest.approx(60.0)
+    assert result.loc[0, "q_m3s"] == pytest.approx(0.06)
+    assert result.loc[0, "percent_q"] == pytest.approx(100.0)
+
+
+def test_points_only_overwrite_preserves_unselected_root_summary(tmp_path, monkeypatch):
+    config_path = tmp_path / "main.yaml"
+    config_path.write_text("normalize: {}\n", encoding="utf-8")
+
+    input_root = tmp_path / "raw"
+    output_root = tmp_path / "normalized"
+    registry_root = tmp_path / "registry"
+    instrument_dir = input_root / "flowtracker"
+    instrument_dir.mkdir(parents=True)
+    output_root.mkdir()
+    registry_root.mkdir()
+
+    (instrument_dir / "Points.csv").write_text("placeholder\n", encoding="utf-8")
+    (instrument_dir / "Summary.csv").write_text("placeholder\n", encoding="utf-8")
+    root_summary = output_root / "Summary.csv"
+    root_summary.write_text("keep-me\n", encoding="utf-8")
+
+    cfg = {
+        "ingest": {"flowtracker": {"enabled": True}},
+        "normalize": {
+            "enabled": True,
+            "sources": ["flowtracker"],
+            "groups": ["Points"],
+            "write_policy": "overwrite",
+            "input_dir": str(input_root),
+            "output_dir": str(output_root),
+            "registry_dir": str(registry_root),
+        },
+    }
+
+    class DummyRegistry:
+        def get(self, instrument, group):
+            return {}
+
+    point_df = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 1,
+                "width_m": pd.NA,
+            }
+        ]
+    )
+    summary_df = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    monkeypatch.setattr(normalize_run_module, "load_config", lambda path: cfg)
+    monkeypatch.setattr(
+        normalize_run_module,
+        "create_run",
+        lambda stage, path: tmp_path / "run",
+    )
+    monkeypatch.setattr(
+        normalize_run_module,
+        "NormalizationRegistry",
+        lambda path: DummyRegistry(),
+    )
+
+    def fake_normalize(path, *, instrument, group, registry):
+        return point_df.copy() if group == "Points" else summary_df.copy()
+
+    monkeypatch.setattr(normalize_run_module, "_normalize_single_csv", fake_normalize)
+
+    normalize_database(config_path)
+
+    assert root_summary.read_text(encoding="utf-8") == "keep-me\n"
+
