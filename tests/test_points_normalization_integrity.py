@@ -335,7 +335,18 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
                 "q_ls": pd.NA,
                 "q_m3s": pd.NA,
                 "percent_q": pd.NA,
-            }
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "point_index": 2,
+                "area_m2": pd.NA,
+                "q_ls": pd.NA,
+                "q_m3s": pd.NA,
+                "percent_q": pd.NA,
+            },
         ]
     )
     sections = pd.DataFrame(
@@ -348,8 +359,8 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
                 "section_index": 1,
                 "width_m": 0.5,
                 "depth_m": 0.2,
-                "q_ls": 20.0,
-                "percent_q": 25.0,
+                "q_ls": 10.0,
+                "percent_q": 10.0,
             },
             {
                 "instrument": "nivus",
@@ -359,8 +370,8 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
                 "section_index": 2,
                 "width_m": 0.5,
                 "depth_m": 0.2,
-                "q_ls": 30.0,
-                "percent_q": 35.0,
+                "q_ls": 20.0,
+                "percent_q": 20.0,
             },
             {
                 "instrument": "nivus",
@@ -371,6 +382,17 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
                 "width_m": 0.5,
                 "depth_m": 0.2,
                 "q_ls": 30.0,
+                "percent_q": 30.0,
+            },
+            {
+                "instrument": "nivus",
+                "station_id": "7001",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "section_index": 4,
+                "width_m": 0.5,
+                "depth_m": 0.2,
+                "q_ls": 40.0,
                 "percent_q": 40.0,
             },
         ]
@@ -391,6 +413,6 @@ def test_nivus_concat_points_are_enriched_from_concat_sections(tmp_path, monkeyp
     )
 
     assert result is not None
-    assert result["percent_q"].tolist() == pytest.approx([100.0])
-    assert result["q_ls"].tolist() == pytest.approx([80.0])
-    assert result["q_m3s"].tolist() == pytest.approx([0.08])
+    assert result["percent_q"].tolist() == pytest.approx([30.0, 70.0])
+    assert result["q_ls"].tolist() == pytest.approx([30.0, 70.0])
+    assert result["q_m3s"].tolist() == pytest.approx([0.03, 0.07])
