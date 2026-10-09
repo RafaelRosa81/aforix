@@ -367,9 +367,23 @@ def _enrich_nivus_points_from_sections(
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        area_m2 = (assigned_sections["width_m"] * assigned_sections["depth_m"]).sum()
-        q_ls = assigned_sections["q_ls"].sum()
-        percent_q = assigned_sections["percent_q"].sum()
+        hydraulic_cols = ["width_m", "depth_m", "q_ls", "percent_q"]
+        missing_cols = [
+            col
+            for col in hydraulic_cols
+            if assigned_sections[col].isna().any()
+        ]
+        if missing_cols:
+            raise ValueError(
+                f"Nivus Sections contain missing hydraulic values for {label}: "
+                f"{missing_cols}"
+            )
+
+        area_m2 = (
+            assigned_sections["width_m"] * assigned_sections["depth_m"]
+        ).sum(min_count=1)
+        q_ls = assigned_sections["q_ls"].sum(min_count=1)
+        percent_q = assigned_sections["percent_q"].sum(min_count=1)
 
         out.loc[row_idx, "area_m2"] = area_m2
         out.loc[row_idx, "q_ls"] = q_ls
@@ -565,9 +579,25 @@ def _normalize_file_group(
     if not input_dir.exists():
         return []
 
-    outputs: list[pd.DataFrame] = []
+    input_paths = sorted(input_dir.glob("*.csv"))
+    output_dir = output_root / instrument / group
+    target_paths = [output_dir / path.name for path in input_paths]
 
-    for csv_path in sorted(input_dir.glob("*.csv")):
+    if write_policy == "overwrite" and output_dir.exists():
+        for stale_path in output_dir.glob("*.csv"):
+            stale_path.unlink()
+
+    if write_policy == "fail_if_exists":
+        existing = [path for path in target_paths if path.exists()]
+        if existing:
+            raise FileExistsError(
+                "Normalize output already exists and "
+                f"write_policy=fail_if_exists: {existing[0]}"
+            )
+
+    prepared: list[tuple[Path, pd.DataFrame]] = []
+
+    for csv_path in input_paths:
         if instrument == "nivus" and group == "Points":
             df_norm = _normalize_nivus_points_with_sections(
                 csv_path,
@@ -581,9 +611,16 @@ def _normalize_file_group(
                 registry=registry,
             )
 
-        outpath = output_root / instrument / group / csv_path.name
-        _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
+        prepared.append((csv_path, df_norm))
 
+    outputs: list[pd.DataFrame] = []
+    for csv_path, df_norm in prepared:
+        outpath = output_dir / csv_path.name
+        _write_normalized_file(
+            df_norm,
+            output_path=outpath,
+            write_policy="overwrite" if write_policy == "overwrite" else write_policy,
+        )
         print(f"Normalized: {csv_path} -> {outpath}")
         outputs.append(df_norm)
 
@@ -789,6 +826,8 @@ def normalize_database(config_path: Path) -> Path:
         print("Failed normalize groups:")
         for label, error in failed:
             print(f" - {label}: {error}")
+        details = "; ".join(f"{label}: {error}" for label, error in failed)
+        raise RuntimeError(f"Normalization failed: {details}")
 
     print(f"Run created: {run_dir}")
     return run_dir

@@ -13,8 +13,11 @@ from aforix.normalize.run import (
     _clear_stale_concat_outputs,
     _enrich_points_with_summary_width,
     _enrich_written_points_width,
+    _enrich_nivus_points_from_sections,
     _normalize_concat_group,
+    _normalize_file_group,
     _normalize_nivus_points_with_sections,
+    normalize_database,
     _raise_width_enrichment_failure,
     _write_cross_instrument_concat,
 )
@@ -553,5 +556,114 @@ def test_nivus_file_group_points_require_matching_sections(tmp_path, monkeypatch
         _normalize_nivus_points_with_sections(
             points_path,
             registry=object(),
+        )
+
+
+def test_file_group_failure_cleans_stale_outputs_and_writes_nothing_partial(
+    tmp_path,
+    monkeypatch,
+):
+    input_dir = tmp_path / "raw_canonical" / "flowtracker" / "Points"
+    output_root = tmp_path / "normalized"
+    output_dir = output_root / "flowtracker" / "Points"
+    input_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+
+    first = input_dir / "a.csv"
+    second = input_dir / "b.csv"
+    first.write_text("placeholder\n", encoding="utf-8")
+    second.write_text("placeholder\n", encoding="utf-8")
+    (output_dir / "stale.csv").write_text("stale\n", encoding="utf-8")
+
+    def fake_normalize(path, *, instrument, group, registry):
+        if path.name == "b.csv":
+            raise ValueError("second file failed")
+        return pd.DataFrame([{"point_index": 1}])
+
+    monkeypatch.setattr(normalize_run_module, "_normalize_single_csv", fake_normalize)
+
+    with pytest.raises(ValueError, match="second file failed"):
+        _normalize_file_group(
+            input_dir,
+            instrument="flowtracker",
+            group="Points",
+            output_root=output_root,
+            registry=object(),
+            write_policy="overwrite",
+        )
+
+    assert list(output_dir.glob("*.csv")) == []
+
+
+def test_normalize_database_propagates_collected_group_failures(tmp_path, monkeypatch):
+    config_path = tmp_path / "main.yaml"
+    config_path.write_text("normalize: {}\n", encoding="utf-8")
+
+    input_root = tmp_path / "raw"
+    output_root = tmp_path / "normalized"
+    registry_root = tmp_path / "registry"
+    (input_root / "flowtracker" / "Points").mkdir(parents=True)
+    registry_root.mkdir()
+
+    cfg = {
+        "ingest": {"flowtracker": {"enabled": True}},
+        "normalize": {
+            "enabled": True,
+            "sources": ["flowtracker"],
+            "groups": ["Points"],
+            "concat_groups": ["Points"],
+            "write_policy": "overwrite",
+            "input_dir": str(input_root),
+            "output_dir": str(output_root),
+            "registry_dir": str(registry_root),
+        },
+    }
+
+    class DummyRegistry:
+        def get(self, instrument, group):
+            return {}
+
+    monkeypatch.setattr(normalize_run_module, "load_config", lambda path: cfg)
+    monkeypatch.setattr(
+        normalize_run_module,
+        "create_run",
+        lambda stage, path: tmp_path / "run",
+    )
+    monkeypatch.setattr(
+        normalize_run_module,
+        "NormalizationRegistry",
+        lambda path: DummyRegistry(),
+    )
+    monkeypatch.setattr(
+        normalize_run_module,
+        "_normalize_file_group",
+        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("boom")),
+    )
+
+    with pytest.raises(RuntimeError, match="Normalization failed"):
+        normalize_database(config_path)
+
+
+def test_nivus_enrichment_rejects_missing_section_hydraulic_values():
+    points = pd.DataFrame(
+        [
+            {"point_index": 1},
+            {"point_index": 2},
+        ]
+    )
+    sections = pd.DataFrame(
+        [
+            {"section_index": 1, "width_m": 0.5, "depth_m": 0.2, "q_ls": 10.0, "percent_q": pd.NA},
+            {"section_index": 2, "width_m": 0.5, "depth_m": 0.2, "q_ls": 20.0, "percent_q": 20.0},
+            {"section_index": 3, "width_m": 0.5, "depth_m": 0.2, "q_ls": 30.0, "percent_q": 30.0},
+            {"section_index": 4, "width_m": 0.5, "depth_m": 0.2, "q_ls": 40.0, "percent_q": 50.0},
+        ]
+    )
+
+    with pytest.raises(ValueError, match="missing hydraulic values"):
+        _enrich_nivus_points_from_sections(
+            points,
+            sections,
+            label="fixture",
         )
 
