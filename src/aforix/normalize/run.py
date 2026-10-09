@@ -331,12 +331,11 @@ def _enrich_nivus_points_from_sections(
     missing_sections = [col for col in required_section_cols if col not in sections_df.columns]
 
     if missing_points or missing_sections:
-        print(
-            f"WARNING: cannot enrich Nivus Points for {label}. "
+        raise ValueError(
+            f"Cannot enrich Nivus Points for {label}. "
             f"Missing point columns={missing_points}; "
             f"missing section columns={missing_sections}"
         )
-        return points_df
 
     out = points_df.copy()
     pts = out.copy()
@@ -352,12 +351,11 @@ def _enrich_nivus_points_from_sections(
     sec = sec.sort_values("section_index")
 
     if len(sec) != len(pts) + 2:
-        print(
-            f"WARNING: Nivus Points/Sections mismatch for {label}: "
+        raise ValueError(
+            f"Nivus Points/Sections mismatch for {label}: "
             f"points={len(pts)}, sections={len(sec)}. "
-            "Expected sections = points + 2. Enrichment skipped."
+            "Expected sections = points + 2."
         )
-        return out
 
     point_indices = pts.index.tolist()
 
@@ -494,11 +492,9 @@ def _normalize_nivus_points_with_sections(
     sections_csv_path = _matching_nivus_sections_path(points_csv_path)
 
     if not sections_csv_path.exists():
-        print(
-            f"WARNING: matching Nivus Sections file not found for Points file: "
-            f"{points_csv_path}"
+        raise FileNotFoundError(
+            f"Matching Nivus Sections file not found for Points: {points_csv_path}"
         )
-        return points_df
 
     sections_df = _normalize_single_csv(
         sections_csv_path,
@@ -612,6 +608,36 @@ def _write_cross_instrument_concat(
     print(f"Concatenated normalized group: {group} -> {outpath}")
 
 
+def _clear_stale_concat_outputs(
+    *,
+    output_root: Path,
+    concat_groups: set[str],
+) -> None:
+    """Remove prior root concatenations before an overwrite rebuild."""
+    for group in concat_groups:
+        path = output_root / f"{group}.csv"
+        if path.exists():
+            path.unlink()
+
+
+def _raise_width_enrichment_failure(
+    *,
+    instrument: str,
+    point_paths: list[Path],
+    output_root: Path,
+    exc: Exception,
+) -> None:
+    """Remove invalid Points outputs and fail normalization visibly."""
+    for path in point_paths:
+        path.unlink(missing_ok=True)
+
+    (output_root / "Points.csv").unlink(missing_ok=True)
+
+    raise RuntimeError(
+        f"Failed enriching {instrument}/Points.width_m: {exc}"
+    ) from exc
+
+
 def normalize_database(config_path: Path) -> Path:
     config_path = Path(config_path).resolve()
     cfg = load_config(config_path)
@@ -637,6 +663,12 @@ def normalize_database(config_path: Path) -> Path:
         raise FileNotFoundError(f"Normalize input directory not found: {input_root}")
 
     output_root.mkdir(parents=True, exist_ok=True)
+
+    if write_policy == "overwrite":
+        _clear_stale_concat_outputs(
+            output_root=output_root,
+            concat_groups=concat_groups,
+        )
 
     registry = NormalizationRegistry(registry_dir)
 
@@ -736,8 +768,12 @@ def normalize_database(config_path: Path) -> Path:
                 if "Points" in concat_groups:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
             except Exception as exc:
-                failed.append((f"{instrument}/Points.width_m", str(exc)))
-                print(f"ERROR enriching {instrument}/Points.width_m: {exc}")
+                _raise_width_enrichment_failure(
+                    instrument=instrument,
+                    point_paths=written_group_paths.get("Points", []),
+                    output_root=output_root,
+                    exc=exc,
+                )
 
     for group, frames in cross_instrument_frames.items():
         _write_cross_instrument_concat(

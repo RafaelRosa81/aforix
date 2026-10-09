@@ -326,3 +326,30 @@ def test_width_audit_reports_missing_measurement_keys_instead_of_crashing(tmp_pa
     assert report.loc[0, "status"] == "missing_key_columns"
     assert report.loc[0, "missing_summary_keys"] == "measurement_time"
 
+
+def test_width_audit_flags_conflicting_summary_widths(tmp_path):
+    root = tmp_path / "normalized"
+    instrument_dir = root / "flowtracker"
+    points_dir = instrument_dir / "Points"
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {**MEASUREMENT, "width_total_m": "14.7"},
+            {**MEASUREMENT, "width_total_m": "14.8"},
+        ]
+    ).to_csv(instrument_dir / "Summary.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {**MEASUREMENT, "width_m": "14.7"},
+            {**MEASUREMENT, "width_m": "14.7"},
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_points_width_consistency(root)
+
+    assert len(report) == 1
+    assert report.loc[0, "status"] == "conflicting_summary_widths"
+    assert report.loc[0, "summary_width_unique"] == 2
+

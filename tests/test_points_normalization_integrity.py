@@ -10,9 +10,12 @@ from aforix.ingest.adapters.flowtracker_dis import parse_flowtracker_dis
 from aforix.normalize.normalizer import normalize_table
 import aforix.normalize.run as normalize_run_module
 from aforix.normalize.run import (
+    _clear_stale_concat_outputs,
     _enrich_points_with_summary_width,
     _enrich_written_points_width,
     _normalize_concat_group,
+    _normalize_nivus_points_with_sections,
+    _raise_width_enrichment_failure,
     _write_cross_instrument_concat,
 )
 
@@ -482,4 +485,73 @@ def test_width_enrichment_uses_only_current_run_point_paths(tmp_path):
 
     stale = pd.read_csv(stale_points, dtype={"station_id": "string"})
     assert stale["station_id"].tolist() == ["9999"]
+
+
+def test_width_enrichment_failure_removes_invalid_points_and_propagates(tmp_path):
+    output_root = tmp_path / "normalized"
+    instrument_dir = output_root / "flowtracker"
+    instrument_dir.mkdir(parents=True)
+
+    point_path = instrument_dir / "Points.csv"
+    global_points = output_root / "Points.csv"
+    point_path.write_text("bad\n", encoding="utf-8")
+    global_points.write_text("stale\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Failed enriching flowtracker/Points.width_m"):
+        _raise_width_enrichment_failure(
+            instrument="flowtracker",
+            point_paths=[point_path],
+            output_root=output_root,
+            exc=ValueError("missing width"),
+        )
+
+    assert not point_path.exists()
+    assert not global_points.exists()
+
+
+def test_overwrite_rebuild_clears_prior_root_concat_outputs(tmp_path):
+    output_root = tmp_path / "normalized"
+    output_root.mkdir()
+    (output_root / "Points.csv").write_text("stale\n", encoding="utf-8")
+    (output_root / "Summary.csv").write_text("stale\n", encoding="utf-8")
+    (output_root / "Other.csv").write_text("keep\n", encoding="utf-8")
+
+    _clear_stale_concat_outputs(
+        output_root=output_root,
+        concat_groups={"Points", "Summary"},
+    )
+
+    assert not (output_root / "Points.csv").exists()
+    assert not (output_root / "Summary.csv").exists()
+    assert (output_root / "Other.csv").exists()
+
+
+def test_nivus_file_group_points_require_matching_sections(tmp_path, monkeypatch):
+    points_dir = tmp_path / "raw_canonical" / "nivus" / "Points"
+    points_dir.mkdir(parents=True)
+    points_path = points_dir / "7001_Points_20260120_141519.csv"
+    points_path.write_text("placeholder\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        normalize_run_module,
+        "_normalize_single_csv",
+        lambda *args, **kwargs: pd.DataFrame(
+            [
+                {
+                    "instrument": "nivus",
+                    "station_id": "7001",
+                    "measurement_date": "20260120",
+                    "measurement_time": "141519",
+                    "point_index": 1,
+                    "percent_q": pd.NA,
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(FileNotFoundError, match="Matching Nivus Sections file not found"):
+        _normalize_nivus_points_with_sections(
+            points_path,
+            registry=object(),
+        )
 

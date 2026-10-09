@@ -682,8 +682,14 @@ def audit_points_width_consistency(
         points["width_m_num"] = _to_numeric(points["width_m"])
 
         summary_width = (
-            summary.groupby(KEY_COLUMNS, dropna=False, as_index=False)["width_total_m_num"]
-            .first()
+            summary.groupby(KEY_COLUMNS, dropna=False, as_index=False)
+            .agg(
+                summary_width_total_m=("width_total_m_num", "first"),
+                summary_width_unique=(
+                    "width_total_m_num",
+                    lambda values: values.dropna().nunique(),
+                ),
+            )
         )
         grouped = (
             points.groupby(KEY_COLUMNS, dropna=False)["width_m_num"]
@@ -698,13 +704,16 @@ def audit_points_width_consistency(
         merged_width = summary_width.merge(grouped, on=KEY_COLUMNS, how="outer")
 
         for _, row in merged_width.iterrows():
-            summary_val = row.get("width_total_m_num")
+            summary_val = row.get("summary_width_total_m")
+            summary_unique = row.get("summary_width_unique")
             points_val = row.get("points_width_m")
             rows_count = row.get("points_rows")
             non_null = row.get("points_width_non_null")
             unique = row.get("points_width_unique")
 
-            if pd.isna(rows_count):
+            if pd.notna(summary_unique) and summary_unique > 1:
+                status = "conflicting_summary_widths"
+            elif pd.isna(rows_count):
                 status = "missing_points"
             elif pd.isna(summary_val):
                 status = "missing_summary_width"
@@ -726,6 +735,7 @@ def audit_points_width_consistency(
                     "measurement_date": row.get("measurement_date"),
                     "measurement_time": row.get("measurement_time"),
                     "summary_width_total_m": summary_val,
+                    "summary_width_unique": summary_unique,
                     "points_width_m": points_val,
                     "points_rows": rows_count,
                     "points_width_non_null": non_null,
