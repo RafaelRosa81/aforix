@@ -315,12 +315,24 @@ tables:
           - index
         dtype: int
 
+      point_label:
+        sources:
+          - point_label
+          - vert_label
+          - point_index
+        dtype: string
+
       distance_m:
         sources:
           - distance_m
           - posicion_m
           - pos_m
           - progr_m
+        dtype: float
+
+      width_m:
+        sources:
+          - width_m
         dtype: float
 
       depth_m:
@@ -339,6 +351,7 @@ tables:
       velocity_mean_m_s:
         sources:
           - velocity_mean_m_s
+          - vel_media_vert_ms
           - vel_media_ms
           - velocidad_media_ms
         dtype: float
@@ -353,6 +366,12 @@ tables:
         source: __derived__
         dtype: float
 
+      percent_q:
+        sources:
+          - percent_q
+          - q_percent
+        dtype: float
+
     derived:
       q_ls:
         from: q_m3s
@@ -365,8 +384,12 @@ tables:
       - measurement_time
       - instrument
       - point_index
+      - point_label
       - distance_m
+      - width_m
       - depth_m
+      - velocity_mean_m_s
+      - percent_q
 
     transforms:
       - name: strip_strings
@@ -378,3 +401,7 @@ tables:
         - distance_m
         - depth_m
         - area_m2
+      non_empty:
+        - point_label
+        - velocity_mean_m_s
+        - percent_q
