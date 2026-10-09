@@ -8,6 +8,7 @@ import pandas as pd
 from aforix.config.loader import load_config
 from aforix.config.paths import config_root_from_path
 from aforix.runs.manager import create_run
+from aforix.normalize.rejections import find_rejections, purge_rejected_outputs
 from aforix.normalize.registry import NormalizationRegistry
 from aforix.normalize.normalizer import normalize_table, TRACEABILITY_COLUMNS
 
@@ -136,7 +137,9 @@ def _normalize_single_csv(
 ) -> pd.DataFrame:
     spec = registry.get(instrument, group)
     df_raw = _read_csv(csv_path)
-    return normalize_table(df_raw, spec)
+    return normalize_table(
+        df_raw, spec, excluded_measurements=registry.excluded_measurements
+    )
 
 
 def _write_normalized_file(
@@ -588,6 +591,9 @@ def _normalize_nivus_points_with_sections(
         registry=registry,
     )
 
+    if points_df.empty:
+        return points_df
+
     sections_csv_path = _matching_nivus_sections_path(points_csv_path)
 
     if not sections_csv_path.exists():
@@ -664,10 +670,11 @@ def _normalize_concat_group(
             group=group,
             registry=registry,
         )
-        sections_df = _normalize_nivus_sections_for_points_input(
-            input_path,
-            registry=registry,
-        )
+        sections_df = pd.DataFrame()
+        if not points_df.empty:
+            sections_df = _normalize_nivus_sections_for_points_input(
+                input_path, registry=registry,
+            )
         df_norm = _enrich_nivus_points_by_measurement(
             points_df,
             sections_df,
@@ -688,6 +695,9 @@ def _normalize_concat_group(
         layout="concat",
         write_policy=write_policy,
     )
+
+    if df_norm.empty:
+        return None
 
     outpath = output_root / instrument / f"{group}.csv"
     _write_normalized_file(df_norm, output_path=outpath, write_policy=write_policy)
@@ -747,7 +757,8 @@ def _normalize_file_group(
                 registry=registry,
             )
 
-        prepared.append((csv_path, df_norm))
+        if not df_norm.empty:
+            prepared.append((csv_path, df_norm))
 
     outputs: list[pd.DataFrame] = []
     for csv_path, df_norm in prepared:
@@ -836,6 +847,17 @@ def normalize_database(config_path: Path) -> Path:
     if not input_root.exists():
         raise FileNotFoundError(f"Normalize input directory not found: {input_root}")
 
+    registry = NormalizationRegistry(registry_dir)
+
+    rejected, report = find_rejections(input_root, instruments, registry)
+    registry.excluded_measurements = rejected
+    report_path = run_dir / "outputs" / "rejected_measurements.csv"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report.to_csv(report_path, index=False)
+    print(f"Rejected measurements: {len(rejected)}; report: {report_path}")
+    if rejected and write_policy == "overwrite":
+        purge_rejected_outputs(output_root, rejected)
+
     output_root.mkdir(parents=True, exist_ok=True)
 
     if write_policy == "overwrite":
@@ -843,8 +865,6 @@ def normalize_database(config_path: Path) -> Path:
             output_root=output_root,
             concat_groups=active_concat_groups,
         )
-
-    registry = NormalizationRegistry(registry_dir)
 
     print("Normalizing raw_canonical database")
     print(f"Input root: {input_root}")
@@ -916,6 +936,7 @@ def normalize_database(config_path: Path) -> Path:
                     written_group_paths[group] = [
                         output_root / instrument / group / path.name
                         for path in sorted(input_dir.glob("*.csv"))
+                        if (output_root / instrument / group / path.name).exists()
                     ]
                     if group == "Points" and frames:
                         points_written = True

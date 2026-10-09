@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from aforix.metadata import apply_metadata_policy
+from aforix.normalize.identity import measurement_keys
 from aforix.normalize.transforms import apply_transforms
 from aforix.normalize.validators import validate_required_columns, validate_qc_rules
 
@@ -162,7 +163,11 @@ def _apply_derived_columns(
 def normalize_table(
     df_raw: pd.DataFrame,
     spec: dict[str, Any],
+    *,
+    excluded_measurements: set[tuple[str, ...]] | None = None,
+    validate_qc: bool = True,
 ) -> pd.DataFrame:
+    # Preflight uses the same mapping and transforms before applying QC.
     columns_spec = spec.get("columns", {})
 
     if not isinstance(columns_spec, dict):
@@ -207,7 +212,14 @@ def normalize_table(
         columns_spec,
     )
 
-    validate_qc_rules(out, spec.get("qc", {}))
+    if excluded_measurements and not out.empty:
+        keys = measurement_keys(out)
+        out = out.loc[~keys.isin(excluded_measurements)].copy()
+        if out.empty:
+            return _ensure_traceability_columns(out)
+
+    if validate_qc:
+        validate_qc_rules(out, spec.get("qc", {}))
 
     out = _ensure_traceability_columns(out)
 
