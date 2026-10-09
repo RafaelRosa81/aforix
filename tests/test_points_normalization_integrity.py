@@ -1032,3 +1032,82 @@ def test_non_empty_qc_accepts_fully_populated_values():
         {"non_empty": ["velocity_mean_m_s", "point_label"]},
     )
 
+
+@pytest.mark.parametrize(
+    ("points_station_id", "summary_station_id", "expected_frame"),
+    [
+        ("   ", "7071", "Points"),
+        ("7071", pd.NA, "Summary"),
+    ],
+)
+def test_points_width_rejects_blank_measurement_keys(
+    points_station_id,
+    summary_station_id,
+    expected_frame,
+):
+    points = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": points_station_id,
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_m": pd.NA,
+            }
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": summary_station_id,
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=rf"Blank measurement keys in {expected_frame}",
+    ):
+        _enrich_points_with_summary_width(
+            points,
+            summary,
+            label="flowtracker/fixture",
+        )
+
+
+def test_points_width_accepts_midnight_measurement_time():
+    points = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "000000",
+                "width_m": pd.NA,
+            }
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7071",
+                "measurement_date": "20260120",
+                "measurement_time": "000000",
+                "width_total_m": 14.7,
+            }
+        ]
+    )
+
+    enriched = _enrich_points_with_summary_width(
+        points,
+        summary,
+        label="flowtracker/midnight",
+    )
+
+    assert enriched.loc[0, "width_m"] == pytest.approx(14.7)
+

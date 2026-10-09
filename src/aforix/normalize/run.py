@@ -190,6 +190,26 @@ def _normalized_measurement_keys(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _validate_measurement_keys_populated(
+    df: pd.DataFrame,
+    *,
+    label: str,
+    frame_name: str,
+) -> None:
+    invalid: dict[str, int] = {}
+
+    for col in POINT_MEASUREMENT_KEYS:
+        values = df[col].astype("string").str.strip()
+        bad = values.isna() | values.eq("")
+        if bad.any():
+            invalid[col] = int(bad.sum())
+
+    if invalid:
+        raise ValueError(
+            f"Blank measurement keys in {frame_name} for {label}: {invalid}"
+        )
+
+
 def _enrich_points_with_summary_width(
     points_df: pd.DataFrame,
     summary_df: pd.DataFrame,
@@ -211,6 +231,17 @@ def _enrich_points_with_summary_width(
 
     points = _normalized_measurement_keys(points_df)
     summary = _normalized_measurement_keys(summary_df)
+
+    _validate_measurement_keys_populated(
+        points,
+        label=label,
+        frame_name="Points",
+    )
+    _validate_measurement_keys_populated(
+        summary,
+        label=label,
+        frame_name="Summary",
+    )
 
     summary = summary[required_summary].copy()
     summary["width_total_m"] = pd.to_numeric(summary["width_total_m"], errors="coerce")
