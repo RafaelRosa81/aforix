@@ -266,3 +266,63 @@ def test_width_audit_loads_file_group_summaries(tmp_path):
     assert report.loc[0, "status"] == "width_mismatch"
     assert report.loc[0, "summary_width_total_m"] == 14.8
     assert report.loc[0, "points_width_m"] == 14.7
+
+
+def test_audit_points_completeness_flags_partial_percent_q(tmp_path):
+    points_dir = tmp_path / "normalized" / "flowtracker" / "Points"
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {**MEASUREMENT, "percent_q": "40", "point_label": "1", "velocity_mean_m_s": "0.1", "width_m": "10"},
+            {**MEASUREMENT, "percent_q": "60", "point_label": "2", "velocity_mean_m_s": "0.2", "width_m": "10"},
+            {**MEASUREMENT, "percent_q": None, "point_label": "3", "velocity_mean_m_s": "0.3", "width_m": "10"},
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_points_completeness(tmp_path / "normalized")
+    row = report[
+        (report["instrument"] == "flowtracker")
+        & (report["column"] == "percent_q")
+    ].iloc[0]
+
+    assert row["status"] == "incomplete"
+    assert row["n_populated"] == 2
+    assert row["n_missing"] == 1
+
+
+def test_width_audit_reports_missing_measurement_keys_instead_of_crashing(tmp_path):
+    root = tmp_path / "normalized"
+    instrument_dir = root / "flowtracker"
+    points_dir = instrument_dir / "Points"
+    points_dir.mkdir(parents=True)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7005",
+                "measurement_date": "20260120",
+                "width_total_m": "10.0",
+            }
+        ]
+    ).to_csv(instrument_dir / "Summary.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "instrument": "flowtracker",
+                "station_id": "7005",
+                "measurement_date": "20260120",
+                "measurement_time": "141519",
+                "width_m": "10.0",
+            }
+        ]
+    ).to_csv(points_dir / "7005_Points.csv", index=False)
+
+    report = audit_points_width_consistency(root)
+
+    assert len(report) == 1
+    assert report.loc[0, "status"] == "missing_key_columns"
+    assert report.loc[0, "missing_summary_keys"] == "measurement_time"
+
