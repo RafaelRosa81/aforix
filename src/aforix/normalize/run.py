@@ -506,20 +506,15 @@ def _enrich_nivus_points_from_sections(
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        # Missing geometry cannot yield a reliable point area.
-        missing_geometry = [
-            col for col in ("width_m", "depth_m")
-            if assigned_sections[col].isna().any()
-        ]
-        if missing_geometry:
-            raise ValueError(
-                f"Nivus Sections contain missing geometry for {label}: "
-                f"{missing_geometry}"
-            )
-
+        # Preserve unknown geometry instead of silently dropping sections or
+        # interpreting the Nivus #-1 sentinel as zero depth/width.
+        # An aggregate area is known only if every assigned section is known.
+        geometry_complete = assigned_sections[["width_m", "depth_m"]].notna().all().all()
         area_m2 = (
-            assigned_sections["width_m"] * assigned_sections["depth_m"]
-        ).sum(min_count=1)
+            (assigned_sections["width_m"] * assigned_sections["depth_m"]).sum()
+            if geometry_complete
+            else float("nan")
+        )
 
         # Do not silently interpret the Nivus #-1 sentinel as zero flow.
         # If any assigned section lacks flow, the aggregate is unknown.
