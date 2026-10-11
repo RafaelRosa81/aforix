@@ -398,7 +398,6 @@ tables:
         - measured_depth_m
       non_empty:
         - point_label
-        - velocity_mean_m_s
 
 
   Sections:

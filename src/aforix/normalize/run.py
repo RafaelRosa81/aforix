@@ -506,23 +506,33 @@ def _enrich_nivus_points_from_sections(
         else:
             assigned_sections = sec.iloc[[i + 1]]
 
-        hydraulic_cols = ["width_m", "depth_m", "q_ls", "percent_q"]
-        missing_cols = [
-            col
-            for col in hydraulic_cols
+        # Missing geometry cannot yield a reliable point area.
+        missing_geometry = [
+            col for col in ("width_m", "depth_m")
             if assigned_sections[col].isna().any()
         ]
-        if missing_cols:
+        if missing_geometry:
             raise ValueError(
-                f"Nivus Sections contain missing hydraulic values for {label}: "
-                f"{missing_cols}"
+                f"Nivus Sections contain missing geometry for {label}: "
+                f"{missing_geometry}"
             )
 
         area_m2 = (
             assigned_sections["width_m"] * assigned_sections["depth_m"]
         ).sum(min_count=1)
-        q_ls = assigned_sections["q_ls"].sum(min_count=1)
-        percent_q = assigned_sections["percent_q"].sum(min_count=1)
+
+        # Do not silently interpret the Nivus #-1 sentinel as zero flow.
+        # If any assigned section lacks flow, the aggregate is unknown.
+        q_ls = (
+            assigned_sections["q_ls"].sum()
+            if assigned_sections["q_ls"].notna().all()
+            else float("nan")
+        )
+        percent_q = (
+            assigned_sections["percent_q"].sum()
+            if assigned_sections["percent_q"].notna().all()
+            else float("nan")
+        )
 
         out.loc[row_idx, "area_m2"] = area_m2
         out.loc[row_idx, "q_ls"] = q_ls
@@ -589,14 +599,8 @@ def _enrich_nivus_points_by_measurement(
             if col in enriched.columns:
                 out.loc[point_index, col] = enriched[col]
 
-    percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
-    if percent.isna().any():
-        missing = int(percent.isna().sum())
-        raise ValueError(
-            f"Nivus percent_q enrichment incomplete for {label}: "
-            f"{missing} Points rows remain empty."
-        )
-
+    # A missing section flow produces an unknown point percent_q, not zero.
+    # Preserve that missingness; structural and geometry checks run above.
     return out
 
 
