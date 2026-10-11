@@ -35,3 +35,39 @@ def test_nivus_missing_section_geometry_still_fails():
     })
     with pytest.raises(ValueError, match="missing geometry"):
         _enrich_nivus_points_from_sections(points, sections, label="nivus-test")
+
+
+def test_nivus_measurement_enrichment_preserves_missing_last_point_flow():
+    from aforix.normalize.run import _enrich_nivus_points_by_measurement
+
+    keys = {
+        "instrument": "nivus",
+        "station_id": "7001",
+        "measurement_date": "20250711",
+        "measurement_time": "151429",
+    }
+    points = pd.DataFrame([
+        {**keys, "point_index": index}
+        for index in range(1, 14)
+    ])
+    sections = pd.DataFrame([
+        {
+            **keys,
+            "section_index": index,
+            "width_m": 0.2769 if index not in (1, 2, 14, 15) else 0.2077,
+            "depth_m": 0.04,
+            "q_ls": "#-1" if index in (14, 15) else 1.0,
+            "percent_q": "#-1" if index in (14, 15) else 1.0,
+        }
+        for index in range(1, 16)
+    ])
+    result = _enrich_nivus_points_by_measurement(
+        points, sections, label="7001_Points_20250711_151429.csv"
+    )
+
+    assert len(result) == 13
+    assert result.loc[12, "area_m2"] == pytest.approx(2 * 0.2077 * 0.04)
+    assert pd.isna(result.loc[12, "q_ls"])
+    assert pd.isna(result.loc[12, "q_m3s"])
+    assert pd.isna(result.loc[12, "percent_q"])
+    assert result.loc[11, "percent_q"] == pytest.approx(1.0)
