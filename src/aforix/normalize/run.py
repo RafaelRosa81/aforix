@@ -301,6 +301,65 @@ def _enrich_points_with_summary_width(
     return merged[points_df.columns]
 
 
+def _enrich_flowtracker_summary_max_depth(
+    *,
+    summary_paths: list[Path],
+    points_frames: list[pd.DataFrame],
+) -> list[pd.DataFrame]:
+    """Derive per-measurement maximum water depth from normalized FlowTracker Points."""
+    if not summary_paths or not points_frames:
+        raise ValueError("FlowTracker max_depth_m requires normalized Summary and Points.")
+
+    points = _normalized_measurement_keys(
+        pd.concat(points_frames, ignore_index=True, sort=False)
+    )
+    summaries = [
+        _normalized_measurement_keys(_read_csv(path))
+        for path in summary_paths
+    ]
+    required = [*POINT_MEASUREMENT_KEYS, "depth_m"]
+    missing = [column for column in required if column not in points.columns]
+    if missing:
+        raise ValueError(f"FlowTracker Points missing columns for max_depth_m: {missing}")
+    _validate_measurement_keys_populated(points, label="flowtracker", frame_name="Points")
+    points["depth_m"] = pd.to_numeric(points["depth_m"], errors="coerce")
+    if (points["depth_m"].dropna() < 0).any():
+        raise ValueError("Negative FlowTracker Points.depth_m values.")
+    maxima = (
+        points.groupby(POINT_MEASUREMENT_KEYS, dropna=False, as_index=False)["depth_m"]
+        .max()
+        .rename(columns={"depth_m": "_derived_max_depth_m"})
+    )
+    if maxima["_derived_max_depth_m"].isna().any():
+        raise ValueError("FlowTracker measurement has no valid Points.depth_m.")
+
+    updated = []
+    matched_keys = []
+    for path, summary in zip(summary_paths, summaries):
+        _validate_measurement_keys_populated(summary, label=str(path), frame_name="Summary")
+        if summary.duplicated(POINT_MEASUREMENT_KEYS).any():
+            raise ValueError(f"Duplicate FlowTracker Summary measurement keys in {path}")
+        joined = summary.merge(
+            maxima, on=POINT_MEASUREMENT_KEYS, how="left",
+            validate="one_to_one", indicator=True,
+        )
+        if joined["_derived_max_depth_m"].isna().any():
+            raise ValueError(f"FlowTracker Summary without matching Points depth: {path}")
+        matched_keys.append(joined[POINT_MEASUREMENT_KEYS])
+        joined["max_depth_m"] = joined["_derived_max_depth_m"]
+        joined = joined.drop(columns=["_derived_max_depth_m", "_merge"])
+        updated.append((path, joined))
+
+    all_keys = pd.concat(matched_keys, ignore_index=True)
+    if all_keys.duplicated().any():
+        raise ValueError("Duplicate FlowTracker Summary measurements across files.")
+    if len(all_keys) != len(maxima):
+        raise ValueError("FlowTracker Points contain measurements absent from Summary.")
+    for path, frame in updated:
+        _write_normalized_file(frame, output_path=path, write_policy="overwrite")
+    return [frame for _, frame in updated]
+
+
 def _normalize_summary_dependency_for_points(
     *,
     input_root: Path,
@@ -864,6 +923,7 @@ def normalize_database(config_path: Path) -> Path:
     failed: list[tuple[str, str]] = []
 
     for instrument in instruments:
+        summary_concat_start = len(cross_instrument_frames.get("Summary", []))
         points_written = False
         written_group_paths: dict[str, list[Path]] = {
             group: []
@@ -951,6 +1011,13 @@ def normalize_database(config_path: Path) -> Path:
                 )
                 if "Points" in active_concat_groups:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
+                if instrument == "flowtracker" and "Summary" in groups:
+                    updated_summaries = _enrich_flowtracker_summary_max_depth(
+                        summary_paths=summary_paths,
+                        points_frames=enriched_points_frames,
+                    )
+                    if "Summary" in active_concat_groups:
+                        cross_instrument_frames["Summary"][summary_concat_start:] = updated_summaries
             except Exception as exc:
                 _raise_width_enrichment_failure(
                     instrument=instrument,
