@@ -647,7 +647,7 @@ def test_normalize_database_propagates_collected_group_failures(tmp_path, monkey
         normalize_database(config_path)
 
 
-def test_nivus_enrichment_rejects_missing_section_hydraulic_values():
+def test_nivus_enrichment_preserves_missing_section_percent_q():
     points = pd.DataFrame(
         [
             {"point_index": 1},
@@ -663,12 +663,19 @@ def test_nivus_enrichment_rejects_missing_section_hydraulic_values():
         ]
     )
 
-    with pytest.raises(ValueError, match="missing hydraulic values"):
-        _enrich_nivus_points_from_sections(
-            points,
-            sections,
-            label="fixture",
-        )
+    result = _enrich_nivus_points_from_sections(
+        points,
+        sections,
+        label="fixture",
+    )
+
+    assert len(result) == 2
+    assert result.loc[0, "area_m2"] == pytest.approx(0.2)
+    assert result.loc[0, "q_ls"] == pytest.approx(30.0)
+    assert pd.isna(result.loc[0, "percent_q"])
+    assert result.loc[1, "area_m2"] == pytest.approx(0.2)
+    assert result.loc[1, "q_ls"] == pytest.approx(70.0)
+    assert result.loc[1, "percent_q"] == pytest.approx(80.0)
 
 
 def test_file_group_overwrite_removes_stale_concat_layout(tmp_path):
