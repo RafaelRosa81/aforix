@@ -35,7 +35,7 @@ def test_flowtracker_max_depth_is_per_measurement(tmp_path: Path):
         summary_paths=[summary_path], points_frames=[points]
     )
     assert result[0]["max_depth_m"].tolist() == pytest.approx([0.25, 0.31])
-    assert result[0]["depth_mean_m"].tolist() == pytest.approx([0.13, 0.161])
+    assert pd.to_numeric(result[0]["depth_mean_m"]).tolist() == pytest.approx([0.13, 0.161])
     saved = pd.read_csv(summary_path)
     assert saved["max_depth_m"].tolist() == pytest.approx([0.25, 0.31])
 
