@@ -599,14 +599,8 @@ def _enrich_nivus_points_by_measurement(
             if col in enriched.columns:
                 out.loc[point_index, col] = enriched[col]
 
-    percent = pd.to_numeric(out.get("percent_q"), errors="coerce")
-    if percent.isna().any():
-        missing = int(percent.isna().sum())
-        raise ValueError(
-            f"Nivus percent_q enrichment incomplete for {label}: "
-            f"{missing} Points rows remain empty."
-        )
-
+    # A missing section flow produces an unknown point percent_q, not zero.
+    # Preserve that missingness; structural and geometry checks run above.
     return out
 
 
