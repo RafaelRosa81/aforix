@@ -33,6 +33,7 @@ from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
     SDH_AFOROS_COLUMNS,
 )
+from aforix.export.sih.ive_integration import calculate_sih_ive_fields
 from aforix.export.sih.writers import write_csv, write_metadata
 
 
@@ -135,6 +136,10 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                 id_tipo_aforo=id_tipo_aforo,
                 id_instrumentos_rangos=id_instrumentos_rangos,
                 raw_measurement=raw_measurement,
+            )
+
+            aforos_row.update(
+                calculate_sih_ive_fields(normalized_root, instrument, measurement)
             )
 
             station_id = str(measurement.get("station_id", "unknown"))
