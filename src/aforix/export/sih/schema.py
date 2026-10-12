@@ -33,4 +33,7 @@ SDH_AFOROS_COLUMNS = [
     "velocidad_media",
     "radio_hidraulico",
     "nivel_confiabilidad",
+    "incertidumbre_IVE",
+    "error_IVE",
+    "calidad_IVE",
 ]
