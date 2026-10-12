@@ -53,8 +53,12 @@ def test_ive_export_missing_points_does_not_block_export(tmp_path):
     assert fields["calidad_IVE"].startswith("IVE no disponible:")
 
 
-def test_ive_export_adcp_is_not_assumed_applicable(tmp_path):
-    fields = calculate_sih_ive_fields(tmp_path, "m9", _measurement())
-    assert fields["incertidumbre_IVE"] == ""
-    assert fields["error_IVE"] == ""
-    assert fields["calidad_IVE"] == "IVE no disponible: método no validado"
+def test_ive_export_nivus_uses_normalized_points(tmp_path):
+    points = [_point(i * 0.25) for i in range(13)]
+    for point in points:
+        point["instrument"] = "nivus"
+    pd.DataFrame(points).to_csv(tmp_path / "Points.csv", index=False)
+    fields = calculate_sih_ive_fields(tmp_path, "nivus", _measurement())
+    assert fields["incertidumbre_IVE"] > 0
+    assert fields["error_IVE"] > 0
+    assert fields["calidad_IVE"] in {"Excelente", "Buena", "Regular", "Mala"}
