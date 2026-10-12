@@ -9,10 +9,6 @@ from aforix.analysis.uncertainty.calculator import IVEPoint, calculate_ive
 from aforix.export.sih.ive_points import load_ive_points
 
 
-# IVE has been validated for point/vertical measurements, not ADCP transects.
-IVE_INSTRUMENTS = frozenset({"flowtracker", "molinete"})
-
-
 def calculate_sih_ive_fields(
     normalized_root: str | Path,
     instrument: str,
@@ -28,9 +24,6 @@ def calculate_sih_ive_fields(
         "error_IVE": "",
         "calidad_IVE": "",
     }
-    if instrument.strip().casefold() not in IVE_INSTRUMENTS:
-        return {**empty, "calidad_IVE": "IVE no disponible: método no validado"}
-
     try:
         df = load_ive_points(normalized_root, instrument, measurement)
         points = [
