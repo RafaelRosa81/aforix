@@ -34,6 +34,7 @@ from aforix.export.sih.schema import (
     SDH_AFOROS_COLUMNS,
 )
 from aforix.export.sih.ive_integration import calculate_sih_ive_fields, write_sih_ive_report
+from aforix.analysis.uncertainty.calculator import IVEParameters
 from aforix.export.sih.writers import write_csv, write_metadata
 
 
@@ -73,6 +74,13 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
     output_names = output_cfg.get("output_names", {})
     delimiter = output_cfg.get("delimiter", ",")
     encoding = output_cfg.get("encoding", "utf-8-sig")
+
+    # Optional configuration under sih.ive.borders; defaults preserve legacy behavior.
+    borders = sih_config["sih"].get("ive", {}).get("borders", {})
+    ive_parameters = IVEParameters(
+        left_bank_mode=borders.get("left", "zero"),
+        right_bank_mode=borders.get("right", "preserve_depth"),
+    )
 
     exported_files: list[Path] = []
     metadata_rows: list[dict[str, Any]] = []
@@ -139,7 +147,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             )
 
             aforos_row.update(
-                calculate_sih_ive_fields(normalized_root, instrument, measurement)
+                calculate_sih_ive_fields(normalized_root, instrument, measurement, parameters=ive_parameters)
             )
 
             station_id = str(measurement.get("station_id", "unknown"))
@@ -194,6 +202,7 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                     output_dir / "incertidumbre",
                     instrument,
                     measurement,
+                    parameters=ive_parameters,
                 )
                 exported_files.append(report_path)
                 ive_report_path = str(report_path)
