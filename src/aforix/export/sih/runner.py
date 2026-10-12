@@ -33,7 +33,7 @@ from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
     SDH_AFOROS_COLUMNS,
 )
-from aforix.export.sih.ive_integration import calculate_sih_ive_fields
+from aforix.export.sih.ive_integration import calculate_sih_ive_fields, write_sih_ive_report
 from aforix.export.sih.writers import write_csv, write_metadata
 
 
@@ -184,6 +184,22 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
 
             exported_files.extend([actuaciones_path, aforos_path])
 
+            # The audit report is supplementary: an unavailable IVE must not
+            # prevent exporting otherwise valid SIH CSV files.
+            ive_report_path = ""
+            ive_report_error = ""
+            try:
+                report_path = write_sih_ive_report(
+                    normalized_root,
+                    output_dir / "incertidumbre",
+                    instrument,
+                    measurement,
+                )
+                exported_files.append(report_path)
+                ive_report_path = str(report_path)
+            except (ValueError, FileNotFoundError, KeyError, TypeError, OverflowError, OSError) as exc:
+                ive_report_error = str(exc)
+
             metadata_rows.append(
                 {
                     "status": "success",
@@ -196,6 +212,8 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                     "raw_canonical_found": raw_measurement is not None,
                     "actuaciones_file": str(actuaciones_path),
                     "aforos_file": str(aforos_path),
+                    "ive_report_file": ive_report_path,
+                    "ive_report_error": ive_report_error,
                 }
             )
 
