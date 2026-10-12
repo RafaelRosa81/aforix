@@ -69,8 +69,8 @@ def write_ive_excel_report(
     settings.append(["Parametro", "Valor"])
     for key, value in vars(p).items():
         settings.append([key, value])
-    settings.append(["Tratamiento bordes", "Nodos fisicos con profundidad y velocidad nulas cuando faltan"])
-    settings.append(["Metodo", "Mid-section; se conservan las velocidades medidas extremas"])
+    settings.append(["Tratamiento bordes", "Borde izquierdo: profundidad y velocidad cero; borde derecho: velocidad cero y profundidad original si existe"])
+    settings.append(["Metodo", "Mid-section; valores originales en Points_normalizados; condiciones de borde en Detalle_IVE"])
 
     source = wb.create_sheet("Points_normalizados")
     columns = list(normalized_points.columns)
