@@ -68,7 +68,7 @@ def write_sih_ive_report(
         )
         for row in df.itertuples(index=False)
     ]
-    result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]))
+    result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]), parameters=parameters)
     return write_ive_excel_report(
         output_root,
         instrument=instrument,
