@@ -69,7 +69,9 @@ def write_ive_excel_report(
     settings.append(["Parametro", "Valor"])
     for key, value in vars(p).items():
         settings.append([key, value])
-    settings.append(["Tratamiento bordes", "Borde izquierdo: profundidad y velocidad cero; borde derecho: velocidad cero y profundidad original si existe"])
+    settings.append(["Tratamiento borde izquierdo", p.left_bank_mode])
+    settings.append(["Tratamiento borde derecho", p.right_bank_mode])
+    settings.append(["Modos", "zero: d=0,v=0; preserve_depth: d original,v=0; preserve_both: d,v originales"])
     settings.append(["Metodo", "Mid-section; valores originales en Points_normalizados; condiciones de borde en Detalle_IVE"])
 
     source = wb.create_sheet("Points_normalizados")
