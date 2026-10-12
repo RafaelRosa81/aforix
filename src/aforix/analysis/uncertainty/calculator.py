@@ -13,6 +13,8 @@ class IVEParameters:
     width_relative_per_vertical: float = 0.005
     minimum_depth_sd_m: float = 0.01
     minimum_velocity_sd_m_s: float | None = None
+    left_bank_mode: str = "zero"
+    right_bank_mode: str = "preserve_depth"
 
 
 @dataclass(frozen=True)
@@ -48,8 +50,13 @@ def calculate_ive(
     """Calculate IVE uncertainty using the reviewed mid-section template."""
     p = parameters or IVEParameters()
 
+    valid_bank_modes = {"zero", "preserve_depth", "preserve_both"}
+    for side in ("left_bank_mode", "right_bank_mode"):
+        if getattr(p, side) not in valid_bank_modes:
+            raise ValueError(f"Invalid {side}: {getattr(p, side)!r}; expected {sorted(valid_bank_modes)}")
+
     for name, value in vars(p).items():
-        if value is None:
+        if isinstance(value, str) or value is None:
             continue
         if not isfinite(value) or value < 0:
             raise ValueError(f"Invalid IVE parameter: {name}")
@@ -94,14 +101,16 @@ def calculate_ive(
         for xi, di, vi in zip(x, d, v)
     ]
 
-    # Uniform left-bank convention: x=0 has zero depth and velocity,
-    # even when the source record at x=0 reports positive values.
-    # The source Points.csv remains unchanged for auditability.
-    d[0] = 0.0
-    v[0] = 0.0
+    # Apply configured boundary conditions without modifying source points.
+    # Synthetic banks are always zero; preserve modes affect existing records only.
+    for idx, mode in ((0, p.left_bank_mode), (-1, p.right_bank_mode)):
+        if mode == "zero":
+            d[idx] = 0.0
+            v[idx] = 0.0
+        elif mode == "preserve_depth":
+            v[idx] = 0.0
+        # preserve_both retains the original depth and velocity.
 
-    # Keep the existing right-bank convention unchanged.
-    v[-1] = 0.0
 
     widths = []
     q_values = []
@@ -195,10 +204,16 @@ def calculate_ive(
         vb = (q_values[i] * p.width_relative_per_vertical)**2
         vd = (widths[i] * v[i] * sd_depth)**2
 
-        # Boundary velocities are imposed, not measured.
+        # Only a boundary explicitly preserving source velocity contributes
+        # velocity variance; synthetic banks always have zero velocity.
+        boundary_preserves_velocity = (
+            (i == 0 and p.left_bank_mode == "preserve_both")
+            or (i == len(nodes) - 1 and p.right_bank_mode == "preserve_both")
+        )
         vv = (
-            0.0 if i in (0, len(nodes) - 1)
-            else (widths[i] * d[i] * sd_velocity)**2
+            (widths[i] * d[i] * sd_velocity)**2
+            if 0 < i < len(nodes) - 1 or boundary_preserves_velocity
+            else 0.0
         )
 
         variance_width += vb
