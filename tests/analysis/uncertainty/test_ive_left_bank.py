@@ -9,15 +9,15 @@ def _points(left_depth: float, left_velocity: float):
         IVEPoint(0.0, left_depth, left_velocity),
         *[
             IVEPoint(float(i), 0.5 + i * 0.01, 0.2 + i * 0.005)
-            for i in range(1, 9)
+            for i in range(1, 12)
         ],
-        IVEPoint(9.0, 0.0, 0.0),
+        IVEPoint(12.0, 0.0, 0.0),
     ]
 
 
 def test_left_bank_positive_source_values_are_imposed_zero():
     source = _points(0.14, 0.0683)
-    result = calculate_ive(source, width_m=9.0)
+    result = calculate_ive(source, width_m=12.0)
     baseline = calculate_ive(_points(0.0, 0.0), width_m=9.0)
 
     assert source[0].depth_m == pytest.approx(0.14)
