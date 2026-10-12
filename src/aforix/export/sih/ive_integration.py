@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aforix.analysis.uncertainty.calculator import IVEPoint, calculate_ive
+from aforix.analysis.uncertainty.calculator import IVEPoint, IVEParameters, calculate_ive
 from aforix.analysis.uncertainty.excel_report import write_ive_excel_report
 from aforix.export.sih.ive_points import load_ive_points
 
@@ -14,6 +14,7 @@ def calculate_sih_ive_fields(
     normalized_root: str | Path,
     instrument: str,
     measurement: pd.Series,
+    parameters: IVEParameters | None = None,
 ) -> dict[str, float | str]:
     """Return SIH IVE fields, preserving missing results as empty numeric cells.
 
@@ -35,7 +36,7 @@ def calculate_sih_ive_fields(
             )
             for row in df.itertuples(index=False)
         ]
-        result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]))
+        result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]), parameters=parameters)
     except (ValueError, FileNotFoundError, KeyError, TypeError, OverflowError) as exc:
         return {**empty, "calidad_IVE": f"IVE no disponible: {exc}"}
 
@@ -55,6 +56,7 @@ def write_sih_ive_report(
     output_root: str | Path,
     instrument: str,
     measurement: pd.Series,
+    parameters: IVEParameters | None = None,
 ) -> Path:
     """Generate an auditable report using the same normalized data and engine as SIH."""
     df = load_ive_points(normalized_root, instrument, measurement)
@@ -75,4 +77,5 @@ def write_sih_ive_report(
         measurement_time=measurement["measurement_time"],
         normalized_points=df,
         result=result,
+        parameters=parameters,
     )
