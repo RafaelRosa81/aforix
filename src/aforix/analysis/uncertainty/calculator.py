@@ -94,8 +94,13 @@ def calculate_ive(
         for xi, di, vi in zip(x, d, v)
     ]
 
-    # The reviewed template treats physical boundary velocities as imposed.
+    # Uniform left-bank convention: x=0 has zero depth and velocity,
+    # even when the source record at x=0 reports positive values.
+    # The source Points.csv remains unchanged for auditability.
+    d[0] = 0.0
     v[0] = 0.0
+
+    # Keep the existing right-bank convention unchanged.
     v[-1] = 0.0
 
     widths = []
