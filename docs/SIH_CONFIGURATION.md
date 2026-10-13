@@ -398,7 +398,7 @@ fecha_fin
 - Molinete: `measurement_date` combinado con `end_time`. Si `Esc. Fin.:` no existe o contiene `-`, `escala_fin` toma `escala_inicio`.
 - Nivus: el `etime` del nivel general del aforo. `escala_inicio`, `escala_fin` y `operador` quedan vacíos y configurables para el futuro.
 
-En la actuación, `lectura_escala` toma `escala_inicio`. `id_operador` conserva el primer token del campo de operador, delimitado por puntuación o espacios en blanco; por ejemplo, `M. Reyes` queda como `M`.
+En la actuación, `lectura_escala` toma `escala_inicio`. `id_operador` se formatea para SIH: los nombres de dos partes quedan como iniciales mayúsculas (`TIAGO POREN` → `TP`), las abreviaturas en mayúsculas conservan sus dos primeras letras (`IPAMBC` → `IP`), los valores separados por guion bajo conservan el primer componente (`MV_HG_RR` → `MV`), los nombres separados por punto quedan como iniciales (`M.Reyes` → `MR`) y los demás formatos conservan el primer token.
 
 ## 14. quality
 
