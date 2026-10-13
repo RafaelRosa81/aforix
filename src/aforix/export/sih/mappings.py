@@ -39,13 +39,49 @@ def _normalized_field(measurement: pd.Series, config: dict[str, Any], key: str) 
 
 
 def _first_operator_token(value: str) -> str:
-    """Keep the first operator token, separated by punctuation or whitespace."""
+    """Format operator identifiers for SIH using the known name/code patterns."""
     text = str(value or "").strip()
     if not text:
         return ""
-    match = re.search(r"[^\W_]+", text, flags=re.UNICODE)
-    return match.group(0) if match else ""
 
+    # Dotted names use the initials of their components: "M.Reyes" -> "MR".
+    if "." in text:
+        components = [
+            match.group(0)
+            for part in text.split(".")
+            if (match := re.search(r"[^\W_]+", part, flags=re.UNICODE))
+        ]
+        if components:
+            return "".join(component[0] for component in components).upper()
+
+    # Underscore-separated codes retain only their first component.
+    first_component = text.split("_", 1)[0].strip()
+    if first_component != text:
+        match = re.search(r"[^\W_]+", first_component, flags=re.UNICODE)
+        return match.group(0) if match else ""
+
+    # A two-part name is represented by its initials: "TIAGO POREN" -> "TP".
+    parts = text.split()
+    if len(parts) == 2:
+        initials = []
+        for part in parts:
+            match = re.search(r"[^\W_]+", part, flags=re.UNICODE)
+            if match:
+                initials.append(match.group(0)[0])
+        if initials:
+            return "".join(initials).upper()
+
+    match = re.search(r"[^\W_]+", text, flags=re.UNICODE)
+    if not match:
+        return ""
+
+    token = match.group(0)
+    # A single uppercase token is treated as an abbreviated operator code.
+    if token.isalpha() and token.isupper() and len(token) >= 2:
+        return token[:2]
+
+    # In all other formats, retain the first token.
+    return token
 
 def _format_datetime_value(value: str, fmt: str) -> str:
     text = str(value or "").strip()
