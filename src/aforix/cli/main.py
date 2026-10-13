@@ -7,7 +7,6 @@ from aforix.config.loader import load_config
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.nivus import run as run_nivus
 from aforix.ingest.molinete import run as run_molinete
-from aforix.analysis.statistics import run as run_statistics
 from aforix.analysis.correlation.cli import app as correlation_app
 from aforix.analysis.quality.cli import app as quality_app
 from aforix.analysis.stage_discharge.cli import app as stage_discharge_app
@@ -128,11 +127,14 @@ def ingest_m9(
 def analyze_statistics(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    """Run statistical analysis."""
+    """Reserved command; statistical analysis is not implemented."""
 
-    config_path = _load_validated_config(config)
-    run_dir = run_statistics(config_path)
-    typer.echo(f"Statistical analysis completed: {run_dir}")
+    typer.echo(
+        "Statistical analysis is not implemented yet and is outside the current "
+        "production scope.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("build-groups")
