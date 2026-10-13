@@ -71,6 +71,11 @@ database/**/*.parquet
 nivus_acceptance_audit.csv
 normalize_output.txt
 
+# Local real-data acceptance snapshots; keep local, never commit
+/database_acceptance/
+/outputs_acceptance/
+/runs_acceptance/
+
 # Local-only client reference and selection inputs
 /Template_incertidumbre_aforos_IVE3.xlsx
 /configs/sih/selection_masiva_245.csv
