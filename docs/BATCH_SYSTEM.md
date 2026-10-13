@@ -108,7 +108,6 @@ config-check
 ingest.flowtracker
 ingest.molinete
 ingest.nivus
-ingest.m9
 build-groups
 normalize.run
 validate.run
@@ -119,6 +118,8 @@ analysis.stage-discharge
 analysis.section-profiles
 analysis.correlation
 ```
+
+`ingest.m9` remains registered only as a compatibility placeholder. It fails explicitly because M9 ingestion is not implemented and must not be included in production batches.
 
 List currently registered commands with:
 

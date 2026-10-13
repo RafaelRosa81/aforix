@@ -39,6 +39,8 @@ Comandos principales por etapa:
 | Validación | `aforix validate run` |
 | Exportación | `aforix export ...` |
 | Análisis | `aforix analyze ...` |
+| Conversión de fuentes externas | `aforix external ...` |
+| Flujos YAML reproducibles | `aforix batch ...` |
 
 ## Ayuda general
 
@@ -98,13 +100,15 @@ aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
 ```
 
-### M9
+### M9 / ADCP
+
+M9 está pendiente de implementación y fuera del alcance de producción actual. El comando se conserva como marcador, pero termina con código de error y un mensaje explícito; no procesa archivos ni genera una corrida:
 
 ```bash
 aforix ingest m9 -c configs/examples/main.yaml
 ```
 
-M9 / ADCP queda fuera del alcance de producción actual y puede considerarse experimental según el estado del proyecto.
+No incluir este comando en flujos operativos ni batches de producción.
 
 ## build-groups
 
@@ -280,7 +284,7 @@ Agrupa comandos de análisis.
 
 ### analyze statistics
 
-Ejecuta análisis estadísticos definidos para el proyecto.
+Este comando está reservado para desarrollo futuro. La funcionalidad estadística todavía no está implementada; al invocarlo, Aforix muestra un mensaje y termina con código de error, sin crear una corrida.
 
 ```bash
 aforix analyze statistics -c configs/examples/main.yaml
@@ -300,17 +304,61 @@ aforix analyze quality run -c configs/examples/main.yaml
 
 ### analyze stage-discharge
 
+Ejecución con parámetros del YAML:
+
 ```bash
 aforix analyze stage-discharge run -c configs/examples/main.yaml
 ```
 
+Modo interactivo:
+
+```bash
+aforix analyze stage-discharge interactive -c configs/examples/main.yaml
+```
+
 ### analyze section-profiles
+
+Ejecución con parámetros del YAML:
 
 ```bash
 aforix analyze section-profiles run -c configs/examples/main.yaml
 ```
 
+Modo interactivo:
+
+```bash
+aforix analyze section-profiles run -c configs/examples/main.yaml --interactive
+```
+
+Los tipos de gráfico admitidos son `scatter` y `bar`.
+
 La capa de análisis debe trabajar preferentemente sobre datos normalizados o fuentes externas normalizadas.
+
+## external
+
+Convierte datos externos a formatos normalizados que pueden usar los análisis.
+
+```bash
+aforix external --help
+aforix external convert-model -c configs/examples/main.yaml
+aforix external convert-dinagua -c configs/examples/main.yaml
+aforix external convert-manual-stage -c configs/examples/main.yaml
+```
+
+Las rutas de entrada y salida se configuran en `external_sources` dentro del YAML principal. La guía de configuración y las guías de análisis describen los formatos esperados.
+
+## batch
+
+Los flujos batch permiten validar, planificar y ejecutar recetas YAML con manifiestos de corrida.
+
+```bash
+aforix batch --help
+aforix batch check -b configs/batches/examples/check_only.yaml
+aforix batch plan -b configs/batches/examples/full_ingest_pipeline.yaml
+aforix batch run -b configs/batches/examples/full_ingest_pipeline.yaml --dry-run
+```
+
+Para la sintaxis YAML, los ejemplos y el flujo de ejecución, consulta `docs/BATCH_GUIDE.md`.
 
 ## consolidate
 

@@ -9,11 +9,11 @@ El objetivo es transformar archivos originales de campo en datasets consistentes
 - FlowTracker
 - Molinete
 - Nivus
-- M9 / ADCP queda fuera del alcance de producción actual y se abordará en una etapa posterior.
+- M9 / ADCP permanece pendiente de implementación y no forma parte del alcance de producción.
 
 ## Quickstart
 
-Instalar desde la raíz del repositorio para uso normal:
+Aforix requiere **Python 3.10 o superior**. Instale desde la raíz del repositorio para uso normal:
 
 ```bash
 python -m pip install -e .
@@ -81,10 +81,23 @@ Antes de liberar o usar Aforix en producción, revisar la checklist GO/NO-GO en 
 
 Estas carpetas son locales o generadas por el pipeline y no deberían versionarse en Git.
 
-La estructura base de carpetas locales se conserva en el repositorio mediante archivos `.gitkeep`, de modo que un usuario que clone Aforix ya encontrará las carpetas necesarias (`data/raw/FT`, `data/raw/ML`, `data/raw/NV`, `data/raw/M9`, `database`, `outputs` y `runs`). Los datos reales, bases procesadas y outputs siguen ignorados por Git y no deben subirse al repositorio.
+La estructura base de carpetas locales se conserva en el repositorio mediante archivos `.gitkeep`, de modo que un usuario que clone Aforix ya encontrará las carpetas necesarias (`data/raw/FT`, `data/raw/ML`, `data/raw/NV`, `database`, `outputs` y `runs`). Los datos reales, bases procesadas y outputs siguen ignorados por Git y no deben subirse al repositorio.
+
+## Ruta de lectura recomendada
+
+1. **Instalación y primera ejecución:** esta página y el Quickstart.
+2. **Qué funciones están disponibles:** `docs/FUNCTIONALITIES.md`.
+3. **Flujo de procesamiento:** `docs/02_pipeline.md`.
+4. **Comandos y opciones:** `docs/03_cli.md`.
+5. **Configuración del proyecto:** `docs/CONFIGURATION_GUIDE.md`.
+6. **Ejecución reproducible:** `docs/BATCH_GUIDE.md` y `docs/LAUNCHERS_GUIDE.md`.
+7. **Modos interactivos:** `docs/INTERACTIVE_USAGE.md`.
+8. **Análisis y exportaciones específicas:** las guías listadas abajo.
+9. **Antes de entregar o usar en producción:** `docs/RELEASE_CHECKLIST.md`.
 
 ## Documentación
 
+- Funcionalidades y alcance: `docs/FUNCTIONALITIES.md`
 - Pipeline de procesamiento: `docs/02_pipeline.md`
 - Referencia CLI: `docs/03_cli.md`
 - Checklist de liberación a producción: `docs/RELEASE_CHECKLIST.md`
@@ -109,22 +122,24 @@ La estructura base de carpetas locales se conserva en el repositorio mediante ar
 
 Aforix está en desarrollo activo. El trabajo se organiza mediante ramas y Pull Requests.
 
-Componentes disponibles actualmente:
+Funciones disponibles actualmente:
 
-- ingesta de FlowTracker, Molinete y Nivus;
+- ingesta de archivos de FlowTracker, Molinete y Nivus;
 - extracción configurable de metadata mediante `metadata_policy`;
-- construcción configurable de `database/raw_canonical`;
-- normalización mediante registry YAML y política de escritura;
-- auditoría técnica de outputs del pipeline;
-- validación de datasets normalizados;
-- infraestructura batch con YAML, `CommandResult`, `manifest.json` y métricas operativas;
-- exportación de tablas;
-- exportación SIH configurable;
-- launchers Windows/Linux para ejecutar batches predeterminados y personalizados.
+- consolidación en `database/raw_canonical` y normalización con reglas YAML;
+- auditoría técnica y validación de datos normalizados;
+- exportación de tablas y Excel, además de exportación configurable a SIH;
+- análisis de correlación, métricas de calidad, caudal–altura y perfiles de sección;
+- conversión de datos externos de modelo, DINAGUA y niveles manuales;
+- ejecución batch desde YAML, con validación, planificación, simulación y manifiestos;
+- modos interactivos para exportar tablas, exportar a SIH, analizar caudal–altura y generar perfiles de sección.
 
-Fuera del alcance de producción actual:
+La descripción funcional y los comandos están en `docs/FUNCTIONALITIES.md`; la referencia completa de opciones está en `docs/03_cli.md`.
 
-- ingesta M9 / ADCP completa.
+Pendiente de implementación y fuera del alcance actual de producción:
+
+- ingesta M9 / ADCP;
+- análisis estadístico (`aforix analyze statistics`), que actualmente termina con un mensaje explícito de función no implementada.
 
 ## Autor
 

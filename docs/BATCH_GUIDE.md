@@ -131,7 +131,6 @@ config-check
 ingest.flowtracker
 ingest.molinete
 ingest.nivus
-ingest.m9
 build-groups
 normalize.run
 validate.run
@@ -143,7 +142,7 @@ analysis.section-profiles
 analysis.correlation
 ```
 
-El usuario no debería inventar nombres de comandos. Debe usar `aforix batch list-commands` para ver los disponibles.
+El usuario no debería inventar nombres de comandos. Debe usar `aforix batch list-commands` para ver los disponibles. Aunque el registry conserva `ingest.m9` por compatibilidad, el adaptador no está implementado y el comando falla explícitamente; no debe usarse en batches.
 
 ## 6. Estructura YAML
 

@@ -16,9 +16,15 @@ CONFIG = ROOT / "configs/normalization/molinete.yaml"
 def test_molinete_real_vertical_velocity_reconstruction():
     files = sorted(POINTS_DIR.glob("*.csv"))
 
+    if not files:
+        pytest.skip(
+            "No hay datos canónicos locales de Molinete; "
+            "este test requiere los 13 archivos de referencia."
+        )
+
     if len(files) != 13:
         pytest.fail(
-            f"Se esperaban 13 archivos can?nicos; encontrados: {len(files)}"
+            f"Se esperaban 13 archivos canónicos de referencia; encontrados: {len(files)}"
         )
 
     with CONFIG.open(encoding="utf-8") as stream:

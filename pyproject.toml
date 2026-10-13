@@ -9,6 +9,7 @@ dependencies = [
     "numpy",
     "pyyaml",
     "openpyxl",
+    "xlrd>=2.0.1",
     "matplotlib",
     "scipy",
     "scikit-learn",

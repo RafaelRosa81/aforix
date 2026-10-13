@@ -1,18 +1,10 @@
 from pathlib import Path
 
-from aforix.config.loader import load_config
-from aforix.runs.manager import create_run
-
 
 def run(config_path: Path) -> Path:
-    """Run M9 ingest pipeline."""
+    """Reserved entry point for M9 ingestion, which is not implemented yet."""
 
-    cfg = load_config(config_path)
-    run_dir = create_run("ingest_m9", config_path)
-
-    print("Config loaded")
-    print("Running M9 ingest")
-    print(f"Config keys: {list(cfg.keys())}")
-    print(f"Run created: {run_dir}")
-
-    return run_dir
+    raise NotImplementedError(
+        "M9/ADCP ingestion is not implemented yet and is outside the current "
+        "production scope."
+    )
