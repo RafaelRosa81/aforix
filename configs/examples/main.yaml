@@ -201,8 +201,9 @@ ingest:
             - "%Y/%m/%d %H:%M:%S"
           output_format: "%H%M%S"
 
+  # M9/ADCP ingestion is not implemented; keep disabled for production.
   m9:
-    enabled: true
+    enabled: false
     raw_subdir: M9
 
 build_groups:
