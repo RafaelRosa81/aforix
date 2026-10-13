@@ -11,7 +11,7 @@
 #
 # Opciones frecuentes:
 #   table: Summary, Points, Sections, Gates.
-#   instrument: all, flowtracker, molinete, nivus, m9.
+#   instrument: all, flowtracker, molinete, nivus.
 #   grouping: monthly, daily, none.
 #   format: xlsx, csv.
 #   flat: true, false.
@@ -53,7 +53,7 @@ steps:
       # Tabla a exportar. Opciones típicas: Summary, Points, Sections, Gates.
       table: Summary
 
-      # Instrumento a filtrar. Opciones típicas: all, flowtracker, molinete, nivus, m9.
+      # Instrumento a filtrar. Opciones típicas: all, flowtracker, molinete, nivus.
       instrument: all
 
       # Puntos a exportar. Usar coma o espacios según convenga.
