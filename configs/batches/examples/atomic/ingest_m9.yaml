@@ -3,11 +3,11 @@
 # ============================================================
 #
 # Objetivo:
-#   Ejecutar únicamente la ingesta de archivos M9 / ADCP.
+#   Marcador deshabilitado para una futura ingesta M9 / ADCP.
 #
 # IMPORTANTE:
-#   El estado del adaptador M9 puede ser experimental o parcial según
-#   la versión actual de Aforix.
+#   M9/ADCP todavía no está implementado. Este ejemplo se conserva
+#   deshabilitado como referencia de trabajo futuro.
 #
 # Requisitos:
 #   - Archivos raw en data/raw/M9/
@@ -18,7 +18,7 @@
 #
 # Probar con:
 #   aforix batch check -b configs/batches/examples/atomic/ingest_m9.yaml
-#   aforix batch run -b configs/batches/examples/atomic/ingest_m9.yaml
+#   No habilitar ni ejecutar hasta que M9 esté implementado y validado.
 
 version: 1
 
@@ -41,6 +41,6 @@ variables:
 steps:
   - id: ingest_m9
     command: ingest.m9
-    enabled: true
+    enabled: false
     params:
       config: ${main_config}
