@@ -25,7 +25,7 @@ version: 1
 batch:
   id: atomic_ingest_m9
   name: Atomic ingest M9
-  description: Ejecutar únicamente ingest.m9.
+  description: Marcador deshabilitado para ingesta M9 futura.
 
 project:
   main_config: configs/examples/main.yaml
