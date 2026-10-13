@@ -33,7 +33,7 @@ from aforix.export.sih.schema import (
     SDH_ACTUACIONES_COLUMNS,
     SDH_AFOROS_COLUMNS,
 )
-from aforix.export.sih.ive_integration import calculate_sih_ive_fields, write_sih_ive_report
+from aforix.export.sih.ive_integration import _sih_fields_from_ive_result, prepare_sih_ive, write_sih_ive_report
 from aforix.analysis.uncertainty.calculator import IVEParameters
 from aforix.export.sih.writers import write_csv, write_metadata
 
@@ -146,9 +146,37 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                 raw_measurement=raw_measurement,
             )
 
-            aforos_row.update(
-                calculate_sih_ive_fields(normalized_root, instrument, measurement, parameters=ive_parameters)
-            )
+            ive_prepared = None
+            ive_status = "not_available"
+            ive_reason = ""
+
+            try:
+                ive_prepared = prepare_sih_ive(
+                    normalized_root,
+                    instrument,
+                    measurement,
+                    parameters=ive_parameters,
+                )
+                _, ive_result = ive_prepared
+                ive_fields = _sih_fields_from_ive_result(ive_result)
+                ive_status = ive_result.status
+
+                if ive_status == "provisional":
+                    ive_reason = "Falta minimo instrumental de velocidad."
+                elif ive_status == "not_applicable":
+                    ive_reason = "No se cumplen los requisitos para calcular IVE."
+                elif ive_status == "not_available":
+                    ive_reason = "No fue posible obtener una incertidumbre IVE."
+
+            except (ValueError, FileNotFoundError, KeyError, TypeError, OverflowError) as exc:
+                ive_reason = str(exc)
+                ive_fields = {
+                    "incertidumbre_IVE": "",
+                    "error_IVE": "",
+                    "calidad_IVE": f"IVE no disponible: {exc}",
+                }
+
+            aforos_row.update(ive_fields)
 
             station_id = str(measurement.get("station_id", "unknown"))
             ymd = dt.strftime("%Y%m%d")
@@ -197,12 +225,16 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
             ive_report_path = ""
             ive_report_error = ""
             try:
+                if ive_prepared is None:
+                    raise ValueError("Calculo IVE no disponible para el reporte.")
+
                 report_path = write_sih_ive_report(
                     normalized_root,
                     output_dir / "incertidumbre",
                     instrument,
                     measurement,
                     parameters=ive_parameters,
+                    prepared=ive_prepared,
                 )
                 exported_files.append(report_path)
                 ive_report_path = str(report_path)
@@ -223,6 +255,8 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                     "aforos_file": str(aforos_path),
                     "ive_report_file": ive_report_path,
                     "ive_report_error": ive_report_error,
+                    "ive_status": ive_status,
+                    "ive_reason": ive_reason,
                 }
             )
 

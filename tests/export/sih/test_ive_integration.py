@@ -62,3 +62,42 @@ def test_ive_export_nivus_uses_normalized_points(tmp_path):
     assert fields["incertidumbre_IVE"] > 0
     assert fields["error_IVE"] > 0
     assert fields["calidad_IVE"] in {"Excelente", "Buena", "Regular", "Mala"}
+
+
+def test_ive_provisional_result_preserves_sih_values(tmp_path):
+    """SIH preserves provisional numeric results without changing quality."""
+    from aforix.analysis.uncertainty.calculator import (
+        IVEPoint,
+        calculate_ive,
+    )
+
+    rows = [_point(i * 0.25) for i in range(13)]
+    pd.DataFrame(rows).to_csv(tmp_path / "Points.csv", index=False)
+
+    result = calculate_ive(
+        [
+            IVEPoint(
+                distance_m=row["distance_m"],
+                depth_m=row["depth_m"],
+                velocity_m_s=row["velocity_mean_m_s"],
+            )
+            for row in rows
+        ],
+        width_m=3.0,
+    )
+
+    fields = calculate_sih_ive_fields(
+        tmp_path,
+        "flowtracker",
+        _measurement(),
+    )
+
+    assert result.status == "provisional"
+    assert fields["incertidumbre_IVE"] == result.relative_uncertainty_pct
+    assert fields["error_IVE"] == result.absolute_uncertainty_m3s
+    assert fields["calidad_IVE"] == result.quality
+    assert set(fields) == {
+        "incertidumbre_IVE",
+        "error_IVE",
+        "calidad_IVE",
+    }

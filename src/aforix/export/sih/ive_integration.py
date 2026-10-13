@@ -5,9 +5,53 @@ from pathlib import Path
 
 import pandas as pd
 
-from aforix.analysis.uncertainty.calculator import IVEPoint, IVEParameters, calculate_ive
+from aforix.analysis.uncertainty.calculator import (
+    IVEPoint,
+    IVEParameters,
+    IVECalculation,
+    calculate_ive,
+)
 from aforix.analysis.uncertainty.excel_report import write_ive_excel_report
 from aforix.export.sih.ive_points import load_ive_points
+
+
+def _calculate_sih_ive(
+    normalized_root: str | Path,
+    instrument: str,
+    measurement: pd.Series,
+    parameters: IVEParameters | None = None,
+) -> tuple[pd.DataFrame, IVECalculation]:
+    """Load normalized points and calculate IVE using one shared path."""
+    df = load_ive_points(normalized_root, instrument, measurement)
+    points = [
+        IVEPoint(
+            distance_m=float(row.distance_m),
+            depth_m=float(row.depth_m),
+            velocity_m_s=float(row.velocity_mean_m_s),
+        )
+        for row in df.itertuples(index=False)
+    ]
+    result = calculate_ive(
+        points,
+        width_m=float(df["width_m"].iloc[0]),
+        parameters=parameters,
+    )
+    return df, result
+
+
+def prepare_sih_ive(
+    normalized_root: str | Path,
+    instrument: str,
+    measurement: pd.Series,
+    parameters: IVEParameters | None = None,
+) -> tuple[pd.DataFrame, IVECalculation]:
+    """Prepare a single reusable IVE calculation for SIH export."""
+    return _calculate_sih_ive(
+        normalized_root,
+        instrument,
+        measurement,
+        parameters,
+    )
 
 
 def calculate_sih_ive_fields(
@@ -27,28 +71,13 @@ def calculate_sih_ive_fields(
         "calidad_IVE": "",
     }
     try:
-        df = load_ive_points(normalized_root, instrument, measurement)
-        points = [
-            IVEPoint(
-                distance_m=float(row.distance_m),
-                depth_m=float(row.depth_m),
-                velocity_m_s=float(row.velocity_mean_m_s),
-            )
-            for row in df.itertuples(index=False)
-        ]
-        result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]), parameters=parameters)
+        _, result = _calculate_sih_ive(
+            normalized_root, instrument, measurement, parameters
+        )
     except (ValueError, FileNotFoundError, KeyError, TypeError, OverflowError) as exc:
         return {**empty, "calidad_IVE": f"IVE no disponible: {exc}"}
 
-    return {
-        "incertidumbre_IVE": (
-            result.relative_uncertainty_pct if result.relative_uncertainty_pct is not None else ""
-        ),
-        "error_IVE": (
-            result.absolute_uncertainty_m3s if result.absolute_uncertainty_m3s is not None else ""
-        ),
-        "calidad_IVE": result.quality,
-    }
+    return _sih_fields_from_ive_result(result)
 
 
 def write_sih_ive_report(
@@ -57,18 +86,16 @@ def write_sih_ive_report(
     instrument: str,
     measurement: pd.Series,
     parameters: IVEParameters | None = None,
+    prepared: tuple[pd.DataFrame, IVECalculation] | None = None,
 ) -> Path:
     """Generate an auditable report using the same normalized data and engine as SIH."""
-    df = load_ive_points(normalized_root, instrument, measurement)
-    points = [
-        IVEPoint(
-            distance_m=float(row.distance_m),
-            depth_m=float(row.depth_m),
-            velocity_m_s=float(row.velocity_mean_m_s),
+    df, result = (
+        prepared
+        if prepared is not None
+        else _calculate_sih_ive(
+            normalized_root, instrument, measurement, parameters
         )
-        for row in df.itertuples(index=False)
-    ]
-    result = calculate_ive(points, width_m=float(df["width_m"].iloc[0]), parameters=parameters)
+    )
     return write_ive_excel_report(
         output_root,
         instrument=instrument,
@@ -79,3 +106,17 @@ def write_sih_ive_report(
         result=result,
         parameters=parameters,
     )
+
+def _sih_fields_from_ive_result(result: IVECalculation) -> dict[str, float | str]:
+    """Convert an existing IVE result to the official SIH fields."""
+    return {
+        "incertidumbre_IVE": (
+            result.relative_uncertainty_pct
+            if result.relative_uncertainty_pct is not None else ""
+        ),
+        "error_IVE": (
+            result.absolute_uncertainty_m3s
+            if result.absolute_uncertainty_m3s is not None else ""
+        ),
+        "calidad_IVE": result.quality,
+    }
