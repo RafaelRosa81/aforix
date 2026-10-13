@@ -70,3 +70,7 @@ database/**/*.parquet
 # Local audit/debug outputs
 nivus_acceptance_audit.csv
 normalize_output.txt
+
+# Local-only client reference and selection inputs
+/Template_incertidumbre_aforos_IVE3.xlsx
+/configs/sih/selection_masiva_245.csv
