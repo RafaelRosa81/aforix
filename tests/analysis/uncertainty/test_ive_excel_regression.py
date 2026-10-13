@@ -31,7 +31,11 @@ def _cached_cells(zf: ZipFile, sheet_number: int) -> dict[str, str]:
 
 @pytest.mark.parametrize("case", [1, 2, 3])
 def test_ive_matches_ive3_template(case):
-    assert REFERENCE.is_file(), f"Falta el Excel de referencia: {REFERENCE.resolve()}"
+    if not REFERENCE.is_file():
+        pytest.skip(
+            "Falta la referencia privada/local IVE3; configure IVE_REFERENCE_XLSX "
+            "para ejecutar esta comparación."
+        )
     with ZipFile(REFERENCE) as zf:
         points_sheet = _cached_cells(zf, case + 6)
         uncertainty_sheet = _cached_cells(zf, case + 3)
