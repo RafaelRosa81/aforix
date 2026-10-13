@@ -282,7 +282,7 @@ Agrupa comandos de análisis.
 
 ### analyze statistics
 
-Ejecuta análisis estadísticos definidos para el proyecto.
+Este comando está reservado para desarrollo futuro. La funcionalidad estadística todavía no está implementada; al invocarlo, Aforix muestra un mensaje y termina con código de error, sin crear una corrida.
 
 ```bash
 aforix analyze statistics -c configs/examples/main.yaml
