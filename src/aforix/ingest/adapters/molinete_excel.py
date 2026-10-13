@@ -162,6 +162,9 @@ class MolineteExcelAdapter:
 
         esc_ini = self._to_float(self._value_right_of_label(df, "Esc. Ini"))
         esc_fin = self._to_float(self._value_right_of_label(df, "Esc. Fin"))
+        # Some templates omit Esc. Fin.; others contain only a dash. Both
+        # represent a missing final reading, so carry the initial reading.
+        esc_fin = self._resolve_final_scale(esc_ini, esc_fin)
 
         molinete = self._value_near_label(
             df,
@@ -878,6 +881,13 @@ class MolineteExcelAdapter:
             return float(text)
         except Exception:
             return None
+
+    @staticmethod
+    def _resolve_final_scale(
+        initial_scale: Optional[float],
+        final_scale: Optional[float],
+    ) -> Optional[float]:
+        return initial_scale if final_scale is None else final_scale
 
     @staticmethod
     def _to_int(value: Any) -> Optional[int]:

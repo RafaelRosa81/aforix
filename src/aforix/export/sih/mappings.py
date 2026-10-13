@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -22,6 +23,75 @@ def build_measurement_datetime(measurement: pd.Series) -> datetime:
 
 def format_datetime(dt: datetime, fmt: str) -> str:
     return dt.strftime(fmt)
+
+
+def _normalized_field(measurement: pd.Series, config: dict[str, Any], key: str) -> str:
+    column = (config or {}).get(key)
+    if column in (None, ""):
+        return ""
+    value = measurement.get(column, "")
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text.lower() in {"<na>", "nan", "none"}:
+        return ""
+    return text
+
+
+def _first_operator_token(value: str) -> str:
+    """Format operator identifiers for SIH using the known name/code patterns."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    # Underscore-separated codes retain only their first component.
+    first_component = text.split("_", 1)[0].strip()
+    if first_component != text:
+        match = re.search(r"[^\W_]+", first_component, flags=re.UNICODE)
+        return match.group(0) if match else ""
+
+    # Dotted names use the initials of their components: "M.Reyes" -> "MR".
+    if "." in text:
+        components = [
+            match.group(0)
+            for part in text.split(".")
+            if (match := re.search(r"[^\W_]+", part, flags=re.UNICODE))
+        ]
+        if components:
+            return "".join(component[0] for component in components).upper()
+
+    # A two-part name is represented by its initials: "TIAGO POREN" -> "TP".
+    parts = text.split()
+    if len(parts) == 2:
+        initials = []
+        for part in parts:
+            match = re.search(r"[^\W_]+", part, flags=re.UNICODE)
+            if match:
+                initials.append(match.group(0)[0])
+        if initials:
+            return "".join(initials).upper()
+
+    match = re.search(r"[^\W_]+", text, flags=re.UNICODE)
+    if not match:
+        return ""
+
+    token = match.group(0)
+    # A single uppercase token is treated as an abbreviated operator code.
+    if token.isalpha() and token.isupper() and len(token) >= 2:
+        return token[:2]
+
+    # In all other formats, retain the first token.
+    return token
+
+
+def _format_datetime_value(value: str, fmt: str) -> str:
+    text = str(value or "").strip()
+    if not text or text.upper() == "S/D":
+        return text
+    parsed = pd.to_datetime(text, errors="coerce")
+    if pd.isna(parsed):
+        return text
+    return parsed.to_pydatetime().strftime(fmt)
 
 
 
@@ -233,16 +303,31 @@ def build_sdh_actuaciones_row(
     id_instrumento: str,
     raw_measurement: pd.Series | None = None,
 ) -> dict[str, Any]:
+    normalized_fields = instrument_cfg.get("normalized_fields", {})
+    operator = _normalized_field(measurement, normalized_fields, "id_operador")
+    scale = _normalized_field(measurement, normalized_fields, "lectura_escala")
+    if "id_operador" not in normalized_fields:
+        operator = _raw_field(
+            raw_measurement,
+            instrument_cfg.get("raw_canonical_fields", {}),
+            "id_operador",
+        )
+    if "lectura_escala" not in normalized_fields:
+        scale = _raw_field(
+            raw_measurement,
+            instrument_cfg.get("raw_canonical_fields", {}),
+            "lectura_escala",
+        )
     return {
         "id": "",
         "id_estacion": id_estacion,
-        "id_operador": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "id_operador"),
+        "id_operador": _first_operator_token(operator),
         "id_tipo_actuacion": instrument_cfg.get("id_tipo_actuacion", ""),
         "id_instrumento": id_instrumento,
         "fecha": format_datetime(dt, datetime_format),
         "pendiente": False,
         "relevante": False,
-        "lectura_escala": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "lectura_escala"),
+        "lectura_escala": scale,
         "observaciones": _raw_field(raw_measurement, instrument_cfg.get("raw_canonical_fields", {}), "observaciones"),
     }
 
@@ -270,9 +355,26 @@ def build_sdh_aforos_row(
 
     raw_fields = instrument_cfg.get("raw_canonical_fields", {})
 
-    escala_inicio = _raw_field(raw_measurement, raw_fields, "escala_inicio")
-    escala_fin = _raw_field(raw_measurement, raw_fields, "escala_fin")
+    escala_inicio = _normalized_field(measurement, normalized_fields, "escala_inicio")
+    escala_fin = _normalized_field(measurement, normalized_fields, "escala_fin")
+    if "escala_inicio" not in normalized_fields:
+        escala_inicio = _raw_field(raw_measurement, raw_fields, "escala_inicio")
+    if "escala_fin" not in normalized_fields:
+        escala_fin = _raw_field(raw_measurement, raw_fields, "escala_fin")
     escala_media = _raw_field(raw_measurement, raw_fields, "escala_media")
+
+    fecha_inicio_value = _normalized_field(measurement, normalized_fields, "fecha_inicio")
+    fecha_fin_value = _normalized_field(measurement, normalized_fields, "fecha_fin")
+    fecha_inicio = (
+        _format_datetime_value(fecha_inicio_value, datetime_format)
+        if "fecha_inicio" in normalized_fields
+        else format_datetime(dt, datetime_format)
+    )
+    fecha_fin = (
+        _format_datetime_value(fecha_fin_value, datetime_format)
+        if "fecha_fin" in normalized_fields
+        else format_datetime(dt, datetime_format)
+    )
 
     return {
         "ancho": field("ancho"),
@@ -280,8 +382,8 @@ def build_sdh_aforos_row(
         "escala_fin": escala_fin,
         "escala_inicio": escala_inicio,
         "escala_media": escala_media,
-        "fecha_fin": format_datetime(dt, datetime_format),
-        "fecha_inicio": format_datetime(dt, datetime_format),
+        "fecha_fin": fecha_fin,
+        "fecha_inicio": fecha_inicio,
         "id": "",
         "id_actuacion": "",
         "id_estacion": id_estacion,

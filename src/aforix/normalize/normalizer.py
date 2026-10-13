@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -121,6 +122,63 @@ def _apply_derived_columns(
     for target_col, rule in derived_spec.items():
         if not isinstance(rule, dict):
             raise ValueError(f"Invalid derived rule for '{target_col}'.")
+
+        operation = rule.get("operation")
+        if operation == "combine_datetime":
+            date_col = rule.get("date_from")
+            time_col = rule.get("time_from")
+            if not date_col or not time_col:
+                raise ValueError(
+                    f"Derived datetime column '{target_col}' must define "
+                    "'date_from' and 'time_from'."
+                )
+            if date_col not in df.columns or time_col not in df.columns:
+                df[target_col] = pd.Series(pd.NA, index=df.index, dtype="string")
+                continue
+
+            def parse_datetime_parts(date_value: Any, time_value: Any) -> Any:
+                if pd.isna(date_value) or pd.isna(time_value):
+                    return pd.NA
+                date_text = str(date_value).strip()
+                time_text = str(time_value).strip()
+                if not date_text or date_text.lower() in {"nan", "<na>", "none"}:
+                    return pd.NA
+                if not time_text or time_text.lower() in {"nan", "<na>", "none"}:
+                    return pd.NA
+                if time_text.isdigit() and len(time_text) <= 6:
+                    time_text = time_text.zfill(6)
+                    time_text = f"{time_text[:2]}:{time_text[2:4]}:{time_text[4:6]}"
+                date = None
+                for date_fmt in (
+                    "%Y%m%d",
+                    "%Y-%m-%d",
+                    "%Y/%m/%d",
+                    "%d/%m/%Y",
+                    "%m/%d/%Y",
+                ):
+                    try:
+                        date = datetime.strptime(date_text, date_fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if date is None:
+                    return pd.NA
+                for time_fmt in ("%H:%M:%S", "%H:%M"):
+                    try:
+                        parsed_time = datetime.strptime(time_text, time_fmt).time()
+                        return datetime.combine(date, parsed_time).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+                    except ValueError:
+                        continue
+                return pd.NA
+
+            df[target_col] = pd.Series(
+                [parse_datetime_parts(d, t) for d, t in zip(df[date_col], df[time_col])],
+                index=df.index,
+                dtype="string",
+            )
+            continue
 
         source_col = rule.get("from")
         operation = rule.get("operation")

@@ -504,8 +504,11 @@ Columnas usadas actualmente desde normalized:
 | profundidad | `profundidad` | `depth_mean_m` |
 | sección | `seccion` | `area_total_m2` |
 | velocidad media | `velocidad_media` | `velocity_mean_m_s` |
-| fecha inicio | `fecha_inicio_date/time` | `measurement_date`, `measurement_time` |
-| fecha fin | `fecha_fin_date/time` | `measurement_date`, `measurement_time` |
+| fecha inicio | `fecha_inicio` | fecha y hora de medición del `Summary` |
+| fecha fin | `fecha_fin` | fuente específica por instrumento |
+| operador | `id_operador` | `operador`, formateado para SIH: iniciales, abreviatura o primer token según el formato |
+| lectura de escala de actuación | `lectura_escala` | `escala_inicio` |
+| escalas de aforo | `escala_inicio`, `escala_fin` | campos normalizados en `Summary` |
 
 El matching de medición usa:
 
@@ -525,7 +528,7 @@ database/raw_canonical/{instrument}/Summary/Summary.csv
 database/raw_canonical/Summary.csv
 ```
 
-Si no se encuentra, el módulo puede continuar, pero campos como operador, observaciones, escalas, radio hidráulico o matching de instrumento pueden quedar vacíos o fallar según configuración.
+Si no se encuentra, el módulo puede continuar, pero campos como observaciones, radio hidráulico o matching de instrumento pueden quedar vacíos o fallar según configuración. Operador, escalas y fechas de inicio/fin se leen desde el Summary normalizado.
 
 La metadata registra:
 

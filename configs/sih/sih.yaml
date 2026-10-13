@@ -73,7 +73,7 @@ sih:
         modelo: instrument
         codigo: null
       raw_canonical_fields:
-        id_operador: operators
+        id_operador: null
         lectura_escala: null
         escala_inicio: null
         escala_fin: null
@@ -86,10 +86,12 @@ sih:
         profundidad: max_depth_m
         seccion: area_total_m2
         velocidad_media: velocity_mean_m_s
-        fecha_inicio_date: measurement_date
-        fecha_inicio_time: measurement_time
-        fecha_fin_date: measurement_date
-        fecha_fin_time: measurement_time
+        id_operador: operador
+        lectura_escala: escala_inicio
+        escala_inicio: escala_inicio
+        escala_fin: escala_fin
+        fecha_inicio: fecha_inicio
+        fecha_fin: fecha_fin
       quality:
         enabled: false
         source: null
@@ -107,10 +109,10 @@ sih:
         modelo: molinete
         codigo: null
       raw_canonical_fields:
-        id_operador: realizado
-        lectura_escala: escala_media_m
-        escala_inicio: esc_ini_m
-        escala_fin: esc_fin_m
+        id_operador: null
+        lectura_escala: null
+        escala_inicio: null
+        escala_fin: null
         escala_media: escala_media_m
         observaciones: observaciones
         radio_hidraulico: radio_hidraulico_m
@@ -120,10 +122,12 @@ sih:
         profundidad: max_depth_m
         seccion: area_total_m2
         velocidad_media: velocity_mean_m_s
-        fecha_inicio_date: measurement_date
-        fecha_inicio_time: measurement_time
-        fecha_fin_date: measurement_date
-        fecha_fin_time: measurement_time
+        id_operador: operador
+        lectura_escala: escala_inicio
+        escala_inicio: escala_inicio
+        escala_fin: escala_fin
+        fecha_inicio: fecha_inicio
+        fecha_fin: fecha_fin
       quality:
         enabled: false
         source: null
@@ -154,10 +158,12 @@ sih:
         profundidad: max_depth_m
         seccion: area_total_m2
         velocidad_media: velocity_mean_m_s
-        fecha_inicio_date: measurement_date
-        fecha_inicio_time: measurement_time
-        fecha_fin_date: measurement_date
-        fecha_fin_time: measurement_time
+        id_operador: null
+        lectura_escala: null
+        escala_inicio: null
+        escala_fin: null
+        fecha_inicio: fecha_inicio
+        fecha_fin: fecha_fin
       quality:
         enabled: true
         source: quality_metrics

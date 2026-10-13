@@ -132,12 +132,34 @@ tables:
           - temp_promedio_degc
           - temperature_c
         dtype: float
+      escala_inicio:
+        source: scale_start_m
+        dtype: string
+      escala_fin:
+        source: scale_end_m
+        dtype: string
+      complementary_end_datetime:
+        source: complementary_end_datetime
+        dtype: string
+      operador:
+        source: operators
+        dtype: string
+      fecha_inicio:
+        source: __derived__
+        dtype: string
+      fecha_fin:
+        source: complementary_end_datetime
+        dtype: string
 
     derived:
       q_total_ls:
         from: q_total_m3s
         operation: multiply
         value: 1000
+      fecha_inicio:
+        date_from: measurement_date
+        time_from: measurement_time
+        operation: combine_datetime
 
     required:
       - station_id

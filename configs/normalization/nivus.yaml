@@ -149,6 +149,26 @@ tables:
           - t [°C]
         dtype: float
 
+      escala_inicio:
+        source: __future_config__
+        dtype: string
+
+      escala_fin:
+        source: __future_config__
+        dtype: string
+
+      operador:
+        source: __future_config__
+        dtype: string
+
+      fecha_inicio:
+        source: stime
+        dtype: string
+
+      fecha_fin:
+        source: etime
+        dtype: string
+
       min_depth_m:
         source: h_min [m]
         dtype: float
@@ -186,7 +206,6 @@ tables:
         from: q_total_ls
         operation: divide
         value: 1000
-
     required:
       - station_id
       - measurement_date
