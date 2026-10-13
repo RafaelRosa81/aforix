@@ -175,8 +175,9 @@ ingest:
     enabled: true
     raw_subdir: NV
 
+  # M9/ADCP remains pending implementation and is not supported in production.
   m9:
-    enabled: true
+    enabled: false
     raw_subdir: M9
 ```
 
@@ -195,7 +196,7 @@ true
 false
 ```
 
-Si está en `false`, el instrumento debería omitirse en procesos que respeten esa configuración.
+Si está en `false`, los flujos que respetan esa configuración omiten el instrumento. M9 permanece deshabilitado porque su ingesta todavía no está implementada.
 
 ### 7.2 raw_subdir
 
