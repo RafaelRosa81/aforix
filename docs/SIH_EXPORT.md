@@ -506,7 +506,7 @@ Columnas usadas actualmente desde normalized:
 | velocidad media | `velocidad_media` | `velocity_mean_m_s` |
 | fecha inicio | `fecha_inicio` | fecha y hora de medición del `Summary` |
 | fecha fin | `fecha_fin` | fuente específica por instrumento |
-| operador | `id_operador` | `operador`, primera palabra |
+| operador | `id_operador` | `operador`, formateado para SIH: iniciales, abreviatura o primer token según el formato |
 | lectura de escala de actuación | `lectura_escala` | `escala_inicio` |
 | escalas de aforo | `escala_inicio`, `escala_fin` | campos normalizados en `Summary` |
 
