@@ -44,6 +44,12 @@ def _first_operator_token(value: str) -> str:
     if not text:
         return ""
 
+    # Underscore-separated codes retain only their first component.
+    first_component = text.split("_", 1)[0].strip()
+    if first_component != text:
+        match = re.search(r"[^\W_]+", first_component, flags=re.UNICODE)
+        return match.group(0) if match else ""
+
     # Dotted names use the initials of their components: "M.Reyes" -> "MR".
     if "." in text:
         components = [
@@ -53,12 +59,6 @@ def _first_operator_token(value: str) -> str:
         ]
         if components:
             return "".join(component[0] for component in components).upper()
-
-    # Underscore-separated codes retain only their first component.
-    first_component = text.split("_", 1)[0].strip()
-    if first_component != text:
-        match = re.search(r"[^\W_]+", first_component, flags=re.UNICODE)
-        return match.group(0) if match else ""
 
     # A two-part name is represented by its initials: "TIAGO POREN" -> "TP".
     parts = text.split()
@@ -82,6 +82,7 @@ def _first_operator_token(value: str) -> str:
 
     # In all other formats, retain the first token.
     return token
+
 
 def _format_datetime_value(value: str, fmt: str) -> str:
     text = str(value or "").strip()
