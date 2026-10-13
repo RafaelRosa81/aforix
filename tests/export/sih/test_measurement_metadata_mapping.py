@@ -18,10 +18,15 @@ def test_actuacion_reads_first_operator_token_and_scale_from_normalized_summary(
     }
 
     for operator, expected in (
-        ("Tiago Poren", "Tiago"),
+        ("TIAGO POREN", "TP"),
+        ("Tiago Poren", "TP"),
+        ("IPAMBC", "IP"),
+        ("MV_HG_RR", "MV"),
         ("MV__RR", "MV"),
-        ("M. Reyes", "M"),
-        ("M.Reyes", "M"),
+        ("M. Reyes", "MR"),
+        ("M.Reyes", "MR"),
+        ("Carlos/Reyes", "Carlos"),
+        ("Tiago", "Tiago"),
     ):
         measurement = pd.Series({"operador": operator, "escala_inicio": "1.42"})
         row = build_sdh_actuaciones_row(
