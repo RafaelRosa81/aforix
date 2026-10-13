@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -111,6 +112,7 @@ class FlowTrackerDISAdapter:
         summary_raw, table_start_idx = self._parse_summary_block(lines, spec)
         summary = self._apply_summary_aliases(summary_raw, spec)
         summary = self._add_compatibility_summary_fields(summary, dis_path)
+        summary.update(self._extract_complementary_data(lines))
 
         summary["input_file"] = os.path.basename(dis_path)
         summary["input_path"] = os.path.abspath(dis_path)
@@ -284,9 +286,96 @@ class FlowTrackerDISAdapter:
             "serial_number": "serial_number",
             "serial_number_": "serial_number",
             "operator_s": "operators",
+            "operadores": "operators",
         }
 
         return aliases.get(key, key)
+
+    def _extract_complementary_data(self, lines: List[str]) -> Dict[str, Any]:
+        """Extract scale readings and the end timestamp from the optional table.
+
+        FlowTracker exports use both a titled "Datos complementarios" block
+        and a legacy Spanish table that starts directly at its column header.
+        A header containing both Fecha and Lec_nivel_esc(m) identifies the
+        table in either format.
+        """
+        missing = {
+            "scale_start_m": "S/D",
+            "scale_end_m": "S/D",
+            "complementary_end_datetime": "S/D",
+        }
+        header_idx = None
+        scale_idx = None
+        for idx, line in enumerate(lines):
+            tokens = line.split()
+            normalized = [self._norm_key(token) for token in tokens]
+            if "fecha" in normalized and any(
+                token.startswith("lec nivel esc") for token in normalized
+            ):
+                header_idx = idx
+                scale_idx = next(
+                    i for i, token in enumerate(normalized)
+                    if token.startswith("lec nivel esc")
+                )
+                break
+
+        if header_idx is None or scale_idx is None:
+            return missing
+
+        rows: list[tuple[str, str, str]] = []
+        date_re = re.compile(r"^\d{4}[-/]\d{2}[-/]\d{2}$")
+        for line in lines[header_idx + 1:]:
+            tokens = line.split()
+            if not tokens:
+                if rows:
+                    break
+                continue
+            if not tokens[0].isdigit() or len(tokens) <= scale_idx:
+                if rows:
+                    break
+                continue
+
+            # The Registro column precedes Fecha. Fecha and Hora are separate
+            # tokens in the source rows even when the header labels them as
+            # separate columns.
+            date_idx = next(
+                (i for i, token in enumerate(tokens[1:], start=1) if date_re.fullmatch(token)),
+                None,
+            )
+            if date_idx is None or date_idx + 1 >= len(tokens):
+                if rows:
+                    break
+                continue
+            date_text = tokens[date_idx]
+            time_text = tokens[date_idx + 1]
+            if not re.fullmatch(r"\d{2}:\d{2}:\d{2}", time_text):
+                time_text = ""
+            scale_value = tokens[scale_idx].strip()
+            if scale_value in {"-", "()", ""}:
+                scale_value = "S/D"
+            else:
+                scale_value = scale_value.replace(",", ".")
+
+            try:
+                parsed_date = datetime.strptime(date_text.replace("/", "-"), "%Y-%m-%d")
+                date_text = parsed_date.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+            end_datetime = f"{date_text} {time_text}".strip()
+            rows.append((scale_value, end_datetime, date_text))
+
+        if not rows:
+            return missing
+
+        first_scale = rows[0][0]
+        last_scale = rows[-1][0]
+        if len(rows) == 1:
+            last_scale = first_scale
+        return {
+            "scale_start_m": first_scale,
+            "scale_end_m": last_scale,
+            "complementary_end_datetime": rows[-1][1],
+        }
 
     def _parse_summary_value_with_units(
         self,
@@ -785,6 +874,7 @@ def parse_flowtracker_dis(dis_path: str | Path, spec_path: str | Path | None = N
     summary_raw, table_start_idx = adapter._parse_summary_block(lines, spec)
     summary = adapter._apply_summary_aliases(summary_raw, spec)
     summary = adapter._add_compatibility_summary_fields(summary, dis_path)
+    summary.update(adapter._extract_complementary_data(lines))
 
     summary = {
         key: _scalarize(value)

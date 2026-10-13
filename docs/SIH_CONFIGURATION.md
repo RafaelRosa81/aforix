@@ -332,16 +332,16 @@ Cada valor corresponde a una columna del raw canonical `Summary`. Si el valor es
 
 ## 12. raw_canonical_fields
 
-Define qué campos SIH se toman desde raw canonical.
+Define qué campos SIH continúan tomándose desde raw canonical. Los datos de operador, escalas y fechas de inicio/fin se toman ahora desde el `Summary` normalizado.
 
 Ejemplo Molinete:
 
 ```yaml
 raw_canonical_fields:
-  id_operador: realizado
-  lectura_escala: escala_media_m
-  escala_inicio: esc_ini_m
-  escala_fin: esc_fin_m
+  id_operador: null
+  lectura_escala: null
+  escala_inicio: null
+  escala_fin: null
   escala_media: escala_media_m
   observaciones: observaciones
   radio_hidraulico: radio_hidraulico_m
@@ -349,13 +349,9 @@ raw_canonical_fields:
 
 Si el raw canonical no existe o una columna no existe, el campo resultante queda vacío.
 
-Campos usados actualmente en código:
+Campos que siguen usando raw canonical:
 
 ```text
-id_operador
-lectura_escala
-escala_inicio
-escala_fin
 escala_media
 observaciones
 radio_hidraulico
@@ -374,10 +370,12 @@ normalized_fields:
   profundidad: depth_mean_m
   seccion: area_total_m2
   velocidad_media: velocity_mean_m_s
-  fecha_inicio_date: measurement_date
-  fecha_inicio_time: measurement_time
-  fecha_fin_date: measurement_date
-  fecha_fin_time: measurement_time
+  id_operador: operador
+  lectura_escala: escala_inicio
+  escala_inicio: escala_inicio
+  escala_fin: escala_fin
+  fecha_inicio: fecha_inicio
+  fecha_fin: fecha_fin
 ```
 
 El código actual usa para `sdh_aforos`:
@@ -388,9 +386,19 @@ caudal
 profundidad
 seccion
 velocidad_media
+escala_inicio
+escala_fin
+fecha_inicio
+fecha_fin
 ```
 
-Las fechas se construyen desde la fecha/hora de la medición y se escriben en `fecha_inicio` y `fecha_fin`.
+`fecha_inicio` se crea en la normalización a partir de `measurement_date` y `measurement_time` para los tres instrumentos. `fecha_fin` se normaliza así:
+
+- FlowTracker: `Fecha` y `Hora` de la última fila de Datos complementarios. Si hay una sola fila, se usa para ambos extremos de escala. Si no existe la tabla, los campos que dependen de ella se exportan como `S/D`.
+- Molinete: `measurement_date` combinado con `end_time`. Si `Esc. Fin.:` no existe o contiene `-`, `escala_fin` toma `escala_inicio`.
+- Nivus: el `etime` del nivel general del aforo. `escala_inicio`, `escala_fin` y `operador` quedan vacíos y configurables para el futuro.
+
+En la actuación, `lectura_escala` toma `escala_inicio`. `id_operador` conserva la primera palabra del campo de operador, separada por espacios o guiones bajos.
 
 ## 14. quality
 

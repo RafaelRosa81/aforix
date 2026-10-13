@@ -162,6 +162,26 @@ tables:
         source: end_time
         dtype: string
 
+      escala_inicio:
+        source: esc_ini_m
+        dtype: string
+
+      escala_fin:
+        source: esc_fin_m
+        dtype: string
+
+      operador:
+        source: realizado
+        dtype: string
+
+      fecha_inicio:
+        source: __derived__
+        dtype: string
+
+      fecha_fin:
+        source: __derived__
+        dtype: string
+
       max_depth_m:
         source: prof_max_m
         dtype: float
@@ -219,6 +239,14 @@ tables:
         from: q_total_m3s
         operation: multiply
         value: 1000
+      fecha_inicio:
+        date_from: measurement_date
+        time_from: measurement_time
+        operation: combine_datetime
+      fecha_fin:
+        date_from: measurement_date
+        time_from: end_time
+        operation: combine_datetime
 
     required:
       - station_id

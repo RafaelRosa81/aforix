@@ -41,7 +41,7 @@ def test_sih_configuration_docs_match_current_adopted_mappings():
         "Velocimetro",
         "Acustico",
         "ADCP",
-        "lectura_escala: escala_media_m",
+        "lectura_escala: escala_inicio",
         "escala_media: escala_media_m",
     ]
     missing = [fragment for fragment in required_fragments if fragment not in text]
