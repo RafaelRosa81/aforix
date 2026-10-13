@@ -86,16 +86,18 @@ La estructura base de carpetas locales se conserva en el repositorio mediante ar
 ## Ruta de lectura recomendada
 
 1. **Instalación y primera ejecución:** esta página y el Quickstart.
-2. **Flujo de procesamiento:** `docs/02_pipeline.md`.
-3. **Comandos y opciones:** `docs/03_cli.md`.
-4. **Configuración del proyecto:** `docs/CONFIGURATION_GUIDE.md`.
-5. **Ejecución reproducible:** `docs/BATCH_GUIDE.md` y `docs/LAUNCHERS_GUIDE.md`.
-6. **Modos interactivos:** `docs/INTERACTIVE_USAGE.md`.
-7. **Análisis y exportaciones específicas:** las guías listadas abajo.
-8. **Antes de entregar o usar en producción:** `docs/RELEASE_CHECKLIST.md`.
+2. **Qué funciones están disponibles:** `docs/FUNCTIONALITIES.md`.
+3. **Flujo de procesamiento:** `docs/02_pipeline.md`.
+4. **Comandos y opciones:** `docs/03_cli.md`.
+5. **Configuración del proyecto:** `docs/CONFIGURATION_GUIDE.md`.
+6. **Ejecución reproducible:** `docs/BATCH_GUIDE.md` y `docs/LAUNCHERS_GUIDE.md`.
+7. **Modos interactivos:** `docs/INTERACTIVE_USAGE.md`.
+8. **Análisis y exportaciones específicas:** las guías listadas abajo.
+9. **Antes de entregar o usar en producción:** `docs/RELEASE_CHECKLIST.md`.
 
 ## Documentación
 
+- Funcionalidades y alcance: `docs/FUNCTIONALITIES.md`
 - Pipeline de procesamiento: `docs/02_pipeline.md`
 - Referencia CLI: `docs/03_cli.md`
 - Checklist de liberación a producción: `docs/RELEASE_CHECKLIST.md`
@@ -120,22 +122,24 @@ La estructura base de carpetas locales se conserva en el repositorio mediante ar
 
 Aforix está en desarrollo activo. El trabajo se organiza mediante ramas y Pull Requests.
 
-Componentes disponibles actualmente:
+Funciones disponibles actualmente:
 
-- ingesta de FlowTracker, Molinete y Nivus;
+- ingesta de archivos de FlowTracker, Molinete y Nivus;
 - extracción configurable de metadata mediante `metadata_policy`;
-- construcción configurable de `database/raw_canonical`;
-- normalización mediante registry YAML y política de escritura;
-- auditoría técnica de outputs del pipeline;
-- validación de datasets normalizados;
-- infraestructura batch con YAML, `CommandResult`, `manifest.json` y métricas operativas;
-- exportación de tablas;
-- exportación SIH configurable;
-- launchers Windows/Linux para ejecutar batches predeterminados y personalizados.
+- consolidación en `database/raw_canonical` y normalización con reglas YAML;
+- auditoría técnica y validación de datos normalizados;
+- exportación de tablas y Excel, además de exportación configurable a SIH;
+- análisis de correlación, métricas de calidad, caudal–altura y perfiles de sección;
+- conversión de datos externos de modelo, DINAGUA y niveles manuales;
+- ejecución batch desde YAML, con validación, planificación, simulación y manifiestos;
+- modos interactivos para exportar tablas, exportar a SIH, analizar caudal–altura y generar perfiles de sección.
 
-Fuera del alcance de producción actual:
+La descripción funcional y los comandos están en `docs/FUNCTIONALITIES.md`; la referencia completa de opciones está en `docs/03_cli.md`.
 
-- ingesta M9 / ADCP completa.
+Pendiente de implementación y fuera del alcance actual de producción:
+
+- ingesta M9 / ADCP;
+- análisis estadístico (`aforix analyze statistics`), que actualmente termina con un mensaje explícito de función no implementada.
 
 ## Autor
 
