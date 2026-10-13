@@ -1,4 +1,4 @@
-"""Tests for physical boundaries in the IVE mid-section calculation.
+﻿"""Tests for physical boundaries in the IVE mid-section calculation.
 
 Copy to tests/analysis/uncertainty/test_ive_boundaries.py.
 """
@@ -18,14 +18,14 @@ def _section(include_left=True, include_right=True, left_depth=0.05):
 def test_positive_depth_left_bank_is_not_measured_vertical():
     result = calculate_ive(_section(), width_m=2.6)
     assert result.vertical_count == 12
-    assert result.status == 'provisional'
+    assert result.status == 'calculated'
 
 
 @pytest.mark.parametrize('left,right', [(False, True), (True, False), (False, False)])
 def test_missing_banks_are_inserted_without_changing_interior_count(left, right):
     result = calculate_ive(_section(include_left=left, include_right=right), width_m=2.6)
     assert result.vertical_count == 12
-    assert result.status == 'provisional'
+    assert result.status == 'calculated'
 
 
 def test_added_zero_depth_bank_preserves_mid_section_discharge():

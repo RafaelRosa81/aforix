@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pandas as pd
 
@@ -64,8 +64,8 @@ def test_ive_export_nivus_uses_normalized_points(tmp_path):
     assert fields["calidad_IVE"] in {"Excelente", "Buena", "Regular", "Mala"}
 
 
-def test_ive_provisional_result_preserves_sih_values(tmp_path):
-    """SIH preserves provisional numeric results without changing quality."""
+def test_ive_calculated_result_preserves_sih_values(tmp_path):
+    """SIH preserves calculated values and quality."""
     from aforix.analysis.uncertainty.calculator import (
         IVEPoint,
         calculate_ive,
@@ -92,7 +92,7 @@ def test_ive_provisional_result_preserves_sih_values(tmp_path):
         _measurement(),
     )
 
-    assert result.status == "provisional"
+    assert result.status == "calculated"
     assert fields["incertidumbre_IVE"] == result.relative_uncertainty_pct
     assert fields["error_IVE"] == result.absolute_uncertainty_m3s
     assert fields["calidad_IVE"] == result.quality

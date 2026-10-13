@@ -161,8 +161,11 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                 ive_fields = _sih_fields_from_ive_result(ive_result)
                 ive_status = ive_result.status
 
-                if ive_status == "provisional":
-                    ive_reason = "Falta minimo instrumental de velocidad."
+                if ive_status == "calculated":
+                    ive_reason = (
+                        "Metodo IVE: se utiliza s_v,IVE; "
+                        "no se aplica s_v,min."
+                    )
                 elif ive_status == "not_applicable":
                     ive_reason = "No se cumplen los requisitos para calcular IVE."
                 elif ive_status == "not_available":

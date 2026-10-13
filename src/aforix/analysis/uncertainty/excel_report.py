@@ -62,8 +62,10 @@ def write_ive_excel_report(
     for key, value in fields:
         summary.append([key, value])
     summary.append(["Nota", "Resultados copiados del motor IVE; sin formulas independientes."])
-    if result.status == "provisional":
-        summary.append(["Advertencia", "Resultado provisional: falta minimo instrumental de velocidad."])
+    summary.append([
+        "Decision metodologica",
+        "Se utiliza s_v,IVE directamente; no se aplica s_v,min.",
+    ])
 
     settings = wb.create_sheet("Parametros")
     settings.append(["Parametro", "Valor"])

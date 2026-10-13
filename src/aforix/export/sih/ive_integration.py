@@ -31,10 +31,13 @@ def _calculate_sih_ive(
         )
         for row in df.itertuples(index=False)
     ]
+    effective_parameters = parameters if parameters is not None else IVEParameters(
+        left_bank_mode="preserve_depth"
+    )
     result = calculate_ive(
         points,
         width_m=float(df["width_m"].iloc[0]),
-        parameters=parameters,
+        parameters=effective_parameters,
     )
     return df, result
 
@@ -60,10 +63,10 @@ def calculate_sih_ive_fields(
     measurement: pd.Series,
     parameters: IVEParameters | None = None,
 ) -> dict[str, float | str]:
-    """Return SIH IVE fields, preserving missing results as empty numeric cells.
+    """Return SIH IVE fields, leaving unavailable numeric results empty.
 
-    The velocity instrumental minimum is not yet supplied by the normalized
-    schema, so calculated numeric results remain provisional.
+    The current project methodology uses the IVE velocity standard deviation
+    directly, without applying an additional instrumental minimum.
     """
     empty: dict[str, float | str] = {
         "incertidumbre_IVE": "",
@@ -96,6 +99,9 @@ def write_sih_ive_report(
             normalized_root, instrument, measurement, parameters
         )
     )
+    effective_parameters = parameters if parameters is not None else IVEParameters(
+        left_bank_mode="preserve_depth"
+    )
     return write_ive_excel_report(
         output_root,
         instrument=instrument,
@@ -104,7 +110,7 @@ def write_sih_ive_report(
         measurement_time=measurement["measurement_time"],
         normalized_points=df,
         result=result,
-        parameters=parameters,
+        parameters=effective_parameters,
     )
 
 def _sih_fields_from_ive_result(result: IVECalculation) -> dict[str, float | str]:

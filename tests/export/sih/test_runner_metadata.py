@@ -201,7 +201,7 @@ def test_runner_success_preserves_sih_ive_fields(tmp_path, monkeypatch):
 
 
 
-def test_runner_records_ive_provisional_metadata(tmp_path, monkeypatch):
+def test_runner_records_ive_calculated_metadata(tmp_path, monkeypatch):
     """IVE methodological status is separate from SIH export status."""
     from aforix.export.sih import runner
 
@@ -263,7 +263,7 @@ def test_runner_records_ive_provisional_metadata(tmp_path, monkeypatch):
                 relative_uncertainty_pct=5.25,
                 absolute_uncertainty_m3s=0.0021,
                 quality="Buena",
-                status="provisional",
+                status="calculated",
             ),
         ),
     )
@@ -307,7 +307,9 @@ def test_runner_records_ive_provisional_metadata(tmp_path, monkeypatch):
     assert len(prepared_calls) == 1
     assert len(report_calls) == 1
     assert report_calls[0] is prepared_calls[0]
-    assert metadata.loc[0, "ive_status"] == "provisional"
-    assert isinstance(metadata.loc[0, "ive_reason"], str)
+    assert metadata.loc[0, "ive_status"] == "calculated"
+    assert metadata.loc[0, "ive_reason"] == (
+        "Metodo IVE: se utiliza s_v,IVE; no se aplica s_v,min."
+    )
     assert metadata.loc[0, "ive_reason"].strip()
     assert Path(metadata.loc[0, "ive_report_file"]).exists()

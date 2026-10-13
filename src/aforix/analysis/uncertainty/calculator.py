@@ -12,7 +12,6 @@ class IVEParameters:
     systematic_relative: float = 0.01
     width_relative_per_vertical: float = 0.005
     minimum_depth_sd_m: float = 0.01
-    minimum_velocity_sd_m_s: float | None = None
     left_bank_mode: str = "zero"
     right_bank_mode: str = "preserve_depth"
 
@@ -191,10 +190,9 @@ def calculate_ive(
     sd_velocity_ive = sqrt(sum_velocity_residual / (n - 5))
 
     sd_depth = max(sd_depth_ive, p.minimum_depth_sd_m)
-    sd_velocity = max(
-        sd_velocity_ive,
-        p.minimum_velocity_sd_m_s or 0.0,
-    )
+    # Decision metodologica: utilizar s_v,IVE directamente.
+    # No se aplica un minimo instrumental s_v,min.
+    sd_velocity = sd_velocity_ive
 
     variance_width = 0.0
     variance_depth = 0.0
@@ -254,10 +252,7 @@ def calculate_ive(
     ur = uq / abs(q_mid)
 
     return IVECalculation(
-        status=(
-            "calculated" if p.minimum_velocity_sd_m_s is not None
-            else "provisional"
-        ),
+        status="calculated",
         vertical_count=n,
         q_mid_m3s=q_mid,
         relative_uncertainty_pct=100 * ur,

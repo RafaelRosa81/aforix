@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -36,7 +36,8 @@ def test_ive_report_preserves_engine_values_and_normalized_inputs(tmp_path: Path
     assert summary["Caudal Mid-section (m3/s)"] == result.q_mid_m3s
     assert summary["Incertidumbre relativa (%)"] == result.relative_uncertainty_pct
     assert summary["Incertidumbre absoluta (m3/s)"] == result.absolute_uncertainty_m3s
-    assert summary["Estado IVE"] == "provisional"
+    assert summary["Estado IVE"] == "calculated"
+    assert "no se aplica s_v,min" in summary["Decision metodologica"]
     assert wb["Points_normalizados"]["A2"].value == x[0]
     assert wb["Detalle_IVE"].max_row == len(result.details) + 1
     assert len(result.details) == 12

@@ -16,7 +16,6 @@ from aforix.analysis.uncertainty.calculator import IVEParameters
             systematic_relative=0.025,
             width_relative_per_vertical=0.012,
             minimum_depth_sd_m=0.02,
-            minimum_velocity_sd_m_s=0.003,
         ),
     ],
     ids=["defaults", "custom"],
@@ -68,7 +67,17 @@ def test_ive_report_passes_parameters_to_calculator_and_excel(
     calculate.assert_called_once()
     write_report.assert_called_once()
 
-    assert calculate.call_args.kwargs["parameters"] is parameters
-    assert write_report.call_args.kwargs["parameters"] is parameters
+    calculation_parameters = calculate.call_args.kwargs["parameters"]
+    report_parameters = write_report.call_args.kwargs["parameters"]
+
+    if parameters is None:
+        assert isinstance(calculation_parameters, IVEParameters)
+        assert calculation_parameters.left_bank_mode == "preserve_depth"
+        assert calculation_parameters.right_bank_mode == "preserve_depth"
+        assert report_parameters == calculation_parameters
+    else:
+        assert calculation_parameters is parameters
+        assert report_parameters is parameters
+
     assert write_report.call_args.kwargs["result"] is calculated_result
     assert returned == output
