@@ -1,0 +1,4 @@
+﻿station_id,measurement_date,measurement_time,instrument,export_id
+7003,20251217,125401,nivus,IVE_REF_NV
+7003,20260122,111651,flowtracker,IVE_REF_FT
+7003,20260122,115000,molinete,IVE_REF_ML
