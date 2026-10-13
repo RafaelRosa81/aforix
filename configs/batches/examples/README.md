@@ -195,7 +195,7 @@ Parámetros reales:
 ```yaml
 config: configs/examples/main.yaml
 table: Summary          # Summary, Points, Sections, Gates
-instrument: all         # all, flowtracker, molinete, nivus, m9
+instrument: all         # all, flowtracker, molinete, nivus
 points: P1,P8,P13       # opcional
 parameters: q_total_ls  # opcional
 early_date: 2025-01-01  # opcional
