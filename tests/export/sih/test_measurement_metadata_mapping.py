@@ -8,7 +8,7 @@ from aforix.export.sih.mappings import (
 )
 
 
-def test_actuacion_reads_first_operator_token_and_scale_from_normalized_summary():
+def test_actuacion_formats_operator_identifier_and_reads_scale_from_normalized_summary():
     config = {
         "id_tipo_actuacion": 4,
         "normalized_fields": {
