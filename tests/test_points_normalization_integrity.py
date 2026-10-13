@@ -99,6 +99,61 @@ def test_molinete_points_preserve_label_velocity_and_percent_q():
     assert normalized.loc[0, "percent_q"] == pytest.approx(2.576)
 
 
+
+def test_molinete_points_preserve_angle_and_observation_count():
+    raw = _add_measurement_metadata(
+        pd.DataFrame(
+            [
+                {
+                    "point_index": "1",
+                    "vert_label": "1",
+                    "progr_m": "0.7",
+                    "prof_m": "0.15",
+                    "angle_hor_deg": "30",
+                    "n_points": "1",
+                    "vel_media_vert_ms": "0.025",
+                    "q_percent": "10.0",
+                },
+                {
+                    "point_index": "2",
+                    "vert_label": "2",
+                    "progr_m": "1.4",
+                    "prof_m": "0.25",
+                    "angle_hor_deg": None,
+                    "n_points": "2",
+                    "vel_media_vert_ms": "0.035",
+                    "q_percent": "20.0",
+                },
+                {
+                    "point_index": "3",
+                    "vert_label": "3",
+                    "progr_m": "2.1",
+                    "prof_m": "0.30",
+                    "angle_hor_deg": None,
+                    "n_points": None,
+                    "vel_media_vert_ms": "0.045",
+                    "q_percent": "30.0",
+                },
+            ]
+        ),
+        "molinete",
+    )
+
+    normalized = normalize_table(raw, _load_points_spec("molinete"))
+
+    assert normalized["angle_hor_deg"].iloc[0] == pytest.approx(30.0)
+    assert pd.isna(normalized["angle_hor_deg"].iloc[1])
+    assert pd.isna(normalized["angle_hor_deg"].iloc[2])
+
+    assert normalized["n_points"].iloc[0] == 1
+    assert normalized["n_points"].iloc[1] == 2
+    assert pd.isna(normalized["n_points"].iloc[2])
+
+    assert normalized["velocity_mean_m_s"].tolist() == pytest.approx(
+        [0.025, 0.035, 0.045]
+    )
+
+
 def test_nivus_quality_percentages_do_not_masquerade_as_percent_q():
     raw = _add_measurement_metadata(
         pd.DataFrame(

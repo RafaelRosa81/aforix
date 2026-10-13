@@ -408,6 +408,14 @@ tables:
           - q_percent
         dtype: float
 
+      angle_hor_deg:
+        source: angle_hor_deg
+        dtype: float
+
+      n_points:
+        source: n_points
+        dtype: int
+
       rev_1_s:
         source: rev_1_s
         dtype: float
