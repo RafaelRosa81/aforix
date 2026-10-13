@@ -13,7 +13,7 @@ El objetivo es transformar archivos originales de campo en datasets consistentes
 
 ## Quickstart
 
-Instalar desde la raíz del repositorio para uso normal:
+Aforix requiere **Python 3.10 o superior**. Instale desde la raíz del repositorio para uso normal:
 
 ```bash
 python -m pip install -e .
