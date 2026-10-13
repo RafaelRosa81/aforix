@@ -118,7 +118,11 @@ pytest -q
 
 Resultado esperado:
 
-- Todos los tests pasan.
+- Los tests automatizados pasan.
+- Las pruebas que requieren datos de referencia locales indican que se omiten cuando esos recursos no están disponibles.
+- Cuando se dispone de la plantilla IVE3, sus tres comparaciones pasan.
+
+La referencia `Template_incertidumbre_aforos_IVE3.xlsx` no se distribuye en el repositorio. Para ejecutar esa comparación, colóquela en la raíz o configure `IVE_REFERENCE_XLSX` con su ruta completa.
 
 NO-GO si:
 
