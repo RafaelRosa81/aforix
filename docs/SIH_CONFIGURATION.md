@@ -392,13 +392,13 @@ fecha_inicio
 fecha_fin
 ```
 
-`fecha_inicio` se crea en la normalización a partir de `measurement_date` y `measurement_time` para los tres instrumentos. `fecha_fin` se normaliza así:
+`fecha_inicio` se crea durante la normalización. En FlowTracker y Molinete se combina `measurement_date` con `measurement_time`; en Nivus se copia `stime` desde el raw. `fecha_fin` se normaliza así:
 
 - FlowTracker: `Fecha` y `Hora` de la última fila de Datos complementarios. Si hay una sola fila, se usa para ambos extremos de escala. Si no existe la tabla, los campos que dependen de ella se exportan como `S/D`.
 - Molinete: `measurement_date` combinado con `end_time`. Si `Esc. Fin.:` no existe o contiene `-`, `escala_fin` toma `escala_inicio`.
 - Nivus: el `etime` del nivel general del aforo. `escala_inicio`, `escala_fin` y `operador` quedan vacíos y configurables para el futuro.
 
-En la actuación, `lectura_escala` toma `escala_inicio`. `id_operador` conserva la primera palabra del campo de operador, separada por espacios o guiones bajos.
+En la actuación, `lectura_escala` toma `escala_inicio`. `id_operador` conserva el primer token del campo de operador, delimitado por puntuación o espacios en blanco; por ejemplo, `M. Reyes` queda como `M`.
 
 ## 14. quality
 

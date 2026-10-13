@@ -21,9 +21,9 @@ This document records product-level decisions that remain in force after the rea
 
 - Configured semantic lookup values must resolve explicitly; unresolved configured values must not silently produce blank IDs.
 - Lookup matching may normalize representation differences such as case and surrounding whitespace, but semantic substitutions belong in configuration/data rather than code.
-- `id_operador` uses the first operator token from the source record. Split on whitespace or underscores; for example, `Tiago Poren` becomes `Tiago` and `MV__RR` becomes `MV`.
+- `id_operador` uses the first operator token from the source record. Split at punctuation or whitespace; for example, `Tiago Poren` becomes `Tiago`, `MV__RR` becomes `MV`, and `M. Reyes` becomes `M`.
 - `lectura_escala` equals `escala_inicio`.
-- Start and end dates are normalized into Summary before SIH export. FlowTracker uses the complementary table's last row for `fecha_fin`, Molinete combines `measurement_date` with `end_time`, and Nivus uses the archive-level `etime`.
+- Start and end dates are normalized into Summary before SIH export. FlowTracker uses the complementary table's last row for `fecha_fin`, Molinete combines `measurement_date` with `end_time`, and Nivus uses the archive-level `stime` for `fecha_inicio` and `etime` for `fecha_fin`.
 - FlowTracker uses its only complementary-table reading for both scale fields when the table has one row. If the table is absent, table-dependent SIH fields are `S/D`.
 - Molinete carries `escala_inicio` into `escala_fin` when the final-scale label is absent or its value is `-`.
 - Nivus scale and operator fields remain unfilled for now, with normalized SIH mappings retained for future configuration.

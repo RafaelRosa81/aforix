@@ -11,7 +11,7 @@ REGISTRY = NormalizationRegistry(Path("configs/normalization"))
 
 
 @pytest.mark.parametrize(
-    ("instrument", "row", "expected_end", "expected_start_scale", "expected_end_scale", "expected_operator"),
+    ("instrument", "row", "expected_start", "expected_end", "expected_start_scale", "expected_end_scale", "expected_operator"),
     [
         (
             "flowtracker",
@@ -26,6 +26,7 @@ REGISTRY = NormalizationRegistry(Path("configs/normalization"))
                 "complementary_end_datetime": "2023-06-06 11:34:52",
                 "operators": "Tiago Poren",
             },
+            "2026-01-22 11:50:00",
             "2023-06-06 11:34:52",
             "0.020",
             "0.020",
@@ -44,6 +45,7 @@ REGISTRY = NormalizationRegistry(Path("configs/normalization"))
                 "esc_fin_m": "2.16",
                 "realizado": "MV__RR",
             },
+            "2026-01-22 11:50:00",
             "2026-01-22 12:25:00",
             "2.11",
             "2.16",
@@ -57,8 +59,10 @@ REGISTRY = NormalizationRegistry(Path("configs/normalization"))
                 "measurement_time": "115000",
                 "instrument": "nivus",
                 "q_total_ls": "50",
+                "stime": "2026-01-22T11:45:10",
                 "etime": "2026-01-22T11:58:20",
             },
+            "2026-01-22T11:45:10",
             "2026-01-22T11:58:20",
             None,
             None,
@@ -69,6 +73,7 @@ REGISTRY = NormalizationRegistry(Path("configs/normalization"))
 def test_instrument_summary_normalizes_sih_metadata(
     instrument,
     row,
+    expected_start,
     expected_end,
     expected_start_scale,
     expected_end_scale,
@@ -80,7 +85,7 @@ def test_instrument_summary_normalizes_sih_metadata(
     )
 
     result = normalized.iloc[0]
-    assert result["fecha_inicio"] == "2026-01-22 11:50:00"
+    assert result["fecha_inicio"] == expected_start
     assert result["fecha_fin"] == expected_end
     for column, expected in (
         ("escala_inicio", expected_start_scale),

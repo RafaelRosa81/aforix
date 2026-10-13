@@ -39,11 +39,12 @@ def _normalized_field(measurement: pd.Series, config: dict[str, Any], key: str) 
 
 
 def _first_operator_token(value: str) -> str:
-    """Keep the operator's first name/token, including underscore IDs."""
+    """Keep the first operator token, separated by punctuation or whitespace."""
     text = str(value or "").strip()
     if not text:
         return ""
-    return re.split(r"[\s_]+", text, maxsplit=1)[0]
+    match = re.search(r"[^\W_]+", text, flags=re.UNICODE)
+    return match.group(0) if match else ""
 
 
 def _format_datetime_value(value: str, fmt: str) -> str:

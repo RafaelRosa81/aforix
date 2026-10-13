@@ -162,7 +162,7 @@ tables:
         dtype: string
 
       fecha_inicio:
-        source: __derived__
+        source: stime
         dtype: string
 
       fecha_fin:
@@ -206,11 +206,6 @@ tables:
         from: q_total_ls
         operation: divide
         value: 1000
-      fecha_inicio:
-        date_from: measurement_date
-        time_from: measurement_time
-        operation: combine_datetime
-
     required:
       - station_id
       - measurement_date
