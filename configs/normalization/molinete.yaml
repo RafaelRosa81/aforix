@@ -178,6 +178,42 @@ tables:
         source: observaciones
         dtype: string
 
+      rev_en_s:
+        source: rev_en_s
+        dtype: float
+
+      a_1:
+        source: a_1
+        dtype: float
+
+      a_2:
+        source: a_2
+        dtype: float
+
+      a_3:
+        source: a_3
+        dtype: float
+
+      b_1:
+        source: b_1
+        dtype: float
+
+      b_2:
+        source: b_2
+        dtype: float
+
+      b_3:
+        source: b_3
+        dtype: float
+
+      k_lim_1:
+        source: k_lim_1
+        dtype: float
+
+      k_lim_2:
+        source: k_lim_2
+        dtype: float
+
     derived:
       q_total_ls:
         from: q_total_m3s
@@ -370,6 +406,30 @@ tables:
         sources:
           - percent_q
           - q_percent
+        dtype: float
+
+      rev_1_s:
+        source: rev_1_s
+        dtype: float
+
+      rev_2_s:
+        source: rev_2_s
+        dtype: float
+
+      rev_3_s:
+        source: rev_3_s
+        dtype: float
+
+      vel_point_1_ms:
+        source: vel_point_1_ms
+        dtype: float
+
+      vel_point_2_ms:
+        source: vel_point_2_ms
+        dtype: float
+
+      vel_point_3_ms:
+        source: vel_point_3_ms
         dtype: float
 
     derived:
