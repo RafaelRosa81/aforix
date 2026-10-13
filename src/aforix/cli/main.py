@@ -7,7 +7,6 @@ from aforix.config.loader import load_config
 from aforix.ingest.flowtracker import run as run_flowtracker
 from aforix.ingest.nivus import run as run_nivus
 from aforix.ingest.molinete import run as run_molinete
-from aforix.ingest.m9 import run as run_m9
 from aforix.analysis.statistics import run as run_statistics
 from aforix.analysis.correlation.cli import app as correlation_app
 from aforix.analysis.quality.cli import app as quality_app
@@ -115,11 +114,14 @@ def ingest_nivus(
 def ingest_m9(
     config: str = typer.Option(..., "--config", "-c", help="Path to config file"),
 ):
-    """Import M9 files."""
+    """Reserved command; M9 ingestion is not implemented."""
 
-    config_path = _load_validated_config(config)
-    run_dir = run_m9(config_path)
-    typer.echo(f"M9 ingest completed: {run_dir}")
+    typer.echo(
+        "M9/ADCP ingestion is not implemented yet and is outside the current "
+        "production scope.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @analyze_app.command("statistics")
