@@ -98,13 +98,15 @@ aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
 ```
 
-### M9
+### M9 / ADCP
+
+M9 está pendiente de implementación y fuera del alcance de producción actual. El comando se conserva como marcador, pero termina con código de error y un mensaje explícito; no procesa archivos ni genera una corrida:
 
 ```bash
 aforix ingest m9 -c configs/examples/main.yaml
 ```
 
-M9 / ADCP queda fuera del alcance de producción actual y puede considerarse experimental según el estado del proyecto.
+No incluir este comando en flujos operativos ni batches de producción.
 
 ## build-groups
 
@@ -300,15 +302,33 @@ aforix analyze quality run -c configs/examples/main.yaml
 
 ### analyze stage-discharge
 
+Ejecución con parámetros del YAML:
+
 ```bash
 aforix analyze stage-discharge run -c configs/examples/main.yaml
 ```
 
+Modo interactivo:
+
+```bash
+aforix analyze stage-discharge interactive -c configs/examples/main.yaml
+```
+
 ### analyze section-profiles
+
+Ejecución con parámetros del YAML:
 
 ```bash
 aforix analyze section-profiles run -c configs/examples/main.yaml
 ```
+
+Modo interactivo:
+
+```bash
+aforix analyze section-profiles run -c configs/examples/main.yaml --interactive
+```
+
+Los tipos de gráfico admitidos son `scatter` y `bar`.
 
 La capa de análisis debe trabajar preferentemente sobre datos normalizados o fuentes externas normalizadas.
 
