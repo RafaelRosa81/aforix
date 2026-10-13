@@ -34,9 +34,14 @@ class MetricsCollector:
         if self._psutil is None:
             return
 
-        process = self._psutil.Process()
-        self._ram_start_mb = self._bytes_to_mb(process.memory_info().rss)
-        self._cpu_start_percent = process.cpu_percent(interval=None)
+        try:
+            process = self._psutil.Process()
+            self._ram_start_mb = self._bytes_to_mb(process.memory_info().rss)
+            self._cpu_start_percent = process.cpu_percent(interval=None)
+        except self._psutil.Error:
+            self._psutil = None
+            self._ram_start_mb = None
+            self._cpu_start_percent = None
 
     def stop(self) -> StepMetrics:
         duration_sec = None
@@ -49,9 +54,16 @@ class MetricsCollector:
                 metrics_available=False,
             )
 
-        process = self._psutil.Process()
-        ram_end_mb = self._bytes_to_mb(process.memory_info().rss)
-        cpu_end_percent = process.cpu_percent(interval=None)
+        try:
+            process = self._psutil.Process()
+            ram_end_mb = self._bytes_to_mb(process.memory_info().rss)
+            cpu_end_percent = process.cpu_percent(interval=None)
+        except self._psutil.Error:
+            self._psutil = None
+            return StepMetrics(
+                duration_sec=duration_sec,
+                metrics_available=False,
+            )
 
         return StepMetrics(
             duration_sec=duration_sec,
