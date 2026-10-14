@@ -136,7 +136,11 @@ Archivos principales:
 | `io.py` | lectura robusta de CSVs |
 | `writers.py` | escritura de CSVs y metadata |
 | `schema.py` | columnas de salida SIH |
+| `ive_points.py` | localiza y valida los puntos de una medición en `Points.csv` |
+| `ive_integration.py` | conecta los puntos normalizados con el cálculo IVE y el informe Excel |
 | `validation.py` | reservado para validaciones futuras |
+
+El motor matemático está en `src/aforix/analysis/uncertainty/calculator.py`; la clasificación por incertidumbre y el umbral de aplicabilidad están en `ive.py`, y el libro de trazabilidad se escribe desde `excel_report.py`.
 
 ### 4.2 Configuración SIH
 
@@ -512,11 +516,13 @@ Selection file generado: D:\repos\aforix\outputs\sih\_interactive_selection_2026
 Aforix — SIH export
 ====================
 Output directory: D:\repos\aforix\outputs\sih
-Generated files: 5
+Generated files: 7
  - D:\repos\aforix\outputs\sih\ID_SIH001_actuacion_7001_20241219_214313.csv
  - D:\repos\aforix\outputs\sih\ID_SIH001_aforo_7001_20241219_214313.csv
+ - D:\repos\aforix\outputs\sih\incertidumbre\IVE_nivus_7001_20241219_214313.xlsx
  - D:\repos\aforix\outputs\sih\ID_SIH002_actuacion_7071_20260120_142300.csv
  - D:\repos\aforix\outputs\sih\ID_SIH002_aforo_7071_20260120_142300.csv
+ - D:\repos\aforix\outputs\sih\incertidumbre\IVE_molinete_7071_20260120_142300.xlsx
  - D:\repos\aforix\outputs\sih\sih_export_metadata.csv
 ```
 
