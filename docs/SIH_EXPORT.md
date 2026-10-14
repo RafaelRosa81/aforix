@@ -53,7 +53,15 @@ La metadata permite auditar qué filas se exportaron correctamente y cuáles fal
 
 ### 2.1 Cálculo de IVE en la exportación SIH
 
-Para cada medición seleccionada, la exportación intenta calcular IVE a partir de `Points.csv` normalizado. El módulo selecciona una sola medición mediante instrumento, `station_id`, `measurement_date` y `measurement_time`; no mezcla puntos de mediciones distintas. Requiere `distance_m`, `depth_m`, `velocity_mean_m_s` y un único `width_m` positivo. Los valores numéricos incompletos, las distancias duplicadas o fuera de la sección y las profundidades negativas impiden preparar el cálculo.
+Para cada medición seleccionada, la exportación intenta calcular IVE desde `Points.csv` normalizado. Busca el archivo en este orden:
+
+```text
+database/normalized/{instrument}/Points.csv
+database/normalized/{instrument}/Points/Points.csv
+database/normalized/Points.csv
+```
+
+Filtra por `station_id`, `measurement_date` y `measurement_time`; si el archivo incluye la columna `instrument`, también filtra por instrumento. Para un archivo compartido en la raíz de normalized, incluye esa columna para distinguir instrumentos. Requiere `distance_m`, `depth_m`, `velocity_mean_m_s` y un único `width_m` positivo. Los valores numéricos incompletos, las distancias duplicadas o fuera de la sección y las profundidades negativas impiden preparar el cálculo.
 
 El motor ordena las verticales por distancia y aplica el método de integración *mid-section*:
 
