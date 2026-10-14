@@ -348,8 +348,14 @@ def _enrich_flowtracker_summary_hydraulic_radius(
     _validate_measurement_keys_populated(points, label="flowtracker", frame_name="Points")
     radii = []
     for keys, section in points.groupby(POINT_MEASUREMENT_KEYS, dropna=False, sort=False):
+        try:
+            radius = _flowtracker_hydraulic_radius(section)
+        except ValueError:
+            # Invalid geometry must not break existing normalization, IVE or SIH.
+            # The optional derived field remains unavailable for this measurement.
+            radius = float("nan")
         radii.append(dict(zip(POINT_MEASUREMENT_KEYS, keys)) | {
-            "_derived_hydraulic_radius_m": _flowtracker_hydraulic_radius(section)
+            "_derived_hydraulic_radius_m": radius
         })
     calculated = pd.DataFrame(radii)
     updated = []
@@ -362,8 +368,8 @@ def _enrich_flowtracker_summary_hydraulic_radius(
         joined = summary.merge(
             calculated, on=POINT_MEASUREMENT_KEYS, how="left", validate="one_to_one"
         )
-        if joined["_derived_hydraulic_radius_m"].isna().any():
-            raise ValueError(f"FlowTracker Summary without matching Points geometry: {path}")
+        # Missing/invalid geometry produces NaN in this optional field only.
+        # Preserve the pre-existing Summary and downstream processing.
         matched.append(joined[POINT_MEASUREMENT_KEYS])
         joined["hydraulic_radius_m"] = joined.pop("_derived_hydraulic_radius_m")
         updated.append((path, joined))
