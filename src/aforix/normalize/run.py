@@ -301,6 +301,80 @@ def _enrich_points_with_summary_width(
     return merged[points_df.columns]
 
 
+def _flowtracker_hydraulic_radius(points: pd.DataFrame) -> float:
+    """Hydraulic radius from surveyed cross-section, with vertical end banks.
+
+    The first and last observed stations delimit the wetted section. When
+    their depths are nonzero, vertical bank faces are assumed at those
+    stations; no unmeasured horizontal extension is invented.
+    """
+    import numpy as np
+
+    section = points[["distance_m", "depth_m"]].copy()
+    for column in ("distance_m", "depth_m"):
+        section[column] = pd.to_numeric(section[column], errors="coerce")
+    if section.isna().any().any():
+        raise ValueError("FlowTracker hydraulic radius requires complete distance_m and depth_m.")
+    section = section.sort_values("distance_m")
+    x = section["distance_m"].to_numpy(dtype=float)
+    h = section["depth_m"].to_numpy(dtype=float)
+    if len(x) < 2 or not np.isfinite(x).all() or not np.isfinite(h).all():
+        raise ValueError("FlowTracker hydraulic radius requires at least two finite stations.")
+    dx = np.diff(x)
+    if (dx <= 0).any() or (h < 0).any():
+        raise ValueError("Invalid FlowTracker hydraulic radius geometry: distances or depths.")
+    area = float(np.sum(dx * (h[:-1] + h[1:]) / 2))
+    perimeter = float(np.sum(np.hypot(dx, np.diff(h))) + h[0] + h[-1])
+    if area <= 0 or perimeter <= 0:
+        raise ValueError("FlowTracker hydraulic radius requires a positive wetted area.")
+    return area / perimeter
+
+
+def _enrich_flowtracker_summary_hydraulic_radius(
+    *,
+    summary_paths: list[Path],
+    points_frames: list[pd.DataFrame],
+) -> list[pd.DataFrame]:
+    """Calculate one hydraulic radius per FlowTracker measurement from Points."""
+    if not summary_paths or not points_frames:
+        raise ValueError("FlowTracker hydraulic radius requires Summary and Points.")
+    points = _normalized_measurement_keys(
+        pd.concat(points_frames, ignore_index=True, sort=False)
+    )
+    required = [*POINT_MEASUREMENT_KEYS, "distance_m", "depth_m"]
+    missing = [column for column in required if column not in points.columns]
+    if missing:
+        raise ValueError(f"FlowTracker hydraulic radius missing Points columns: {missing}")
+    _validate_measurement_keys_populated(points, label="flowtracker", frame_name="Points")
+    radii = []
+    for keys, section in points.groupby(POINT_MEASUREMENT_KEYS, dropna=False, sort=False):
+        radii.append(dict(zip(POINT_MEASUREMENT_KEYS, keys)) | {
+            "_derived_hydraulic_radius_m": _flowtracker_hydraulic_radius(section)
+        })
+    calculated = pd.DataFrame(radii)
+    updated = []
+    matched = []
+    for path in summary_paths:
+        summary = _normalized_measurement_keys(_read_csv(path))
+        _validate_measurement_keys_populated(summary, label=str(path), frame_name="Summary")
+        if summary.duplicated(POINT_MEASUREMENT_KEYS).any():
+            raise ValueError(f"Duplicate FlowTracker Summary measurement keys in {path}")
+        joined = summary.merge(
+            calculated, on=POINT_MEASUREMENT_KEYS, how="left", validate="one_to_one"
+        )
+        if joined["_derived_hydraulic_radius_m"].isna().any():
+            raise ValueError(f"FlowTracker Summary without matching Points geometry: {path}")
+        matched.append(joined[POINT_MEASUREMENT_KEYS])
+        joined["hydraulic_radius_m"] = joined.pop("_derived_hydraulic_radius_m")
+        updated.append((path, joined))
+    all_keys = pd.concat(matched, ignore_index=True)
+    if all_keys.duplicated().any() or len(all_keys) != len(calculated):
+        raise ValueError("FlowTracker Summary/Points hydraulic radius measurements mismatch.")
+    for path, frame in updated:
+        _write_normalized_file(frame, output_path=path, write_policy="overwrite")
+    return [frame for _, frame in updated]
+
+
 def _enrich_flowtracker_summary_max_depth(
     *,
     summary_paths: list[Path],
@@ -1012,6 +1086,10 @@ def normalize_database(config_path: Path) -> Path:
                     cross_instrument_frames["Points"].extend(enriched_points_frames)
                 if instrument == "flowtracker" and "Summary" in groups:
                     updated_summaries = _enrich_flowtracker_summary_max_depth(
+                        summary_paths=summary_paths,
+                        points_frames=enriched_points_frames,
+                    )
+                    updated_summaries = _enrich_flowtracker_summary_hydraulic_radius(
                         summary_paths=summary_paths,
                         points_frames=enriched_points_frames,
                     )
