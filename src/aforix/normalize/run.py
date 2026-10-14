@@ -315,6 +315,10 @@ def _flowtracker_hydraulic_radius(points: pd.DataFrame) -> float:
         section[column] = pd.to_numeric(section[column], errors="coerce")
     if section.isna().any().any():
         raise ValueError("FlowTracker hydraulic radius requires complete distance_m and depth_m.")
+    # Repeated velocity observations at the same vertical can share one
+    # surveyed bed depth. Deduplicate only identical geometric coordinates;
+    # conflicting depths at one distance remain invalid.
+    section = section.drop_duplicates(subset=["distance_m", "depth_m"])
     section = section.sort_values("distance_m")
     x = section["distance_m"].to_numpy(dtype=float)
     h = section["depth_m"].to_numpy(dtype=float)
