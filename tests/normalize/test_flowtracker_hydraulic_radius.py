@@ -80,5 +80,5 @@ def test_invalid_geometry_does_not_block_existing_summary(tmp_path: Path):
         summary_paths=[path], points_frames=[points]
     )[0]
     assert pd.isna(result.loc[0, "hydraulic_radius_m"])
-    assert result.loc[0, "q_total_m3s"] == pytest.approx(0.0435)
-    assert result.loc[0, "max_depth_m"] == pytest.approx(0.2)
+    assert float(result.loc[0, "q_total_m3s"]) == pytest.approx(0.0435)
+    assert float(result.loc[0, "max_depth_m"]) == pytest.approx(0.2)
