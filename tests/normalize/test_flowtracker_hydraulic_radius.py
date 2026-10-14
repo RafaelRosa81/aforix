@@ -56,3 +56,29 @@ def test_radius_is_joined_by_measurement_not_station_alone(tmp_path: Path):
     )
     assert result[0]["hydraulic_radius_m"].tolist() == pytest.approx([4 / 6, 8 / 8])
     assert pd.read_csv(path)["hydraulic_radius_m"].tolist() == pytest.approx([4 / 6, 1])
+
+
+def test_invalid_geometry_does_not_block_existing_summary(tmp_path: Path):
+    path = tmp_path / "Summary.csv"
+    pd.DataFrame({
+        "instrument": ["flowtracker"],
+        "station_id": ["7003"],
+        "measurement_date": ["20260122"],
+        "measurement_time": ["111651"],
+        "q_total_m3s": [0.0435],
+        "max_depth_m": [0.2],
+    }).to_csv(path, index=False)
+    points = pd.DataFrame({
+        "instrument": ["flowtracker", "flowtracker"],
+        "station_id": ["7003", "7003"],
+        "measurement_date": ["20260122", "20260122"],
+        "measurement_time": ["111651", "111651"],
+        "distance_m": [0, 2],
+        "depth_m": [0, None],
+    })
+    result = _enrich_flowtracker_summary_hydraulic_radius(
+        summary_paths=[path], points_frames=[points]
+    )[0]
+    assert pd.isna(result.loc[0, "hydraulic_radius_m"])
+    assert result.loc[0, "q_total_m3s"] == pytest.approx(0.0435)
+    assert result.loc[0, "max_depth_m"] == pytest.approx(0.2)
