@@ -20,7 +20,7 @@ P = h[0] + Σ sqrt((x[i+1] - x[i])² + (h[i+1] - h[i])²) + h[n-1]
 Rh = A / P
 ```
 
-Las profundidades extremas se suman al perímetro **solo como longitud vertical de margen**; si valen cero, su aporte es nulo. El fondo se representa mediante segmentos rectos entre estaciones consecutivas. Se rechazan geometrías con menos de dos estaciones, distancias repetidas, profundidades negativas, datos no numéricos o área mojada nula.
+Las profundidades extremas se suman al perímetro **solo como longitud vertical de margen**; si valen cero, su aporte es nulo. El fondo se representa mediante segmentos rectos entre estaciones consecutivas. El cálculo del radio hidráulico rechaza geometrías con menos de dos estaciones, distancias repetidas, profundidades negativas, datos no numéricos o área mojada nula. **Para proteger los procesos existentes**, si una medida presenta geometría inválida, el enriquecimiento deja `hydraulic_radius_m` vacío (`NaN`) para esa medida y conserva las demás columnas de `Summary`; no interrumpe la normalización por esa causa. Los problemas de integridad de claves de identificación siguen siendo errores.
 
 **Limitación**: esta definición supone que la sección está completamente delimitada por las estaciones extremas y que los tramos entre estaciones son lineales. La precisión depende de la densidad y calidad del levantamiento.
 
