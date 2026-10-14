@@ -2,7 +2,7 @@
 
 Esta guía documenta el módulo de exportación SIH de Aforix.
 
-El módulo SIH transforma mediciones procesadas por Aforix en archivos CSV con la estructura esperada por SIH. Actualmente genera dos archivos por medición seleccionada:
+El módulo SIH transforma mediciones procesadas por Aforix en archivos CSV con la estructura esperada por SIH. Por cada medición seleccionada genera los CSV de actuaciones y aforos; en el CSV de aforos también incluye los campos IVE cuando el cálculo está disponible. Además, genera un informe Excel complementario con el detalle del cálculo cuando puede preparar los datos normalizados:
 
 ```text
 ID_{export_id}_actuacion_{station_id}_{YYYYMMDD}_{HHMMSS}.csv
@@ -37,10 +37,11 @@ raw -> ingest -> runs -> build-groups -> database/raw_canonical -> normalize -> 
 
 Por cada fila válida del archivo de selección, el módulo intenta generar:
 
-| Archivo | Contenido |
+| Archivo o campos | Contenido |
 | --- | --- |
 | `ID_{export_id}_actuacion_*.csv` | registro para tabla SIH de actuaciones |
-| `ID_{export_id}_aforo_*.csv` | registro para tabla SIH de aforos |
+| `ID_{export_id}_aforo_*.csv` | registro para tabla SIH de aforos; incluye `incertidumbre_IVE`, `error_IVE` y `calidad_IVE` |
+| `IVE_{instrumento}_{estacion}_{fecha}_{hora}.xlsx` | informe complementario con resumen, parámetros, puntos normalizados y detalle IVE, si los datos permiten preparar el cálculo |
 
 Al final de la corrida siempre escribe:
 
@@ -49,6 +50,42 @@ outputs/sih/sih_export_metadata.csv
 ```
 
 La metadata permite auditar qué filas se exportaron correctamente y cuáles fallaron.
+
+### 2.1 Cálculo de IVE en la exportación SIH
+
+Para cada medición seleccionada, la exportación intenta calcular IVE a partir de `Points.csv` normalizado. El módulo selecciona una sola medición mediante instrumento, `station_id`, `measurement_date` y `measurement_time`; no mezcla puntos de mediciones distintas. Requiere `distance_m`, `depth_m`, `velocity_mean_m_s` y un único `width_m` positivo. Los valores numéricos incompletos, las distancias duplicadas o fuera de la sección y las profundidades negativas impiden preparar el cálculo.
+
+El motor ordena las verticales por distancia y aplica el método de integración *mid-section*:
+
+```text
+Q_mid = Σ (ancho_mid_i × profundidad_i × velocidad_i)
+```
+
+Si los puntos no incluyen los bordes físicos en `x=0` o `x=width_m`, el motor agrega nodos sintéticos con profundidad y velocidad cero. Para SIH, los modos configurados en `configs/sih/sih.yaml` son:
+
+```yaml
+sih:
+  ive:
+    borders:
+      left: zero
+      right: preserve_depth
+```
+
+`zero` fija profundidad y velocidad en cero; `preserve_depth` conserva la profundidad de un borde medido y fija su velocidad en cero; `preserve_both` conserva ambas. Los nodos sintéticos siempre quedan en cero. Los bordes físicos no cuentan dentro del número de verticales para determinar aplicabilidad: se requieren al menos **10 verticales interiores**.
+
+El cálculo combina cuatro componentes de incertidumbre independientes: sistemática, ancho, profundidad y velocidad. Con los parámetros actuales del motor, la componente sistemática relativa es 1 %, la componente de ancho es 0,5 % por vertical y la desviación estándar de profundidad utilizada es `max(s_d,IVE, 0,01 m)`. Para velocidad se usa directamente `s_v,IVE`, sin aplicar un mínimo instrumental `s_v,min`. La incertidumbre absoluta es la raíz de la suma de las varianzas de esos componentes; la relativa se obtiene como `100 × u_Q / |Q_mid|`.
+
+La calidad se clasifica según la incertidumbre relativa: `Excelente` hasta 2 %, `Buena` hasta 5 %, `Regular` hasta 8 % y `Mala` por encima de 8 %. Esta decisión metodológica y sus limitaciones se explican en [`docs/IVE_METHODOLOGY_DECISIONS.md`](IVE_METHODOLOGY_DECISIONS.md). El estado `calculated` describe el resultado del método implementado; no certifica por sí solo conformidad con una norma externa.
+
+### Estados y efecto en la exportación
+
+| Estado | Significado y salida |
+| --- | --- |
+| `calculated` | Se calculan incertidumbre absoluta, relativa y calidad; se escriben en el CSV de aforos y en el informe Excel. |
+| `not_applicable` | Hay menos de 10 verticales interiores. Los campos numéricos IVE quedan vacíos; la calidad informa que no aplica. |
+| `not_available` | No se obtiene un resultado, por ejemplo por caudal nulo. Los campos numéricos quedan vacíos y la metadata registra el motivo. |
+
+Si faltan puntos o sus datos no permiten preparar IVE, la exportación SIH de actuaciones y aforos igualmente continúa: la metadata deja constancia del estado y del motivo, y no se crea el informe Excel IVE de esa medición. Cuando el cálculo sí se prepara, el informe se guarda en `outputs/sih/incertidumbre/` con hojas `Resumen`, `Parametros`, `Points_normalizados` y `Detalle_IVE`. Es un informe de trazabilidad con valores del motor; no recalcula el modelo mediante fórmulas de Excel.
 
 ## 3. Arquitectura general
 
@@ -580,7 +617,12 @@ seccion
 velocidad_media
 radio_hidraulico
 nivel_confiabilidad
+incertidumbre_IVE
+error_IVE
+calidad_IVE
 ```
+
+`incertidumbre_IVE` contiene la incertidumbre relativa en porcentaje; `error_IVE`, la absoluta en m³/s; `calidad_IVE`, la clasificación o el mensaje de no disponibilidad/no aplicabilidad.
 
 Los IDs autogenerados por SIH se exportan vacíos en el estado actual del código.
 
@@ -605,9 +647,15 @@ normalized_source
 raw_canonical_found
 actuaciones_file
 aforos_file
+ive_report_file
+ive_report_error
+ive_status
+ive_reason
 ```
 
-Para errores incluye:
+`ive_status` y `ive_reason` permiten revisar el resultado IVE por medición; `ive_report_file` señala el libro generado y `ive_report_error` registra por qué no se pudo crear.
+
+Para errores de exportación incluye:
 
 ```text
 status
@@ -631,6 +679,7 @@ Valores de `status`:
 - Configuración SIH: `docs/SIH_CONFIGURATION.md`
 - Matching de instrumentos: `docs/SIH_MATCHING.md`
 - Solución de problemas: `docs/SIH_TROUBLESHOOTING.md`
+- Cálculo IVE y decisión metodológica: `docs/IVE_METHODOLOGY_DECISIONS.md`
 
 ## 18. Limitaciones actuales documentadas
 
