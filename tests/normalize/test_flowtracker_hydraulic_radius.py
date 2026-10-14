@@ -15,6 +15,23 @@ def test_rectangular_section_includes_vertical_banks():
     assert _flowtracker_hydraulic_radius(points) == pytest.approx(4 / 6)
 
 
+def test_identical_vertical_geometry_is_counted_once():
+    points = pd.DataFrame({
+        "distance_m": [0, 2, 2, 4],
+        "depth_m": [1, 1, 1, 1],
+    })
+    assert _flowtracker_hydraulic_radius(points) == pytest.approx(4 / 6)
+
+
+def test_conflicting_depths_at_same_distance_are_rejected():
+    points = pd.DataFrame({
+        "distance_m": [0, 2, 2, 4],
+        "depth_m": [1, 1, 2, 1],
+    })
+    with pytest.raises(ValueError):
+        _flowtracker_hydraulic_radius(points)
+
+
 def test_zero_depth_banks_use_sloping_bed():
     points = pd.DataFrame({"distance_m": [0, 2, 4], "depth_m": [0, 2, 0]})
     # A=4 m2; P=2*sqrt(8) m.
