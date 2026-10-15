@@ -197,4 +197,4 @@ sih:
   ive:
     borders:
       left: zero
-      right: preserve_depth
+      right: zero
