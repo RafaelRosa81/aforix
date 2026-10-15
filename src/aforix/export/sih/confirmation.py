@@ -7,7 +7,11 @@ import pandas as pd
 
 
 def _display(value: Any) -> str:
-    return "null" if value is None else str(value)
+    return "No configurado" if value is None else str(value)
+
+
+def _display_border(value: Any) -> str:
+    return {"zero": "Profundidad cero", "preserve_depth": "Conservar profundidad"}.get(str(value), _display(value))
 
 
 def confirm_instrument_configurations(
@@ -35,19 +39,19 @@ def confirm_instrument_configurations(
     for instrument in sorted(counts):
         cfg = instruments[instrument]
         lookup = cfg.get("instrument_lookup_fields", {})
-        print("\nAFORIX — CONFIRMACIÓN DE CONFIGURACIÓN SIH")
+        print("\nAFORIX — CONFIRMACIÓN DE EXPORTACIÓN AL SIH")
         print("=" * 43)
         print(f"Instrumento: {instrument.upper()}")
         print(f"Aforos seleccionados: {counts[instrument]}")
-        print("\nCONFIGURACIÓN SIH")
-        for key in ("id_tipo_actuacion", "tipo_aforo_lookup", "instrumentos_rangos_lookup"):
-            print(f"  {key}: {_display(cfg.get(key))}")
+        print("\nDATOS DE LA ACTUACIÓN Y DEL AFORO")
+        for key, label in (("id_tipo_actuacion", "Tipo de actuación (ID)"), ("tipo_aforo_lookup", "Tipo de aforo"), ("instrumentos_rangos_lookup", "Rango del instrumento")):
+            print(f"  {label}: {_display(cfg.get(key))}")
         print("\nIDENTIFICACIÓN DEL INSTRUMENTO")
-        for key in ("marca", "nro_serie", "modelo", "codigo"):
-            print(f"  instrument_lookup_fields.{key}: {_display(lookup.get(key))}")
-        print("\nCONFIGURACIÓN IVE")
-        print(f"  borders.left: {_display(left)}")
-        print(f"  borders.right: {_display(right)}")
+        for key, label in (("marca", "Marca"), ("nro_serie", "Número de serie"), ("modelo", "Modelo"), ("codigo", "Código")):
+            print(f"  {label}: {_display(lookup.get(key))}")
+        print("\nCÁLCULO DE INCERTIDUMBRE (IVE)")
+        print(f"  Margen izquierdo: {_display_border(left)}")
+        print(f"  Margen derecho: {_display_border(right)}")
 
         if assume_yes:
             print("Confirmación automática: --yes")
