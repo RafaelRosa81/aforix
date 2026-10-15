@@ -53,9 +53,9 @@ def test_confirms_each_instrument_once(config, selection, capsys):
     out = capsys.readouterr().out
     assert "Aforos seleccionados: 2" in out
     assert "Aforos seleccionados: 1" in out
-    assert "instrument_lookup_fields.nro_serie: helice" in out
-    assert "borders.left: zero" in out
-    assert "borders.right: zero" in out
+    assert "Número de serie: helice" in out
+    assert "Margen izquierdo: Profundidad cero" in out
+    assert "Margen derecho: Profundidad cero" in out
 
 
 def test_rejection_aborts(config, selection):
