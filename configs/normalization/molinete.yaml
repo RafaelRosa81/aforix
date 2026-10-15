@@ -146,6 +146,12 @@ tables:
           - mean_depth_m
         dtype: float
 
+      hydraulic_radius_m:
+        sources:
+          - radio_hidraulico_m
+          - hydraulic_radius_m
+        dtype: float
+
       temperature_c:
         source: temperature_c
         dtype: float
