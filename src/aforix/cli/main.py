@@ -202,6 +202,11 @@ def export_sih(
         "--interactive",
         help="Run interactive SIH export mode",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="Confirm SIH configuration for all selected instruments automatically",
+    ),
 ):
     """Export Aforix measurements to SIH CSV format."""
 
@@ -213,7 +218,10 @@ def export_sih(
     if interactive:
         argv.append("--interactive")
 
-    export_sih_main(argv)
+    if yes:
+        argv.append("--yes")
+
+    return export_sih_main(argv)
 
 
 @consolidate_app.command("flowtracker")
