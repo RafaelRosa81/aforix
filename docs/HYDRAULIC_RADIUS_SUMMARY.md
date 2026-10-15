@@ -28,7 +28,7 @@ Las profundidades extremas se suman al perímetro **solo como longitud vertical 
 
 Las filas de `Points` pueden repetir una distancia transversal porque existen varias observaciones de velocidad en una misma vertical. Para construir la geometría se consideran **una sola vez** las parejas idénticas `(distance_m, depth_m)`; las filas originales de `Points` permanecen intactas. Si una misma distancia contiene **profundidades distintas**, la geometría es ambigua: no se promedian y el radio queda vacío para esa medida.
 
-La revisión de seis aforos reales con radio inicialmente vacío identificó exclusivamente repeticiones con la misma profundidad: estaciones 010120180517 (2018-05-17), 11901602_022 (2022-02-16), 7005 (2025-12-17 y 2026-01-22), 7008 (2025-12-15) y 70911 (2025-12-15). Estos casos deben reprocesarse con la corrección y contrastarse con los resultados anteriores.
+La revisión de seis aforos reales con radio inicialmente vacío identificó exclusivamente repeticiones con la misma profundidad: estaciones 010120180517 (2018-05-17), 11901602_022 (2022-02-16), 7005 (2025-12-17 y 2026-01-22), 7008 (2025-12-15) y 70911 (2025-12-15). Tras la corrección, la segunda normalización recuperó los seis radios (0.378638, 0.388533, 0.291008, 0.337830, 0.372903 y 0.536828 m, respectivamente) sin alterar los otros 27 radios de FlowTracker.
 
 ## Verificación con aforos reales
 
@@ -47,3 +47,16 @@ Estos resultados son una **verificación geométrica con datos reales recuperado
 ## Compatibilidad
 
 Esta funcionalidad es aditiva a `Summary`. No debe modificar cálculos de incertidumbre IVE, estructura de SIH, valores históricos ni los demás campos normalizados. Antes de integrar, ejecutar toda la batería `pytest -q` y revisar cualquier consumidor que requiera una lista fija de columnas.
+
+
+## Aceptación de datos reales (octubre de 2026)
+
+Se ejecutó `aforix normalize run` sobre `database/raw_canonical` del repositorio principal, utilizando el código de la rama de desarrollo en un *worktree* separado y escribiendo en directorios de aceptación independientes. No se modificaron los datos originales ni la configuración local SIH/IVE.
+
+- **Cobertura:** FlowTracker 33/33, Molinete 13/13 y Nivus 204/204; total **250/250** radios disponibles.
+- **Regresión entre ejecuciones de la rama:** los 27 radios FlowTracker preexistentes permanecieron iguales y las demás columnas de `Summary` permanecieron idénticas en los tres instrumentos.
+- **Validación geométrica FlowTracker:** 33 geometrías válidas; diferencia máxima entre radio calculado y recomputación independiente de `Points` de aproximadamente `8.33e-17 m`. Diferencia máxima de área geométrica respecto de `Summary.area_total_m2`: **0.381679 %** (0.0005 m² en ese aforo), compatible con redondeo, sin atribuir formalmente la causa.
+- **Comparación con `main` (archivos normalizados existentes):** Molinete y Nivus sin diferencias en campos comunes. FlowTracker presentó diferencias de representación: valores numéricos equivalentes al convertirlos a números (tolerancias relativas y absolutas de `1e-12`), y fechas equivalentes **hasta el minuto**; la nueva salida conserva segundos no presentes en la referencia. Se verificaron cero diferencias bajo esos criterios, pero no identidad textual de las fechas ni una ejecución fresca del código de `main` con los mismos datos.
+- **Pruebas:** `python -m pytest -q` en la rama de desarrollo: **286 passed, 4 skipped**. Las ejecuciones CI del commit `b253449` finalizaron correctamente.
+
+**Alcance:** estos resultados respaldan la aceptación funcional y compatibilidad observada en los datos ensayados; no constituyen una certificación independiente de las mediciones originales.
