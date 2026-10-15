@@ -81,6 +81,7 @@ sih:
         observaciones: null
         radio_hidraulico: null
       normalized_fields:
+        radio_hidraulico: hydraulic_radius_m
         ancho: width_total_m
         caudal: q_total_m3s
         profundidad: max_depth_m
@@ -117,6 +118,7 @@ sih:
         observaciones: observaciones
         radio_hidraulico: radio_hidraulico_m
       normalized_fields:
+        radio_hidraulico: hydraulic_radius_m
         ancho: width_total_m
         caudal: q_total_m3s
         profundidad: max_depth_m
@@ -153,6 +155,7 @@ sih:
         observaciones: notes
         radio_hidraulico: rh [m]
       normalized_fields:
+        radio_hidraulico: hydraulic_radius_m
         ancho: width_total_m
         caudal: q_total_m3s
         profundidad: max_depth_m

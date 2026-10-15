@@ -395,6 +395,6 @@ def build_sdh_aforos_row(
         "profundidad": field("profundidad"),
         "seccion": field("seccion"),
         "velocidad_media": field("velocidad_media"),
-        "radio_hidraulico": _raw_field(raw_measurement, raw_fields, "radio_hidraulico"),
+        "radio_hidraulico": _normalized_field(measurement, normalized_fields, "radio_hidraulico"),
         "nivel_confiabilidad": "",
     }
