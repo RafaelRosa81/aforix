@@ -76,7 +76,7 @@ sih:
   ive:
     borders:
       left: zero
-      right: preserve_depth
+      right: zero
 ```
 
 `zero` fija profundidad y velocidad en cero; `preserve_depth` conserva la profundidad de un borde medido y fija su velocidad en cero; `preserve_both` conserva ambas. Los nodos sintéticos siempre quedan en cero. Los bordes físicos no cuentan dentro del número de verticales para determinar aplicabilidad: se requieren al menos **10 verticales interiores**.
@@ -104,8 +104,9 @@ El flujo interno actual es:
 3. Definir el archivo de selección:
    - en modo batch: usar `--selection-file` o `configs/sih/selection_template.csv`;
    - en modo interactivo: construir automáticamente un CSV temporal en `outputs/sih/`.
-4. Cargar los lookups configurados.
-5. Para cada fila de selección:
+4. Mostrar la configuración efectiva SIH e IVE de cada instrumento seleccionado y solicitar confirmación individual, salvo que se use `--yes`. Si una configuración no se confirma, cancelar antes de generar archivos SIH.
+5. Cargar los lookups configurados.
+6. Para cada fila de selección:
    - identificar instrumento;
    - cargar `Summary` normalizado;
    - cargar `Summary` raw canonical si existe;
@@ -119,7 +120,7 @@ El flujo interno actual es:
    - construir fila `sdh_aforos`;
    - escribir CSVs de salida;
    - registrar metadata.
-6. Escribir `sih_export_metadata.csv`.
+7. Escribir `sih_export_metadata.csv`.
 
 Los detalles de configuración están en `docs/SIH_CONFIGURATION.md` y el matching de instrumentos se explica en `docs/SIH_MATCHING.md`.
 
@@ -136,6 +137,7 @@ Archivos principales:
 | Archivo | Rol |
 | --- | --- |
 | `cli.py` | CLI interna del módulo |
+| `confirmation.py` | presentación y confirmación de parámetros SIH e IVE por instrumento |
 | `config.py` | carga de YAML y resolución de rutas |
 | `interactive.py` | flujo interactivo y generación de selection CSV temporal |
 | `runner.py` | orquestación de la exportación batch |
@@ -238,7 +240,37 @@ aforix export sih -c configs/examples/main.yaml --interactive
 
 En este modo, Aforix detecta mediciones disponibles desde `database/normalized`, pregunta qué exportar, genera un CSV temporal de selección y luego reutiliza el mismo runner batch.
 
-### 5.6 Modo interactivo directo con `python -m`
+### 5.6 Confirmación de configuración por instrumento y ejecución automática
+
+Antes de iniciar la exportación, **tanto en modo batch como en modo interactivo**, Aforix muestra por separado la configuración de cada instrumento presente en la selección y solicita confirmación. Los valores provienen de `--sih-config`; no se editan desde esta pantalla.
+
+Se muestran:
+
+- Tipo de actuación (ID): `id_tipo_actuacion`.
+- Tipo de aforo: `tipo_aforo_lookup`.
+- Rango del instrumento: `instrumentos_rangos_lookup`.
+- Identificación del instrumento: marca, número de serie, modelo y código, según `instrument_lookup_fields`.
+- Márgenes izquierdo y derecho para IVE, según `sih.ive.borders`.
+
+La pantalla utiliza etiquetas en español. `No configurado` corresponde a un valor YAML nulo; `Profundidad cero` corresponde a `zero`. Las referencias como `instrument` o `helice` se muestran tal como están configuradas y **no** son necesariamente el valor final de identificación obtenido del registro.
+
+La pregunta `¿Confirma esta configuración para ...? [s/N]` acepta `s` o `sí`; una respuesta negativa, vacía o la ausencia de entrada cancela toda la exportación antes de generar archivos SIH. No se permite aprobar solo algunos instrumentos. En modo interactivo, el CSV temporal de selección puede haberse creado antes de esta confirmación.
+
+Para procesos automatizados o ejecuciones sin intervención humana, agregar **explícitamente** `--yes`:
+
+```powershell
+aforix export sih `
+    -c configs/examples/main.yaml `
+    --sih-config configs/sih/sih.yaml `
+    --selection-file configs/sih/selection_template.csv `
+    --yes
+```
+
+`--yes` muestra la configuración de cada instrumento e informa que se confirmó automáticamente, pero **no solicita respuestas**. No altera los valores del YAML ni desactiva la validación de instrumentos configurados.
+
+En el modo interactivo también puede utilizarse `--interactive --yes`: las preguntas de **selección de mediciones** siguen siendo interactivas; solamente se omiten las confirmaciones finales de configuración.
+
+### 5.7 Modo interactivo directo con `python -m`
 
 Comando solicitado para ejecución directa del módulo:
 
@@ -318,9 +350,9 @@ El modo interactivo sigue estos pasos reales:
 18. Pide prefijo de `export_id`.
 19. Genera `export_id` automático.
 20. Muestra resumen de exportación.
-21. Pide confirmación final.
-22. Escribe un selection CSV temporal en `outputs/sih/`.
-23. Ejecuta el runner batch normal con ese selection file.
+21. Escribe un selection CSV temporal en `outputs/sih/`.
+22. Muestra y solicita confirmación de configuración SIH e IVE para cada instrumento seleccionado (excepto con `--yes`).
+23. Si todos los instrumentos se confirman, ejecuta el runner batch normal con ese selection file.
 24. Genera CSVs SIH y metadata.
 
 ## 8. Detección automática desde normalized
@@ -517,7 +549,23 @@ Mediciones: 2
 Instrumentos: molinete, nivus
 Estaciones: 7071, 7001
 
-Continuar con la exportación? [s/N]: s
+AFORIX — CONFIRMACIÓN DE EXPORTACIÓN AL SIH
+Instrumento: MOLINETE
+Tipo de actuación (ID): 4
+Tipo de aforo: VADEO
+Rango del instrumento: Velocimetro
+Marca: No configurado
+Número de serie: helice
+Modelo: molinete
+Código: No configurado
+Margen izquierdo: Profundidad cero
+Margen derecho: Profundidad cero
+¿Confirma esta configuración para MOLINETE? [s/N]: s
+
+AFORIX — CONFIRMACIÓN DE EXPORTACIÓN AL SIH
+Instrumento: NIVUS
+[Se muestran los valores efectivos del YAML para NIVUS]
+¿Confirma esta configuración para NIVUS? [s/N]: s
 
 Selection file generado: D:\repos\aforix\outputs\sih\_interactive_selection_20260506_231500.csv
 

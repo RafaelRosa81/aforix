@@ -179,10 +179,6 @@ def build_interactive_selection(sih_config: dict[str, Any]) -> Path:
     print(f"Instrumentos: {', '.join(sorted(selection['instrument'].astype(str).unique()))}")
     print(f"Estaciones: {', '.join(sorted(selection['station_id'].astype(str).unique()))}")
 
-    confirm = input("\nContinuar con la exportación? [s/N]: ").strip().lower()
-    if confirm not in {"s", "si", "sí", "y", "yes"}:
-        raise ValueError("Interactive export cancelled by user.")
-
     output_dir = get_output_dir(sih_config)
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -8,6 +8,8 @@ from aforix.export.sih.config import (
     load_sih_config,
 )
 from aforix.export.sih.interactive import build_interactive_selection
+from aforix.export.sih.confirmation import confirm_instrument_configurations
+from aforix.export.sih.inputs import load_selection_file
 from aforix.export.sih.runner import (
     SihExportRequest,
     run_sih_export,
@@ -22,6 +24,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--sih-config", required=True, help="Path to SIH YAML config")
     parser.add_argument("--selection-file", help="CSV selection file for massive exports")
     parser.add_argument("--interactive", action="store_true", help="Run interactive export mode")
+    parser.add_argument("--yes", action="store_true", help="Confirm all SIH instrument settings automatically")
 
     return parser.parse_args(argv)
 
@@ -40,6 +43,10 @@ def main(argv=None) -> int:
             if args.selection_file
             else get_default_selection_file(sih_config)
         )
+
+    selection = load_selection_file(selection_file)
+    if not confirm_instrument_configurations(sih_config, selection, assume_yes=args.yes):
+        return 1
 
     request = SihExportRequest(
         sih_config_path=Path(args.sih_config),
