@@ -94,6 +94,8 @@ def load_ive_points(
                 )
                 if same_name.any():
                     df = df[same_name].copy()
+                elif instrument.strip().casefold() == "m9":
+                    raise ValueError(f"M9 Points source_file does not match Summary: {requested}")
 
     if df.empty:
         raise ValueError(

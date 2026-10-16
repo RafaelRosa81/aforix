@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -153,5 +154,12 @@ def run(config_path: Path) -> Path:
         print("Failed M9 MAT files:")
         for path, error in failed:
             print(f" - {path}: {error}")
+    (run_dir / "ingest_status.json").write_text(
+        json.dumps({"files_found": len(candidates), "succeeded": succeeded,
+                    "failed": [{"file": str(path), "error": error} for path, error in failed]},
+                   ensure_ascii=False, indent=2), encoding="utf-8",
+    )
+    if failed:
+        raise RuntimeError(f"M9 ingestion incomplete: {len(failed)} file(s) failed; see {run_dir / 'ingest_status.json'}")
     print(f"Run created: {run_dir}")
     return run_dir

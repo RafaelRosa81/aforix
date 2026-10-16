@@ -36,81 +36,51 @@ def calculate_ive_profile(
     if not (len(x) == len(d) == len(v)):
         return {"status": "not_available", "reason": "Las series x, d y v tienen distinto largo."}
 
-    valid = np.isfinite(x) & np.isfinite(d) & np.isfinite(v) & (d >= 0)
-    x, d, v = x[valid], d[valid], v[valid]
-    if len(x) < 2:
-        return {"status": "not_available", "reason": "No hay suficientes muestras válidas del perfil."}
-    order = np.argsort(x, kind="stable")
-    x, d, v = x[order], d[order], v[order]
-    unique = np.concatenate(([True], np.diff(x) > 1e-9))
-    x, d, v = x[unique], d[unique], v[unique]
-    if len(x) < 2:
-        return {"status": "not_available", "reason": "El perfil no tiene posiciones distintas."}
+    # Use exactly the same engine as SIH. Never discard invalid samples or
+    # silently merge repeated positions to make an uncertainty calculable.
+    from aforix.analysis.uncertainty.calculator import IVEPoint, IVEParameters, calculate_ive
 
-    left = max(0.0, float(left_bank_distance_m or 0.0))
-    right = max(0.0, float(right_bank_distance_m or 0.0))
-    if left > 0:
-        x = np.r_[x[0] - left, x]
-        d = np.r_[0.0, d]
-        v = np.r_[0.0, v]
-    if right > 0:
-        x = np.r_[x, x[-1] + right]
-        d = np.r_[d, 0.0]
-        v = np.r_[v, 0.0]
-
-    n = len(x)
-    if n < minimum_verticals:
-        return {
-            "status": "not_applicable",
-            "reason": f"IVE no aplicable: menos de {minimum_verticals} verticales/muestras.",
-            "profile_sample_count": n,
-        }
-    dx = np.diff(x)
-    if np.any(dx <= 0):
-        return {"status": "not_available", "reason": "La progresiva del perfil no es estrictamente creciente."}
-
-    widths = np.empty(n, dtype=float)
-    widths[0] = dx[0] / 2.0
-    widths[-1] = dx[-1] / 2.0
-    widths[1:-1] = (x[2:] - x[:-2]) / 2.0
-    q_i = widths * d * v
-    q_mid = float(q_i.sum())
-    if not np.isfinite(q_mid) or abs(q_mid) <= 1e-12:
-        return {"status": "not_available", "reason": "El caudal mid-section del perfil es cero o no finito."}
-
-    # Residuals for i=3,...,N-2 (one-based), with N-5 degrees of freedom.
-    idx = np.arange(2, n - 2)
-    omega = (x[idx + 1] - x[idx]) / (x[idx + 1] - x[idx - 1])
-    variance_factor = 2.0 * (1.0 - omega + omega**2)
-    d_hat = omega * d[idx - 1] + (1.0 - omega) * d[idx + 1]
-    v_hat = omega * v[idx - 1] + (1.0 - omega) * v[idx + 1]
-    s_d_ive = float(np.sqrt(np.sum((d[idx] - d_hat) ** 2 / variance_factor) / (n - 5)))
-    s_v_ive = float(np.sqrt(np.sum((v[idx] - v_hat) ** 2 / variance_factor) / (n - 5)))
-    s_d = max(s_d_ive, float(minimum_depth_uncertainty_m))
-    s_v = s_v_ive
-
-    u_b = float(np.sqrt(np.sum((q_i * width_relative_uncertainty) ** 2)) / abs(q_mid))
-    u_d = float(np.sqrt(np.sum((widths * v * s_d) ** 2)) / abs(q_mid))
-    u_v = float(np.sqrt(np.sum((widths * d * s_v) ** 2)) / abs(q_mid))
-    u_s = float(systematic_relative_uncertainty)
-    u_r_q = float(np.sqrt(u_s**2 + u_b**2 + u_d**2 + u_v**2))
-    u_q = abs(q_mid) * u_r_q
-    ive_pct = 100.0 * u_r_q
-    quality = "Excelente" if ive_pct <= 2 else "Buena" if ive_pct <= 5 else "Regular" if ive_pct <= 8 else "Mala"
+    if len(x) < 2 or not np.all(np.isfinite(x)):
+        return {"status": "not_available", "reason": "No hay suficientes posiciones válidas."}
+    left = float(left_bank_distance_m)
+    right = float(right_bank_distance_m)
+    if not np.isfinite(left + right) or min(left, right) < 0:
+        return {"status": "not_available", "reason": "Distancias a márgenes inválidas."}
+    x = x - np.min(x) + left
+    width = float(np.max(x) + right)
+    try:
+        result = calculate_ive(
+            [IVEPoint(float(a), float(b), float(c)) for a, b, c in zip(x, d, v)],
+            width,
+            IVEParameters(
+                systematic_relative=systematic_relative_uncertainty,
+                width_relative_per_vertical=width_relative_uncertainty,
+                minimum_depth_sd_m=minimum_depth_uncertainty_m,
+                left_bank_mode="zero", right_bank_mode="zero",
+            ),
+        )
+    except ValueError as exc:
+        return {"status": "not_available", "reason": str(exc)}
+    if minimum_verticals != 10:
+        raise ValueError("The shared IVE engine requires minimum_verticals=10")
+    reason = (
+        "IVE no aplicable: menos de 10 verticales/muestras."
+        if result.status == "not_applicable"
+        else "IVE análogo M9 mediante el motor común de Aforix; no es QRev."
+    )
     return {
-        "status": "calculated",
-        "reason": "IVE análogo aplicado a muestras M9 de perfiles verticales de 1 s; no es el cálculo QRev.",
-        "profile_sample_count": n,
+        "status": result.status, "reason": reason,
+        "profile_sample_count": len(x),
         "wet_sample_count": int(np.count_nonzero(d > 0)),
-        "q_midsection_m3s": q_mid,
-        "s_d_ive_m": s_d_ive,
-        "s_d_effective_m": s_d,
-        "s_v_ive_m_s": s_v_ive,
-        "u_s": u_s,
-        "u_b_q": u_b,
-        "u_d_q": u_d,
-        "u_v_q": u_v,
-        "relative_uncertainty": u_r_q,
-        "absolute_error_m3s": u_q,
-        "quality": quality,
+        "q_midsection_m3s": result.q_mid_m3s,
+        "s_d_ive_m": result.sd_depth_ive_m,
+        "s_d_effective_m": result.sd_depth_used_m,
+        "s_v_ive_m_s": result.sd_velocity_ive_m_s,
+        "u_s": systematic_relative_uncertainty,
+        "u_b_q": result.uncertainty_width_relative,
+        "u_d_q": result.uncertainty_depth_relative,
+        "u_v_q": result.uncertainty_velocity_relative,
+        "relative_uncertainty": (result.relative_uncertainty_pct / 100 if result.relative_uncertainty_pct is not None else None),
+        "absolute_error_m3s": result.absolute_uncertainty_m3s,
+        "quality": result.quality,
     }

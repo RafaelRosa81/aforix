@@ -74,7 +74,7 @@ def _projected_track(track: np.ndarray) -> tuple[np.ndarray, float | None]:
     return projected, float(np.nanmax(projected) - np.nanmin(projected))
 
 
-def _distance_from_left_bank(projected: np.ndarray, left_bank_distance_m: float) -> np.ndarray:
+def _distance_from_left_bank(projected: np.ndarray, left_bank_distance_m: float, start_edge: int = 0) -> np.ndarray:
     """Shift projected track positions into the full section coordinate system."""
     distance = np.asarray(projected, dtype=float).copy()
     valid = np.isfinite(distance)
@@ -83,10 +83,13 @@ def _distance_from_left_bank(projected: np.ndarray, left_bank_distance_m: float)
     # The boat can briefly move behind its first valid track sample. Align the
     # minimum projection with the left edge so every sample uses the same
     # origin and the measured track span matches the Summary width calculation.
+    if start_edge not in (0, 1):
+        raise ValueError("Setup.startEdge must be 0 (left bank) or 1 (right bank)")
+    positions = distance[valid]
     distance[valid] = (
-        distance[valid] - float(np.min(distance[valid]))
-        + float(left_bank_distance_m or 0.0)
-    )
+        positions - float(np.min(positions)) if start_edge == 0
+        else float(np.max(positions)) - positions
+    ) + float(left_bank_distance_m or 0.0)
     return distance
 
 
@@ -101,7 +104,7 @@ def _normal_velocity(
     """Project horizontal Mean_Vel onto the cross-section normal."""
     result = np.full(len(track), np.nan, dtype=float)
     coordinate_code = _scalar(coordinate_system)
-    if coordinate_code not in (1, 2):  # XYZ or ENU; beam coordinates need another transform.
+    if coordinate_code != 2:  # Only ENU is validated in the same frame as Track.
         return result, None
     if track.ndim != 2 or track.shape[1] < 2 or mean_velocity.ndim != 2 or mean_velocity.shape[1] < 2:
         return result, None
@@ -122,7 +125,8 @@ def _normal_velocity(
     if valid.sum() >= 2:
         x = (track[:count, :2][valid] - track[indices[0], :2]) @ axis
         order = np.argsort(x, kind="stable")
-        q_projection = float(np.trapezoid(depth[:count][valid][order] * result[:count][valid][order], x[order]))
+        y = depth[:count][valid][order] * result[:count][valid][order]
+        q_projection = float(np.sum((y[1:] + y[:-1]) * np.diff(x[order]) / 2.0))
         if np.isfinite(reference_discharge) and q_projection * reference_discharge < 0:
             finite_indices = np.flatnonzero(np.isfinite(result[:count]))
             result[finite_indices] *= -1.0
@@ -191,6 +195,14 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
         raise ValueError(f"MAT file lacks required RiverSurveyor structures: {missing}")
 
     site, hw, system, summary = (data[name] for name in required)
+    # Never silently label imperial values with canonical SI column names.
+    for structure, expected in ((summary, {"Total_Q": "m3/s", "Area": "m2", "Depth": "m", "Track": "m", "Mean_Vel": "m/s", "Boat_Vel": "m/s"}),
+                                (data.get("Setup"), {"Edges_0__DistanceToBank": "m", "Edges_1__DistanceToBank": "m"})):
+        units = _field(structure, "Units")
+        for field_name, expected_unit in expected.items():
+            unit = str(_scalar(_field(units, field_name), "")).strip()
+            if unit and unit != expected_unit:
+                raise ValueError(f"Unsupported units for {field_name}: {unit}; export MAT in SI units ({expected_unit})")
     times = _array(system, "Time")
     if not times.size or not np.isfinite(times).any():
         raise ValueError("MAT file has no usable System.Time samples")
@@ -212,14 +224,19 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
     track = _array(summary, "Track", ndim=2)
     projected, track_span = _projected_track(track)
     setup = data.get("Setup")
+    start_edge = _scalar(_field(setup, "startEdge"), 0)
+    if start_edge not in (0, 1):
+        raise ValueError("Setup.startEdge must be 0 (left bank) or 1 (right bank)")
     left_edge = _scalar(_field(setup, "Edges_0__DistanceToBank"), 0.0)
     right_edge = _scalar(_field(setup, "Edges_1__DistanceToBank"), 0.0)
-    distance_from_left_bank = _distance_from_left_bank(projected, float(left_edge or 0.0))
+    if any(not np.isfinite(float(edge)) or float(edge) < 0 for edge in (left_edge, right_edge)):
+        raise ValueError("Bank distances must be finite and non-negative")
+    distance_from_left_bank = _distance_from_left_bank(projected, float(left_edge or 0.0), start_edge)
     edge_total = float(left_edge or 0.0) + float(right_edge or 0.0)
     width = track_span + edge_total if track_span is not None else None
     wetted_perimeter = (
         _wetted_perimeter(
-            projected,
+            distance_from_left_bank,
             depths,
             left_bank_distance_m=float(left_edge or 0.0),
             right_bank_distance_m=float(right_edge or 0.0),
@@ -242,7 +259,7 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
     )
     ive = (
         calculate_ive_profile(
-            projected,
+            distance_from_left_bank,
             depths,
             normal_v,
             left_bank_distance_m=float(left_edge or 0.0),
@@ -328,6 +345,7 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
             "depth_max_m": depth_max,
             "normal_velocity_method": normal_velocity_method,
             "coordinate_system_code": _scalar(coordinate_system),
+            "start_edge_code": start_edge,
             "ive_method": "IVE_ADAPTADO_M9",
             "ive_status": ive.get("status"),
             "ive_reason": ive.get("reason"),

@@ -67,6 +67,7 @@ tables:
       ive_u_v_q: {source: ive_u_v_q, dtype: float}
       normal_velocity_method: {source: normal_velocity_method, dtype: string}
       coordinate_system_code: {source: coordinate_system_code, dtype: int}
+      start_edge_code: {source: start_edge_code, dtype: int}
       sample_count: {source: sample_count, dtype: int}
       serial_number: {source: serial_number, dtype: string}
       manufacturer: {source: manufacturer, dtype: string}

@@ -143,3 +143,13 @@ def test_m9_prefers_complete_copy_over_legacy_rows_with_missing_ive_fields(tmp_p
 
     assert points["distance_m"].tolist() == [1.0]
     assert points["velocity_mean_m_s"].tolist() == [0.3]
+
+
+def test_m9_rejects_points_from_another_source(tmp_path):
+    rows = [{**_row('133', '20260703', '111721', i, instrument='m9'),
+             'source_file': 'other.mat', 'sample_number': i} for i in [1, 2]]
+    root = _write_points(tmp_path, rows)
+    measurement = pd.Series({'station_id': '133', 'measurement_date': '20260703',
+                             'measurement_time': '111721', 'source_file': 'requested.mat'})
+    with pytest.raises(ValueError, match='source_file does not match'):
+        load_ive_points(root, 'm9', measurement)

@@ -75,3 +75,20 @@ def test_m9_ingest_preserves_same_station_timestamp_sources(tmp_path, monkeypatc
         "transect.mat",
         "transectr.mat",
     }
+
+
+def test_m9_ingest_failure_is_not_reported_as_success(tmp_path, monkeypatch):
+    import json
+    import pytest
+    raw = tmp_path / 'raw'
+    raw.mkdir()
+    (raw / 'broken.mat').write_bytes(b'broken')
+    run_dir = tmp_path / 'run'
+    monkeypatch.setattr(m9, 'load_config', lambda _: {'ingest': {'m9': {'enabled': True}}})
+    monkeypatch.setattr(m9, 'create_run', lambda *_: run_dir)
+    monkeypatch.setattr(m9, '_get_m9_raw_root', lambda *_, **__: raw)
+    with pytest.raises(RuntimeError, match='ingestion incomplete'):
+        m9.run(tmp_path / 'main.yaml')
+    status = json.loads((run_dir / 'ingest_status.json').read_text())
+    assert status['succeeded'] == 0
+    assert len(status['failed']) == 1

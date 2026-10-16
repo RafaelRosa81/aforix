@@ -148,3 +148,30 @@ def test_m9_normalized_points_feed_sih_ive(tmp_path):
     assert selected["velocity_mean_m_s"].notna().all()
     assert result.status == "calculated"
     assert result.vertical_count == 12
+
+
+def test_right_bank_start_reverses_positions_and_assigns_physical_edges():
+    from aforix.ingest.adapters.m9_mat import _wetted_perimeter
+    x = _distance_from_left_bank(np.array([0., 5.]), 1., 1)
+    assert np.allclose(x, [6., 1.])
+    perimeter = _wetted_perimeter(x, np.array([.8, 1.]), left_bank_distance_m=1., right_bank_distance_m=1.5)
+    assert np.isclose(perimeter, np.hypot(1., 1.) + np.hypot(5., .2) + np.hypot(1.5, .8))
+
+
+def test_xyz_does_not_claim_a_valid_normal_velocity():
+    from aforix.ingest.adapters.m9_mat import _normal_velocity
+    velocity, method = _normal_velocity(np.array([[0.,0.],[1.,0.]]), np.ones((2,2)), np.ones(2), coordinate_system=1, reference_discharge=1.)
+    assert method is None
+    assert np.isnan(velocity).all()
+
+
+def test_explicit_imperial_units_are_rejected_before_processing(tmp_path):
+    import pytest
+    path = tmp_path / 'imperial.mat'
+    savemat(path, {
+        'SiteInfo': {'Station_Number': '133'}, 'SystemHW': {'SerialNumber': '4980'},
+        'System': {'Time': np.array([1., 2.])},
+        'Summary': {'Units': {'Total_Q': 'ft3/s'}},
+    })
+    with pytest.raises(ValueError, match='Unsupported units'):
+        parse_m9_mat(path)
