@@ -11,7 +11,7 @@ Aforix es una biblioteca y CLI en Python para procesar datos de aforos hidráuli
 - FlowTracker;
 - Molinete;
 - Nivus;
-- M9 / ADCP, previsto para una etapa posterior.
+- SonTek M9 / ADCP.
 
 El objetivo es transformar archivos originales de campo en tablas trazables, consistentes y comparables entre instrumentos.
 
@@ -52,7 +52,8 @@ aforix/
 │   ├── normalization/
 │   │   ├── flowtracker.yaml
 │   │   ├── molinete.yaml
-│   │   └── nivus.yaml
+│   │   ├── nivus.yaml
+│   │   └── m9.yaml
 │   └── specs/
 │       └── flowtracker.yaml
 ├── data/
@@ -175,10 +176,10 @@ ingest:
     enabled: true
     raw_subdir: NV
 
-  # M9/ADCP remains pending implementation and is not supported in production.
   m9:
-    enabled: false
+    enabled: true
     raw_subdir: M9
+    # metadata_policy se define en configs/examples/main.yaml
 ```
 
 ### 7.1 enabled
@@ -196,7 +197,7 @@ true
 false
 ```
 
-Si está en `false`, los flujos que respetan esa configuración omiten el instrumento. M9 permanece deshabilitado porque su ingesta todavía no está implementada.
+Si está en `false`, los flujos que respetan esa configuración omiten el instrumento. M9 se configura como los demás instrumentos; en el YAML de ejemplo está habilitado.
 
 ### 7.2 raw_subdir
 
@@ -494,7 +495,7 @@ El usuario debe cargar el ID y el nombre del punto durante la medición o en la 
 | FlowTracker | `File_Name` / nombre del fichero | `Site_Name` / nombre del punto de aforo |
 | Molinete | `ESTACION Nº:` | `NOMBRE:` |
 | Nivus | `Número de referencia` | `Nombre del lugar de medición` |
-| M9 | Pendiente hasta analizar archivos base | Pendiente hasta analizar archivos base |
+| M9 | `SiteInfo.Station_Number` del MAT | `SiteInfo.Site_Name` del MAT |
 
 Recomendaciones:
 
@@ -1194,7 +1195,7 @@ No necesariamente es error. Los caudales negativos pueden representar dirección
 
 - [ ] Instalé Aforix con `pip install -e .`.
 - [ ] Revisé `configs/examples/main.yaml`.
-- [ ] Coloqué archivos raw en `data/raw/FT`, `data/raw/ML` o `data/raw/NV`.
+- [ ] Coloqué archivos raw en `data/raw/FT`, `data/raw/ML`, `data/raw/NV` o MAT de RiverSurveyor Live en `data/raw/M9`.
 - [ ] Cargué correctamente el ID del punto en el instrumento.
 - [ ] Cargué correctamente el nombre del punto en el instrumento.
 - [ ] Revisé `metadata_policy` del instrumento.
