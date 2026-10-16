@@ -25,9 +25,11 @@ from aforix.validation.m9 import validate_m9
 KEYS = ['instrument', 'station_id', 'measurement_date', 'measurement_time']
 
 
-def check_export(root, measurement, metadata, parameters, sih):
+def check_export(root, measurement, metadata, parameters, sih, reviews=None):
     """Check serialized CSV/XLSX against normalized data and the shared engine."""
     errors = []
+    if reviews is None:
+        reviews = []
     def check(condition, message):
         if not condition:
             errors.append(message)
@@ -50,7 +52,12 @@ def check_export(root, measurement, metadata, parameters, sih):
     for target, source in [('caudal', 'q_total_m3s'), ('seccion', 'area_total_m2'),
                            ('ancho', 'width_total_m'), ('profundidad', 'depth_mean_m'),
                            ('velocidad_media', 'velocity_mean_m_s'), ('radio_hidraulico', 'hydraulic_radius_m')]:
-        equal(aforo[target], measurement[source], target)
+        expected = measurement[source]
+        if pd.isna(expected) or str(expected).strip() == '':
+            reviews.append(f'{source}: dato normalizado ausente')
+            check(aforo[target] == '', f'{target}: valor exportado sin dato normalizado')
+        else:
+            equal(aforo[target], expected, target)
     check(aforo['id_estacion'] == str(measurement['station_id']), 'Estacion aforo')
     check(actuacion['id_estacion'] == aforo['id_estacion'], 'Estacion actuacion')
     catalog = pd.read_csv(root/'configs/sih/instrumentos.csv', dtype=str, keep_default_na=False)
@@ -216,8 +223,11 @@ def main(argv=None):
             rec['ingest'] = 'ok'
             source_points = points[points['source_file'] == row['source_file']]
             issues = validate_m9(summary.loc[[index]], source_points)
+            if not issues.empty:
+                issues.loc[issues['source_file'].fillna('').eq(''), 'source_file'] = row['source_file']
             issues_all.append(issues)
             rec['validation'] = 'ok' if issues.empty else 'revisar'
+            rec['message'] = '; '.join(issues['message'].drop_duplicates().astype(str))
             original = parse_m9_mat(Path(row['source_file']))
             if len(source_points) != len(original['points']) or not np.isclose(float(row['q_total_m3s']), original['summary']['q_total_m3s']):
                 rec.update(status='ERROR', message='Trazabilidad MAT/normalizado incorrecta')
@@ -237,7 +247,9 @@ def main(argv=None):
             if command('05_export', 'export', 'sih', '--sih-config', str(sihpath), '--selection-file', str(selection_path), '--yes'):
                 raise RuntimeError('Fallo del comando export SIH; revisar 05_export.log')
             metadata = pd.read_csv(root/'outputs/sih/sih_export_metadata.csv', dtype=str, keep_default_na=False)
-            for _, meta in metadata.iterrows():
+            print('Etapa: 06_check_exports', flush=True)
+            for position, (_, meta) in enumerate(metadata.iterrows(), 1):
+                print(f'Verificando exportacion {position}/{len(metadata)}', flush=True)
                 rec = next(r for r in records if r.get('export_id') == meta['export_id'])
                 rec['export'] = meta['status']; rec['ive'] = meta.get('ive_status', '')
                 if meta['status'] != 'success':
@@ -245,15 +257,21 @@ def main(argv=None):
                     continue
                 row = summary.iloc[int(meta['export_id'].rsplit('_', 1)[-1])]
                 try:
-                    errors = check_export(root, row, meta, parameters, sih)
+                    reviews = []
+                    errors = check_export(root, row, meta, parameters, sih, reviews)
                 except Exception as exc:
                     errors = [f'No se pudo verificar la salida: {exc}']
                 rec['aforo_file'] = meta['aforos_file']; rec['actuacion_file'] = meta['actuaciones_file']
                 rec['ive_report_file'] = meta.get('ive_report_file', '')
                 if errors:
                     rec.update(status='ERROR', message='; '.join(errors))
-                elif rec['validation'] != 'ok' or rec['ive'] != 'calculated':
-                    rec.update(status='REVISAR', message=meta.get('ive_reason', '') + '; consultar audit_issues.csv')
+                elif reviews or rec['validation'] != 'ok' or rec['ive'] != 'calculated':
+                    reasons = [rec.get('message', ''), *reviews]
+                    if rec['ive'] != 'calculated':
+                        reasons.append(meta.get('ive_reason', ''))
+                        reasons.append(row.get('ive_reason', ''))
+                    rec.update(status='REVISAR', message='; '.join(dict.fromkeys(
+                        reason for reason in reasons if reason)))
                 else:
                     rec.update(status='OK', message='CSV/XLSX y trazabilidad verificados')
         for rec in records:
