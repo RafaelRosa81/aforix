@@ -3,11 +3,11 @@
 # ============================================================
 #
 # Objetivo:
-#   Marcador deshabilitado para una futura ingesta M9 / ADCP.
+#   Ingesta archivos MAT de RiverSurveyor Live como tablas M9 Summary y Points.
 #
 # IMPORTANTE:
-#   M9/ADCP todavía no está implementado. Este ejemplo se conserva
-#   deshabilitado como referencia de trabajo futuro.
+#   M9 está implementado para MAT compatibles exportados por RiverSurveyor Live.
+#   Cada MAT produce una transecta independiente; no se promedian pasadas.
 #
 # Requisitos:
 #   - Archivos raw en data/raw/M9/
@@ -18,14 +18,15 @@
 #
 # Probar con:
 #   aforix batch check -b configs/batches/examples/atomic/ingest_m9.yaml
-#   No habilitar ni ejecutar hasta que M9 esté implementado y validado.
+#   Revisar la guía del flujo y limitaciones antes de exportar al SIH:
+#   docs/M9_PROCESSING_GUIDE.md
 
 version: 1
 
 batch:
   id: atomic_ingest_m9
   name: Atomic ingest M9
-  description: Marcador deshabilitado para ingesta M9 futura.
+  description: Ingesta una transecta M9 desde MAT de RiverSurveyor Live.
 
 project:
   main_config: configs/examples/main.yaml
@@ -41,6 +42,6 @@ variables:
 steps:
   - id: ingest_m9
     command: ingest.m9
-    enabled: false
+    enabled: true
     params:
       config: ${main_config}
