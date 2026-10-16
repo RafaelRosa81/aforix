@@ -5,7 +5,7 @@ Esta checklist define las verificaciones mínimas GO/NO-GO antes de usar Aforix 
 Alcance de esta liberación:
 
 - FlowTracker, Molinete y Nivus están dentro del alcance.
-- M9 queda fuera del alcance de esta liberación de producción y se abordará en un ciclo posterior de estabilización.
+- M9 tiene el flujo implementado; su liberación queda condicionada a la [aceptación M9](M9_ACCEPTANCE.md), incluida la prueba en Windows y la importación real al SIH.
 - Las verificaciones que requieren datos hidrológicos locales no versionados son verificaciones manuales y no deben tratarse como trabajos obligatorios de CI.
 
 ## 1. Instalación limpia

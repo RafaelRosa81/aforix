@@ -1,6 +1,6 @@
 # Aforix
 
-Aforix es una biblioteca y CLI en Python para procesar datos de aforos hidráulicos provenientes de instrumentos como FlowTracker, Molinete y Nivus.
+Aforix es una biblioteca y CLI en Python para procesar datos de aforos hidráulicos provenientes de instrumentos como FlowTracker, Molinete, Nivus y SonTek M9.
 
 El objetivo es transformar archivos originales de campo en datasets consistentes, trazables, normalizados y listos para validación, exportación y análisis.
 
@@ -9,7 +9,7 @@ El objetivo es transformar archivos originales de campo en datasets consistentes
 - FlowTracker
 - Molinete
 - Nivus
-- M9 / ADCP permanece pendiente de implementación y no forma parte del alcance de producción.
+- SonTek M9: ingesta MAT, normalización y exportación SIH. Ver [alcance y aceptación](docs/M9_ACCEPTANCE.md) antes de la entrega a producción.
 
 ## Quickstart
 

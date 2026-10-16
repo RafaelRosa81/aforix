@@ -119,7 +119,7 @@ analysis.section-profiles
 analysis.correlation
 ```
 
-`ingest.m9` remains registered only as a compatibility placeholder. It fails explicitly because M9 ingestion is not implemented and must not be included in production batches.
+`ingest.m9` invokes the RiverSurveyor MAT ingester. See [M9 acceptance](M9_ACCEPTANCE.md) before adding it to production batches; generic validation rules for discrete Points require separate review for M9.
 
 List currently registered commands with:
 
