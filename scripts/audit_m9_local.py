@@ -130,6 +130,12 @@ def main(argv=None):
     repo = Path(__file__).resolve().parents[1]
     args.output_root.mkdir(parents=True, exist_ok=True)
     root = Path(tempfile.mkdtemp(prefix=datetime.now().strftime('%Y%m%d_%H%M%S_'), dir=args.output_root.resolve()))
+    # config_root_from_path searches repository markers before configs/.
+    # Establish the isolated project boundary even when nested in the real repo.
+    (root/'pyproject.toml').write_text('[tool.aforix_audit]\nisolated = true\n', encoding='utf-8')
+    from aforix.config.paths import config_root_from_path
+    if config_root_from_path(root/'configs/examples/main.yaml') != root:
+        raise RuntimeError('No se pudo establecer una raiz de auditoria aislada')
     print(f'AUDIT_ROOT {root}', flush=True)
     shutil.copytree(repo/'configs', root/'configs')
     (root/'runs').mkdir()
@@ -182,7 +188,10 @@ def main(argv=None):
         ingest_code = command('01_ingest', 'ingest', 'm9')
         statuses = list((root/'runs/ingest_m9').glob('*/ingest_status.json'))
         if len(statuses) != 1:
-            raise RuntimeError('No hay manifiesto de ingesta; ver 01_ingest.log')
+            log_path = root/'01_ingest.log'
+            tail = log_path.read_text(encoding='utf-8', errors='replace')[-3000:]
+            print(tail, flush=True)
+            raise RuntimeError(f'No hay manifiesto de ingesta aislado (exit={ingest_code}); ver {log_path}')
         status = json.loads(statuses[0].read_text(encoding='utf-8'))
         for failed in status['failed']:
             rec = mapping[failed['file']]
