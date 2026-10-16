@@ -4,8 +4,8 @@ Esta checklist define las verificaciones mínimas GO/NO-GO antes de usar Aforix 
 
 Alcance de esta liberación:
 
-- FlowTracker, Molinete y Nivus están dentro del alcance.
-- M9 tiene el flujo implementado; su liberación queda condicionada a la [aceptación M9](M9_ACCEPTANCE.md), incluida la prueba en Windows y la importación real al SIH.
+- FlowTracker, Molinete, Nivus y SonTek M9 tienen rutas de procesamiento implementadas.
+- Para M9, revisar la [guía de procesamiento](M9_PROCESSING_GUIDE.md) y el [resultado de aceptación local](M9_ACCEPTANCE.md). La generación de los archivos SIH fue verificada en local; la importación real al SIH receptor no está verificada.
 - Las verificaciones que requieren datos hidrológicos locales no versionados son verificaciones manuales y no deben tratarse como trabajos obligatorios de CI.
 
 ## 1. Instalación limpia
@@ -274,7 +274,8 @@ Resultado esperado:
 - Las instrucciones de instalación están actualizadas.
 - Los comandos CLI coinciden con los comandos implementados.
 - El uso de batch está documentado.
-- M9 no se presenta como listo para producción en esta liberación.
+- M9 no se declara aceptado por el sistema SIH receptor hasta que se confirme la importación de sus CSV.
+- Los registros M9 marcados `REVISAR` se conservan y deben evaluarse antes de incluirlos en una entrega.
 
 NO-GO si:
 
