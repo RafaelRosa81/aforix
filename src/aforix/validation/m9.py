@@ -100,7 +100,7 @@ def validate_m9(summary: pd.DataFrame | None, points: pd.DataFrame | None) -> pd
                 issue("Points", "width", "El ancho de Points no coincide con Summary", source)
             if samples["distance_m"].gt(row["width_total_m"] + 1e-8).any():
                 issue("Points", "position", "Posicion fuera del ancho de la seccion", source)
-            if samples["distance_m"].duplicated().any():
+            if samples.loc[np.isfinite(samples["distance_m"]), "distance_m"].duplicated().any():
                 issue("Points", "ive_positions", "Hay posiciones repetidas que impiden calcular IVE con el metodo actual", source)
             q = samples["q_cumulative_m3s"]
             if not np.isclose(q.iloc[-1], row["q_total_m3s"], rtol=1e-8, atol=1e-8):
