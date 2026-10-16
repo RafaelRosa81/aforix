@@ -131,3 +131,14 @@ informa cuántas muestras y posiciones están afectadas; los campos numéricos
 IVE quedan vacíos y la explicación queda en `calidad_IVE` y los metadatos.
 Esto indica una limitación del método actual y no elimina el aforo ni sus
 Points. Un CSV generado con advertencias no equivale a un aforo aprobado.
+
+
+### Criterio para los avisos
+
+Los avisos de validacion M9 explican **que sucede**, **por que requiere
+revision** y **que accion realizar**. Los datos ausentes requieren comparar
+MAT, mapeo y normalizado; no se rellenan con cero. Las claves SIH ambiguas
+requieren elegir una version mediante `source_file`. Las distancias repetidas
+requieren revisar la trayectoria: si son reales, el IVE queda no disponible
+hasta disponer de un tratamiento validado. Una recomendacion no constituye
+una correccion automatica ni una aprobacion de los datos.
