@@ -33,7 +33,11 @@ def test_m9_does_not_require_discrete_instrument_columns():
 def test_m9_invalid_samples_are_reported(column, value, rule):
     s, p = frames()
     p.loc[1, column] = value
-    assert rule in set(validate_m9(s, p)["rule"])
+    report = validate_m9(s, p)
+    assert rule in set(report["rule"])
+    assert report.message.str.contains("Que sucede:").all()
+    assert report.message.str.contains("Razon:").all()
+    assert report.message.str.contains("Accion:").all()
 
 
 def test_m9_missing_pairs_duplicates_counts_and_radius():
