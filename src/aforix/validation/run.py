@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from aforix.validation.m9 import split_instruments
 
 import pandas as pd
 
@@ -54,29 +57,40 @@ def run_validation(config_path: str | Path) -> Path:
 
     summaries: list[dict[str, object]] = []
 
-    for check_name, check_func in CHECKS.items():
-        if not is_check_enabled(validation_cfg, check_name):
-            continue
+    with TemporaryDirectory(prefix="aforix-validation-") as temporary:
+        generic_input, has_other, m9_report = split_instruments(input_dir, Path(temporary))
+        if m9_report is not None:
+            report_path = output_dir / "m9_validation.csv"
+            m9_report.to_csv(report_path, index=False)
+            summaries.append(summarize_report(
+                check_name="m9", report_path=report_path, n_rows=len(m9_report),
+                status=_infer_status(m9_report),
+                message=_infer_message("m9", m9_report, _infer_status(m9_report)),
+            ))
+        if has_other:
+            for check_name, check_func in CHECKS.items():
+                if not is_check_enabled(validation_cfg, check_name):
+                    continue
 
-        report_path, report = check_func(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            validation_cfg=validation_cfg,
-        )
+                report_path, report = check_func(
+                    input_dir=generic_input,
+                    output_dir=output_dir,
+                    validation_cfg=validation_cfg,
+                )
 
-        n_rows = len(report)
-        status = _infer_status(report)
-        message = _infer_message(check_name, report, status)
+                n_rows = len(report)
+                status = _infer_status(report)
+                message = _infer_message(check_name, report, status)
 
-        summaries.append(
-            summarize_report(
-                check_name=check_name,
-                report_path=report_path,
-                n_rows=n_rows,
-                status=status,
-                message=message,
-            )
-        )
+                summaries.append(
+                    summarize_report(
+                        check_name=check_name,
+                        report_path=report_path,
+                        n_rows=n_rows,
+                        status=status,
+                        message=message,
+                    )
+                )
 
     summary_df = pd.DataFrame(
         summaries,
