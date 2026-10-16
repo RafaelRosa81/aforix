@@ -74,6 +74,22 @@ def _projected_track(track: np.ndarray) -> tuple[np.ndarray, float | None]:
     return projected, float(np.nanmax(projected) - np.nanmin(projected))
 
 
+def _distance_from_left_bank(projected: np.ndarray, left_bank_distance_m: float) -> np.ndarray:
+    """Shift projected track positions into the full section coordinate system."""
+    distance = np.asarray(projected, dtype=float).copy()
+    valid = np.isfinite(distance)
+    if not valid.any():
+        return distance
+    # The boat can briefly move behind its first valid track sample. Align the
+    # minimum projection with the left edge so every sample uses the same
+    # origin and the measured track span matches the Summary width calculation.
+    distance[valid] = (
+        distance[valid] - float(np.min(distance[valid]))
+        + float(left_bank_distance_m or 0.0)
+    )
+    return distance
+
+
 def _normal_velocity(
     track: np.ndarray,
     mean_velocity: np.ndarray,
@@ -198,6 +214,7 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
     setup = data.get("Setup")
     left_edge = _scalar(_field(setup, "Edges_0__DistanceToBank"), 0.0)
     right_edge = _scalar(_field(setup, "Edges_1__DistanceToBank"), 0.0)
+    distance_from_left_bank = _distance_from_left_bank(projected, float(left_edge or 0.0))
     edge_total = float(left_edge or 0.0) + float(right_edge or 0.0)
     width = track_span + edge_total if track_span is not None else None
     wetted_perimeter = (
@@ -256,10 +273,7 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
             "distance_along_transect_m": float(projected[idx]) if idx < len(projected) else np.nan,
             # Canonical SIH distance is measured from the physical left bank,
             # including the edge distance omitted by the projected boat track.
-            "distance_m": (
-                float(projected[idx]) + float(left_edge or 0.0)
-                if idx < len(projected) else np.nan
-            ),
+            "distance_m": float(distance_from_left_bank[idx]) if idx < len(distance_from_left_bank) else np.nan,
             # Aforix's shared Points model fills this with the transect width
             # from Summary during normalization; it is not a sample interval.
             "width_m": np.nan,

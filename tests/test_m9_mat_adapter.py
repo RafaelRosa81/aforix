@@ -5,9 +5,17 @@ import pandas as pd
 import yaml
 from scipy.io import savemat
 
-from aforix.ingest.adapters.m9_mat import parse_m9_mat
-from aforix.normalize.normalizer import normalize_table
 from aforix.export.sih.ive_integration import prepare_sih_ive
+from aforix.ingest.adapters.m9_mat import parse_m9_mat
+from aforix.ingest.adapters.m9_mat import _distance_from_left_bank
+from aforix.normalize.normalizer import normalize_table
+
+
+def test_m9_distance_from_left_bank_accounts_for_track_backtracking():
+    distance = _distance_from_left_bank(np.array([0.0, 2.0, -0.2, np.nan]), 1.0)
+
+    assert np.allclose(distance[:3], [1.2, 3.2, 1.0])
+    assert np.isnan(distance[3])
 
 
 def test_parse_m9_mat_summary_and_sample_points(tmp_path):
