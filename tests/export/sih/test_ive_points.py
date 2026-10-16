@@ -116,3 +116,30 @@ def test_m9_rejects_conflicting_duplicate_sample_exports(tmp_path):
     })
     with pytest.raises(ValueError, match="Conflicting duplicate M9 Points"):
         load_ive_points(root, "m9", measurement)
+
+
+def test_m9_prefers_complete_copy_over_legacy_rows_with_missing_ive_fields(tmp_path):
+    root = tmp_path / "normalized"
+    points_dir = root / "m9" / "Points"
+    points_dir.mkdir(parents=True)
+    complete = {
+        **_row("133", "20260703", "111721", 1.0, instrument="m9", width=12.0),
+        "source_file": "transect.mat",
+        "sample_number": 1,
+    }
+    incomplete = {**complete, "distance_m": "", "velocity_mean_m_s": ""}
+    # Lexical ordering places the legacy copy first, exercising selection rather
+    # than relying on whichever duplicate filename happens to sort first.
+    pd.DataFrame([incomplete]).to_csv(points_dir / "a_legacy.csv", index=False)
+    pd.DataFrame([complete]).to_csv(points_dir / "z_complete.csv", index=False)
+
+    measurement = pd.Series({
+        "station_id": "133",
+        "measurement_date": "20260703",
+        "measurement_time": "111721",
+        "source_file": "transect.mat",
+    })
+    points = load_ive_points(root, "m9", measurement)
+
+    assert points["distance_m"].tolist() == [1.0]
+    assert points["velocity_mean_m_s"].tolist() == [0.3]
