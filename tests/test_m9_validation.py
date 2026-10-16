@@ -72,7 +72,9 @@ def test_validation_command_reports_m9_without_false_missing_columns(tmp_path):
     s.to_csv(source / "Summary.csv", index=False)
     p.to_csv(source / "Points.csv", index=False)
     config = tmp_path / "main.yaml"
-    config.write_text(yaml.safe_dump({"validation": {
+    config.write_text(yaml.safe_dump({"project": {"name": "m9-test"},
+        "paths": {key: str(tmp_path) for key in ("raw_data_dir", "runs_root", "database_root")},
+        "validation": {
         "input_dir": str(source), "output_dir": str(output),
         "required_columns": {"Points": ["point_index", "area_m2", "q_m3s"]},
     }}))
