@@ -206,6 +206,46 @@ ingest:
     enabled: true
     raw_subdir: M9
 
+    # Missing policy fields retain the existing M9 metadata defaults.
+    metadata_policy:
+      station_id:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_id
+          - type: raw_field
+            key: fallback_station_id
+        transforms:
+          - strip
+        normalize:
+          uppercase: false  # Preserve case and identity as in existing M9 ingestion.
+
+      station_name:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: station_name
+        transforms:
+          - strip
+
+      measurement_date:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_date
+        normalize:
+          input_formats: ["%Y%m%d"]
+          output_format: "%Y%m%d"
+
+      measurement_time:
+        strategy: first_non_empty
+        sources:
+          - type: raw_field
+            key: measurement_time
+        normalize:
+          input_formats: ["%H%M%S"]
+          output_format: "%H%M%S"
+
 build_groups:
   enabled: true
   input_runs_root: runs
