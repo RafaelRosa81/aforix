@@ -9,8 +9,9 @@ Aforix convierte datos de aforos de campo en resultados trazables, normalizados 
 | FlowTracker | `aforix ingest flowtracker -c configs/examples/main.yaml` | `data/raw/FT` |
 | Molinete | `aforix ingest molinete -c configs/examples/main.yaml` | `data/raw/ML` |
 | Nivus | `aforix ingest nivus -c configs/examples/main.yaml` | `data/raw/NV` |
+| SonTek M9 | `aforix ingest m9 -c configs/examples/main.yaml` | `data/raw/M9` (`.mat`) |
 
-Las reglas de extracción de estación, nombre, fecha y hora se definen por instrumento en `configs/examples/main.yaml`. Las ingestas escriben corridas trazables bajo `runs/`.
+Las reglas de extracción de estación, nombre, fecha y hora se definen por instrumento en `configs/examples/main.yaml`. Las ingestas escriben corridas trazables bajo `runs/`. M9 genera `Summary` y `Points` por MAT; las transectas se conservan separadas y no se promedian. Consulte [la guía M9](M9_PROCESSING_GUIDE.md).
 
 ## Flujo de preparación y control de datos
 
@@ -85,7 +86,6 @@ Los comandos concretos y lo que pregunta cada flujo están en `docs/INTERACTIVE_
 
 ## Funciones pendientes
 
-- **M9 / ADCP:** la ingesta todavía no está implementada. El comando reservado `aforix ingest m9` termina con un mensaje explícito y no crea una corrida.
 - **Estadística:** `aforix analyze statistics` está reservado y termina con un mensaje de función no implementada.
 
 No deben tratarse como funcionalidades de producción hasta que se implementen y validen.

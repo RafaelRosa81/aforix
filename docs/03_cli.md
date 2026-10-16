@@ -104,7 +104,7 @@ aforix ingest nivus -c configs/examples/main.yaml
 
 La extracción de estación, nombre, fecha y hora se configura mediante `ingest.m9.metadata_policy`: [guía de metadatos M9](M9_METADATA_POLICY.md).
 
-La ingesta M9 procesa exportaciones MAT de RiverSurveyor Live. Alcance validado y pendientes de entrega: [aceptación M9](M9_ACCEPTANCE.md).
+La ingesta M9 procesa exportaciones MAT de RiverSurveyor Live. Consulte la [guía del proceso completo M9](M9_PROCESSING_GUIDE.md) y los [resultados de aceptación local](M9_ACCEPTANCE.md).
 
 ```bash
 aforix ingest m9 -c configs/examples/main.yaml

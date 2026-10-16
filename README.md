@@ -38,6 +38,7 @@ aforix config-check -c configs/examples/main.yaml
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 aforix build-groups -c configs/examples/main.yaml
 aforix normalize run -c configs/examples/main.yaml
 python scripts/audit_pipeline_outputs.py
@@ -51,6 +52,7 @@ aforix config-check -c configs/examples/main.yaml
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 aforix build-groups -c configs/examples/main.yaml
 aforix normalize run -c configs/examples/main.yaml
 python scripts\audit_pipeline_outputs.py
@@ -81,7 +83,7 @@ Antes de liberar o usar Aforix en producción, revisar la checklist GO/NO-GO en 
 
 Estas carpetas son locales o generadas por el pipeline y no deberían versionarse en Git.
 
-La estructura base de carpetas locales se conserva en el repositorio mediante archivos `.gitkeep`, de modo que un usuario que clone Aforix ya encontrará las carpetas necesarias (`data/raw/FT`, `data/raw/ML`, `data/raw/NV`, `database`, `outputs` y `runs`). Los datos reales, bases procesadas y outputs siguen ignorados por Git y no deben subirse al repositorio.
+La estructura base de carpetas locales se conserva en el repositorio mediante archivos `.gitkeep`, de modo que un usuario que clone Aforix ya encontrará las carpetas necesarias (`data/raw/FT`, `data/raw/ML`, `data/raw/NV`, `data/raw/M9`, `database`, `outputs` y `runs`). Los datos reales, bases procesadas y outputs siguen ignorados por Git y no deben subirse al repositorio.
 
 ## Ruta de lectura recomendada
 
@@ -106,6 +108,8 @@ La estructura base de carpetas locales se conserva en el repositorio mediante ar
 - Guía de launchers Windows/Linux: `docs/LAUNCHERS_GUIDE.md`
 - Uso interactivo y estrategia de launchers: `docs/INTERACTIVE_USAGE.md`
 - Guía de configuración: `docs/CONFIGURATION_GUIDE.md`
+- Proceso completo del M9: `docs/M9_PROCESSING_GUIDE.md`
+- Aceptación técnica M9: `docs/M9_ACCEPTANCE.md`
 - Guía de análisis de correlación: `docs/CORRELATION_GUIDE.md`
 - Guía de métricas de calidad: `docs/QUALITY_METRICS_GUIDE.md`
 - Guía de análisis caudal–altura: `docs/STAGE_DISCHARGE_ANALYSIS.md`
@@ -124,7 +128,7 @@ Aforix está en desarrollo activo. El trabajo se organiza mediante ramas y Pull 
 
 Funciones disponibles actualmente:
 
-- ingesta de archivos de FlowTracker, Molinete y Nivus;
+- ingesta de archivos de FlowTracker, Molinete, Nivus y SonTek M9;
 - extracción configurable de metadata mediante `metadata_policy`;
 - consolidación en `database/raw_canonical` y normalización con reglas YAML;
 - auditoría técnica y validación de datos normalizados;
@@ -136,10 +140,11 @@ Funciones disponibles actualmente:
 
 La descripción funcional y los comandos están en `docs/FUNCTIONALITIES.md`; la referencia completa de opciones está en `docs/03_cli.md`.
 
-Pendiente de implementación y fuera del alcance actual de producción:
+Pendiente de implementación:
 
-- ingesta M9 / ADCP;
 - análisis estadístico (`aforix analyze statistics`), que actualmente termina con un mensaje explícito de función no implementada.
+
+El procesamiento M9 está implementado para MAT de RiverSurveyor Live e incluye normalización y preparación de exportación SIH. El flujo, sus límites y los casos que requieren revisión se describen en [la guía M9](docs/M9_PROCESSING_GUIDE.md). La importación al servidor SIH no se verificó.
 
 ## Autor
 

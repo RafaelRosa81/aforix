@@ -131,6 +131,7 @@ config-check
 ingest.flowtracker
 ingest.molinete
 ingest.nivus
+ingest.m9
 build-groups
 normalize.run
 validate.run
@@ -142,7 +143,7 @@ analysis.section-profiles
 analysis.correlation
 ```
 
-El usuario no debería inventar nombres de comandos. Debe usar `aforix batch list-commands` para ver los disponibles. Aunque el registry conserva `ingest.m9` por compatibilidad, el adaptador no está implementado y el comando falla explícitamente; no debe usarse en batches.
+El usuario no debería inventar nombres de comandos. Debe usar `aforix batch list-commands` para ver los disponibles. `ingest.m9` está disponible para procesar MAT exportados por RiverSurveyor Live; el ejemplo atómico `configs/batches/examples/atomic/ingest_m9.yaml` muestra su uso. Consulte `docs/M9_PROCESSING_GUIDE.md` para el alcance y las condiciones de revisión.
 
 ## 6. Estructura YAML
 

@@ -116,7 +116,7 @@ Cada archivo ejecuta una sola funcionalidad o un caso muy acotado. Son útiles p
 | `atomic/ingest_flowtracker.yaml` | `ingest.flowtracker` | ingesta FlowTracker |
 | `atomic/ingest_molinete.yaml` | `ingest.molinete` | ingesta Molinete Excel |
 | `atomic/ingest_nivus.yaml` | `ingest.nivus` | ingesta Nivus XML |
-| `atomic/ingest_m9.yaml` | `ingest.m9` | marcador deshabilitado; M9 pendiente de implementación |
+| `atomic/ingest_m9.yaml` | `ingest.m9` | ingesta SonTek M9 desde MAT |
 | `atomic/build_groups.yaml` | `build-groups` | consolidación hacia `database/raw_canonical` |
 | `atomic/normalize_run.yaml` | `normalize.run` | normalización hacia `database/normalized` |
 | `atomic/validate_run.yaml` | `validate.run` | validación de datasets normalizados |
@@ -131,7 +131,7 @@ Cada archivo ejecuta una sola funcionalidad o un caso muy acotado. Son útiles p
 | `atomic/correlation_gauges_vs_stations.yaml` | `analysis.correlation` | aforos vs estaciones DINAGUA |
 | `atomic/correlation_model_vs_stations.yaml` | `analysis.correlation` | modelo vs estaciones DINAGUA |
 
-M9/ADCP no está implementado. El ejemplo atómico se conserva deshabilitado como referencia de trabajo futuro y no debe habilitarse ni ejecutarse.
+El ejemplo `atomic/ingest_m9.yaml` ejecuta la ingesta M9 sobre los MAT exportados a `data/raw/M9/`. Cada MAT produce su propio `Summary` y `Points`; no combina transectas. Consulte `docs/M9_PROCESSING_GUIDE.md`.
 
 ## 5. Parámetros frecuentes
 
@@ -195,7 +195,7 @@ Parámetros reales:
 ```yaml
 config: configs/examples/main.yaml
 table: Summary          # Summary, Points, Sections, Gates
-instrument: all         # all, flowtracker, molinete, nivus
+instrument: all         # all, flowtracker, molinete, nivus, m9
 points: P1,P8,P13       # opcional
 parameters: q_total_ls  # opcional
 early_date: 2025-01-01  # opcional
@@ -418,6 +418,7 @@ aforix batch check -b configs/batches/examples/atomic/config_check.yaml
 aforix batch check -b configs/batches/examples/atomic/ingest_flowtracker.yaml
 aforix batch check -b configs/batches/examples/atomic/ingest_molinete.yaml
 aforix batch check -b configs/batches/examples/atomic/ingest_nivus.yaml
+aforix batch check -b configs/batches/examples/atomic/ingest_m9.yaml
 aforix batch check -b configs/batches/examples/atomic/build_groups.yaml
 aforix batch check -b configs/batches/examples/atomic/normalize_run.yaml
 aforix batch check -b configs/batches/examples/atomic/validate_run.yaml

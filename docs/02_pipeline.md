@@ -54,9 +54,10 @@ Comandos:
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 ```
 
-El comando `aforix ingest m9` procesa los MAT y genera Summary y Points por transecto, sin promediarlos. Ver [aceptación M9](M9_ACCEPTANCE.md) para el alcance validado y los pendientes de entrega.
+El comando `aforix ingest m9` procesa los MAT de RiverSurveyor Live y genera `Summary` y `Points` por transecta, sin promediarlas. El flujo completo, el contenido MAT y los criterios de IVE se describen en la [guía de procesamiento M9](M9_PROCESSING_GUIDE.md); los resultados de aceptación están en [M9_ACCEPTANCE.md](M9_ACCEPTANCE.md).
 
 En Windows CMD:
 
@@ -64,6 +65,7 @@ En Windows CMD:
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 ```
 
 ### 2.1 Metadata configurable
@@ -98,7 +100,7 @@ remove_prefix
 digits_only
 ```
 
-El objetivo es que FlowTracker, Molinete y Nivus puedan poblar la misma metadata de trazabilidad aunque sus archivos raw tengan estructuras diferentes.
+El objetivo es que FlowTracker, Molinete, Nivus y M9 puedan poblar la misma metadata de trazabilidad aunque sus archivos raw tengan estructuras diferentes.
 
 ## 3. runs
 
@@ -114,6 +116,7 @@ Ejemplo conceptual:
 runs/ingest_flowtracker/<timestamp>/outputs/raw_canonical/flowtracker/
 runs/ingest_molinete/<timestamp>/outputs/raw_canonical/molinete/
 runs/ingest_nivus/<timestamp>/outputs/raw_canonical/nivus/
+runs/ingest_m9/<timestamp>/outputs/raw_canonical/m9/
 ```
 
 Esta capa permite:
@@ -223,6 +226,7 @@ Ejemplo conceptual:
 database/raw_canonical/flowtracker/
 database/raw_canonical/molinete/
 database/raw_canonical/nivus/
+database/raw_canonical/m9/
 database/raw_canonical/_manifests/
 ```
 
@@ -267,6 +271,7 @@ Ejemplos:
 configs/normalization/flowtracker.yaml
 configs/normalization/molinete.yaml
 configs/normalization/nivus.yaml
+configs/normalization/m9.yaml
 ```
 
 ### 7.1 Política de escritura
@@ -317,6 +322,7 @@ normalize:
     - flowtracker
     - molinete
     - nivus
+    - m9
 ```
 
 ## 8. database/normalized
@@ -463,6 +469,7 @@ aforix config-check -c configs/examples/main.yaml
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 aforix build-groups -c configs/examples/main.yaml
 aforix normalize run -c configs/examples/main.yaml
 python scripts/audit_pipeline_outputs.py
@@ -476,6 +483,7 @@ aforix config-check -c configs/examples/main.yaml
 aforix ingest flowtracker -c configs/examples/main.yaml
 aforix ingest molinete -c configs/examples/main.yaml
 aforix ingest nivus -c configs/examples/main.yaml
+aforix ingest m9 -c configs/examples/main.yaml
 aforix build-groups -c configs/examples/main.yaml
 aforix normalize run -c configs/examples/main.yaml
 python scripts\audit_pipeline_outputs.py
