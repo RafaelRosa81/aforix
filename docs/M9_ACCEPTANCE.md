@@ -1,141 +1,44 @@
-# Verificación M9 — 16 de octubre de 2026
+# Aceptación local del flujo SonTek M9
 
-## Alcance y decisión de entrega
+Este documento resume las pruebas del flujo Aforix M9 y sus límites. Para instrucciones de uso, contenido MAT y criterios de IVE, consulte la [guía de procesamiento M9](M9_PROCESSING_GUIDE.md). Para repetir la auditoría de una colección local, consulte [M9_LOCAL_AUDIT.md](M9_LOCAL_AUDIT.md).
 
-Se ejecutó el CLI completo en un proyecto temporal limpio con cuatro MAT reales
-RiverSurveyor Live, estación 133, SonTek M9 serie 4980. No se promedian transectos.
-El recorrido ingesta → build-groups → normalización → exportación SIH pasó las
-comprobaciones de trazabilidad, conteos, caudal, radio hidráulico e IVE.
-La prueba de los cuatro MAT pasó también en Windows el 16/10/2026, con
-330 pruebas automatizadas aprobadas en el commit d0d0ba3 y PASS del recorrido
-completo (758 muestras y 13 archivos de salida). La entrega definitiva requiere
-confirmar la importación de los CSV en el SIH del cliente.
-No se verificó una conexión ni una carga real al SIH.
+## Pruebas de regresión de ingesta
 
-## Hallazgos corregidos
+El 16/10/2026 se procesaron en Windows 181 MAT con la configuración de metadatos M9 del repositorio. La ingesta terminó con `Processed OK: 181/181`. Se compararon los 362 CSV de Summary y Points con el run previo: nombres, filas y valores coinciden exactamente salvo `run_id` y `source_run_dir`, que identifican cada ejecución.
 
-- `Setup.startEdge`: 0 izquierda, 1 derecha. Se invierte la progresiva de los
-  transectos que empiezan a la derecha; los offsets izquierdo/derecho se asignan
-  a la margen física correcta al calcular el perímetro mojado.
-  Referencia: SonTek RiverSurveyor Live User Manual, revisión 2022, Appendix C:
-  https://info.xylem.com/rs/240-UTB-146/images/rsl-manual.pdf
-- El IVE preliminar de ingesta delega al mismo motor de la exportación.
-  No descarta muestras inválidas ni posiciones duplicadas para obtener un resultado.
-- Las unidades explícitas no SI se rechazan; no se convierten silenciosamente.
-  Si el MAT no declara unidades, se mantiene el supuesto histórico SI.
-- Solo se deriva velocidad normal para coordenadas ENU (código 2).
-  XYZ/Beam no habilitan este cálculo sin una transformación validada.
-- Los fallos de ingesta generan `ingest_status.json` y salida con error.
-- `tzdata` es dependencia explícita para resolver zonas horarias en Windows.
-- Se corrigió la documentación: `incertidumbre_IVE` exportada es porcentaje.
-- Los Points M9 de otro `source_file` no se utilizan como sustituto del MAT solicitado.
+La suite completa ejecutada para la integración de M9 y metadata terminó con **358 pruebas aprobadas y 4 omitidas**; el CI del PR también aprobó. El cambio de metadata no alteró cálculos hidráulicos, normalización, IVE ni mapeos SIH.
 
-## Pruebas automatizadas
+## Auditoría del recorrido completo
 
-`python -m pytest -q`: 326 aprobadas, 4 omitidas; 23 avisos de deprecación
-de pandas. Se cubren también regresiones de los otros instrumentos.
+La auditoría local aislada abarcó ingesta, consolidación, normalización, validación, generación SIH y cotejo de las exportaciones. En la colección auditada había 182 MAT: se procesaron 181 y se excluyó explícitamente `20170901153604.mat`, que no contenía las estructuras requeridas `System` y `Summary`. No se modificaron los MAT originales ni se cargaron datos al servidor SIH.
 
-## Resultados con márgenes corregidas
+Se generaron y revisaron **125 exportaciones**. El manifiesto final informó:
 
-| Inicio | Muestras | Caudal SIH m³/s | Radio m | IVE % | Error IVE m³/s |
+| Estado | Registros | Interpretación |
+| --- | ---: | --- |
+| `OK` | 107 | Pasaron los controles de la auditoría local. |
+| `REVISAR` | 74 | Se conservaron, pero tienen observaciones que deben evaluarse antes de decidir su uso. |
+| `EXCLUIDO` | 1 | Archivo excluido explícitamente por carecer de estructuras necesarias. |
+
+No hubo registros clasificados como `ERROR` en el resultado final de esa auditoría. Los motivos de revisión incluyeron claves estación/fecha/hora compartidas por varios MAT, distancias repetidas en Points, aforos para los que el IVE no se obtuvo y campos hidráulicos incompletos. Los conteos y el detalle por archivo están en `audit_manifest.csv` y `audit_issues.csv` del run auditado; los avisos no son aprobación automática.
+
+## Alcance comprobado y límites
+
+- Cada MAT conserva su propia transecta `Summary`/`Points`; no se promedian transectas de un mismo aforo.
+- Se verificó la generación local de CSV de actuación y aforo, metadatos SIH y libros IVE cuando aplicaban. La importación de esos archivos en el servidor SIH del cliente no se probó.
+- El IVE M9 es una adaptación del método común de Aforix aplicada a muestras proyectadas a la normal de la transecta; no es QRev ni una incertidumbre certificada por SonTek. El método y las condiciones que lo dejan no disponible están descritos en la guía M9.
+- El radio hidráulico se estima desde el área reportada y el perímetro calculado del perfil de profundidad, con supuestos de borde descritos en la guía M9.
+- La aceptación cubre los MAT procesados en la colección disponible; no acredita todas las versiones/formas de exportación de RiverSurveyor Live ni sustituye revisión hidrométrica.
+
+## Resultados de cuatro transectas de referencia
+
+En la prueba aislada anterior con cuatro MAT de la estación 133 y equipo SonTek M9 serie 4980, las cuatro mediciones tuvieron IVE calculable y se generaron cuatro CSV de actuación, cuatro CSV de aforo y cuatro libros IVE. Los valores son resultados de esa muestra específica:
+
+| Inicio | Muestras | Caudal SIH (m³/s) | Radio estimado (m) | IVE (%) | Error IVE (m³/s) |
 |---|---:|---:|---:|---:|---:|
 | 11:17:21 | 281 | 4.715018498 | 0.892821063 | 1.915032676 | 0.096598715 |
 | 11:23:45 | 157 | 5.028343663 | 0.978510224 | 3.670255242 | 0.191381237 |
 | 11:27:06 | 182 | 5.664091985 | 0.976741921 | 3.190490979 | 0.191338685 |
 | 11:30:24 | 138 | 5.070337733 | 0.993061540 | 3.776879797 | 0.201103757 |
 
-Resultado: 4 filas Summary, 4 archivos Points, 758 muestras, 4 CSV aforo,
-4 CSV actuación, 4 informes Excel IVE y un manifiesto de exportación.
-Los cuatro estados IVE son `calculated`; el instrumento SIH es 503.
-
-## Coherencia con los demás instrumentos
-
-`caudal` conserva `Summary.q_total_m3s`. El motor común integra sus propios
-Points para obtener `Q_mid`. `error_IVE` es la incertidumbre absoluta de ese
-motor y `incertidumbre_IVE = 100 * error_IVE / abs(Q_mid)`.
-No se reescala el error usando el caudal de Summary.
-
-El Summary preliminar conserva `uncertainty_ive_relative` como fracción;
-el SIH la calcula nuevamente y la expresa como porcentaje. La ingesta usa
-márgenes cero y los parámetros por defecto; la exportación aplica la
-configuración SIH vigente. Con los mismos parámetros ambos cálculos coinciden.
-
-El radio es área reportada / perímetro del perfil, con interpolación lineal a
-las márgenes. Es una estimación dependiente del perfil medido, no un valor
-certificado por el fabricante. El IVE sobre muestras M9 sigue siendo una
-adaptación del método de Aforix, no una incertidumbre QRev.
-
-## Repetición local sin tocar la base existente
-
-Desde la raíz del repo y con el entorno activado:
-
-```powershell
-python -m pip install -e ".[dev]"
-python -m pytest -q
-python scripts/audit_m9_acceptance.py --raw-dir .\data\raw\M9
-```
-
-El script copia los MAT directamente contenidos en esa carpeta a un proyecto
-temporal, ejecuta los cuatro comandos y muestra `ACCEPTANCE_ROOT` para revisar
-sus resultados. Requiere una colección de transectos con IVE calculable y claves
-de selección distintas. No modifica la base actual ni envía archivos al SIH.
-
-Antes de regenerar la base operativa, respaldar y apartar los resultados M9
-antiguos de raw_canonical y normalized. `overwrite` reemplaza archivos de igual
-nombre, pero no elimina otros nombres antiguos. Las copias compatibles se
-resuelven al seleccionar Points; copias con valores contradictorios bloquean IVE.
-No borrar los MAT fuente. Después ejecutar ingesta, build-groups, normalización
-y exportación usando la configuración habitual.
-
-## Límites y pendientes de aceptación
-
-- Verificado con estos cuatro MAT SI/ENU; no con todos los formatos/versiones
-  de RiverSurveyor. MAT v7.3/HDF5 no está soportado por este lector.
-- Si falta `startEdge`, se asume izquierda por compatibilidad; revisar ese dato
-  en archivos distintos de la colección ensayada.
-- Dos transectos con idénticos instrumento/estación/fecha/hora se conservan en
-  ingesta, pero la selección SIH actual los considera ambiguos y bloquea exportación.
-- El comando de validación separa M9 de los instrumentos discretos. Genera
-  `m9_validation.csv` con los problemas y `validation_summary.csv` con el estado.
-  Comprueba identidad y secuencia de muestras, duplicados, valores finitos,
-  rangos, ancho, posiciones, correspondencia Summary/Points, caudal acumulado,
-  incrementos y relación área/perímetro/radio. No exige igualdad entre Q_mid y
-  el caudal de Summary. Los informes deben revisarse: terminar el comando no
-  significa que el estado sea `ok`. La auditoría sí bloquea ante problemas.
-- La incertidumbre depende de que la progresiva proyectada describa una sección
-  interpretable. Posiciones repetidas o datos no finitos impiden IVE.
-- Validar con el cliente el carácter adaptado de IVE y el radio estimado, y
-  comprobar una importación real al SIH antes de cerrar la entrega.
-
-## Cierre de aceptación
-
-El archivo de 2017 sin muestras queda fuera de esta aceptación por decisión
-del usuario; no se requiere recuperarlo para entregar el soporte de los cuatro
-transectos evaluados. No se declara validada la colección histórica completa.
-
-La nueva validación se puede ejecutar sobre el proyecto temporal ya generado
-sin repetir ingesta ni exportación:
-
-```powershell
-$auditoria = Join-Path $env:TEMP "aforix-m9-acceptance-0k2z3d3a"
-aforix validate run -c "$auditoria\configs\examples\main.yaml"
-Import-Csv "$auditoria\database\validation\validation_summary.csv" | Format-Table -AutoSize
-Import-Csv "$auditoria\database\validation\m9_validation.csv" | Format-Table -AutoSize
-```
-
-El resultado esperado para ese conjunto es una fila `m9 / ok` en el resumen
-y ninguna incidencia en `m9_validation.csv`. Si la carpeta temporal ya no existe,
-repetir la auditoría usando una carpeta que contenga solo los cuatro MAT de
-julio de 2026, no todo el archivo histórico.
-
-Antes de integrar la rama y declarar la entrega definitiva: obtener ese resultado,
-confirmar la importación SIH y dejar documentados los supuestos de IVE adaptado
-y radio estimado. Los controles automatizados no sustituyen la aceptación en el
-sistema receptor.
-
-## Auditoría de la colección local
-
-Para procesar archivos locales con resultados individuales, exclusiones explícitas,
-comparación CSV/XLSX y logs, usar [M9_LOCAL_AUDIT.md](M9_LOCAL_AUDIT.md).
-Este procedimiento registra los fallos por archivo sin dar por aprobada la colección
-completa si hay errores, claves ambiguas o IVE que requiere revisión.
+Estos resultados confirman el recorrido de ejemplo y la consistencia del software para esos archivos; no eliminan los casos `REVISAR` de la colección histórica.
