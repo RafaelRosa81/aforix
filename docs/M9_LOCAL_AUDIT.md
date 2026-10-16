@@ -102,3 +102,15 @@ No publicar los resultados ni los MAT en GitHub. Para cerrar la aceptación del
 cliente aún se requiere revisar los casos no OK y confirmar una importación real
 al SIH de los aforos elegidos. El OK local no certifica esa importación ni la
 exactitud física de la medición.
+
+
+### Datos incompletos frente a diferencias de exportación
+
+Un valor ausente en Summary que permanece vacío en el CSV SIH se registra
+como `REVISAR`, con el nombre del campo. No representa una diferencia de
+exportación ni permite aprobar el aforo. Un valor agregado en el CSV donde
+Summary no contiene un dato sigue siendo `ERROR`, incluso si es cero.
+Las diferencias numéricas continúan siendo errores. Los motivos de validación
+y el motivo IVE registrado en Summary se conservan en el manifiesto.
+Las incidencias incluyen el archivo fuente; la verificación posterior a la
+exportación muestra su avance como `06_check_exports`.
