@@ -153,3 +153,31 @@ def test_m9_rejects_points_from_another_source(tmp_path):
                              'measurement_time': '111721', 'source_file': 'requested.mat'})
     with pytest.raises(ValueError, match='source_file does not match'):
         load_ive_points(root, 'm9', measurement)
+
+
+def test_m9_repeated_positions_preserve_file_and_explain_unavailable_ive(tmp_path):
+    rows = [_row("133", "20260703", "111721", 1, instrument="m9") for _ in range(2)]
+    rows[1]["depth_m"] = .4
+    root = _write_points(tmp_path, rows)
+    before = (root / "Points.csv").read_bytes()
+    with pytest.raises(ValueError, match="2 muestras en 1 posiciones.*sin promediar"):
+        load_ive_points(root, "m9", pd.Series(rows[0]))
+    assert (root / "Points.csv").read_bytes() == before
+
+
+def test_explicit_source_selects_version_and_never_falls_back():
+    from aforix.export.sih.inputs import resolve_measurement, DuplicateMeasurementError, MeasurementNotFoundError
+    key = dict(station_id="133", measurement_date="20260703", measurement_time="111721", instrument="m9")
+    summary = pd.DataFrame([{**key, "source_file": "C:/raw/a.mat", "q_total_m3s": 1},
+                            {**key, "source_file": "C:/raw/ar.mat", "q_total_m3s": 2}])
+    with pytest.raises(DuplicateMeasurementError, match="source_file"):
+        resolve_measurement(summary, pd.Series(key))
+    selected = pd.Series({**key, "source_file": "C:/raw/ar.mat"})
+    assert resolve_measurement(summary, selected).q_total_m3s == 2
+    selected["source_file"] = "ar.mat"
+    with pytest.raises(MeasurementNotFoundError):
+        resolve_measurement(summary, selected)
+    selected["source_file"] = "C:/raw/ar.mat"
+    selected["measurement_time"] = "120000"
+    with pytest.raises(MeasurementNotFoundError):
+        resolve_measurement(summary, selected)
