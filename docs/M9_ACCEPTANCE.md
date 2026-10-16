@@ -6,8 +6,10 @@ Se ejecutó el CLI completo en un proyecto temporal limpio con cuatro MAT reales
 RiverSurveyor Live, estación 133, SonTek M9 serie 4980. No se promedian transectos.
 El recorrido ingesta → build-groups → normalización → exportación SIH pasó las
 comprobaciones de trazabilidad, conteos, caudal, radio hidráulico e IVE.
-Esto habilita una prueba de aceptación local. La entrega definitiva requiere
-repetirla en Windows y confirmar la importación de los CSV en el SIH del cliente.
+La prueba de los cuatro MAT pasó también en Windows el 16/10/2026, con
+330 pruebas automatizadas aprobadas en el commit d0d0ba3 y PASS del recorrido
+completo (758 muestras y 13 archivos de salida). La entrega definitiva requiere
+confirmar la importación de los CSV en el SIH del cliente.
 No se verificó una conexión ni una carga real al SIH.
 
 ## Hallazgos corregidos
@@ -93,10 +95,40 @@ y exportación usando la configuración habitual.
   en archivos distintos de la colección ensayada.
 - Dos transectos con idénticos instrumento/estación/fecha/hora se conservan en
   ingesta, pero la selección SIH actual los considera ambiguos y bloquea exportación.
-- La validación genérica de Points contiene columnas de instrumentos discretos
-  (`point_index`, `area_m2`, `q_m3s`) que M9 no proporciona. No usar ese informe
-  genérico como criterio único de aceptación M9; esta auditoría valida su esquema.
+- El comando de validación separa M9 de los instrumentos discretos. Genera
+  `m9_validation.csv` con los problemas y `validation_summary.csv` con el estado.
+  Comprueba identidad y secuencia de muestras, duplicados, valores finitos,
+  rangos, ancho, posiciones, correspondencia Summary/Points, caudal acumulado,
+  incrementos y relación área/perímetro/radio. No exige igualdad entre Q_mid y
+  el caudal de Summary. Los informes deben revisarse: terminar el comando no
+  significa que el estado sea `ok`. La auditoría sí bloquea ante problemas.
 - La incertidumbre depende de que la progresiva proyectada describa una sección
   interpretable. Posiciones repetidas o datos no finitos impiden IVE.
 - Validar con el cliente el carácter adaptado de IVE y el radio estimado, y
   comprobar una importación real al SIH antes de cerrar la entrega.
+
+## Cierre de aceptación
+
+El archivo de 2017 sin muestras queda fuera de esta aceptación por decisión
+del usuario; no se requiere recuperarlo para entregar el soporte de los cuatro
+transectos evaluados. No se declara validada la colección histórica completa.
+
+La nueva validación se puede ejecutar sobre el proyecto temporal ya generado
+sin repetir ingesta ni exportación:
+
+```powershell
+$auditoria = Join-Path $env:TEMP "aforix-m9-acceptance-0k2z3d3a"
+aforix validate run -c "$auditoria\configs\examples\main.yaml"
+Import-Csv "$auditoria\database\validation\validation_summary.csv" | Format-Table -AutoSize
+Import-Csv "$auditoria\database\validation\m9_validation.csv" | Format-Table -AutoSize
+```
+
+El resultado esperado para ese conjunto es una fila `m9 / ok` en el resumen
+y ninguna incidencia en `m9_validation.csv`. Si la carpeta temporal ya no existe,
+repetir la auditoría usando una carpeta que contenga solo los cuatro MAT de
+julio de 2026, no todo el archivo histórico.
+
+Antes de integrar la rama y declarar la entrega definitiva: obtener ese resultado,
+confirmar la importación SIH y dejar documentados los supuestos de IVE adaptado
+y radio estimado. Los controles automatizados no sustituyen la aceptación en el
+sistema receptor.
