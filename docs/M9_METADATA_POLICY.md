@@ -72,50 +72,8 @@ Fabricante (`SonTek`), modelo (`M9`), extensión MAT, grupos de salida, muestras
 y cálculos hidráulicos no cambian en esta refactorización. Tampoco cambian
 normalización, IVE ni exportación SIH.
 
-## Verificación y comparación local
+## Verificación
 
-Pruebas focalizadas:
+La política predeterminada se probó con 181 MAT reales en Windows. La ingesta produjo 362 CSV idénticos al run de referencia, salvo los metadatos propios de ejecución `run_id` y `source_run_dir`. Las pruebas también verifican que los valores definidos en YAML se apliquen a Summary, Points y nombres de salida.
 
-```powershell
-python -m pytest -q tests/test_metadata.py tests/test_ingest_station_id_boundary.py tests/test_m9_mat_adapter.py tests/test_m9_cli.py tests/test_m9_metadata_policy.py
-python -m pytest -q
-```
-
-Comparación realizada antes/después sobre 7 MAT reales disponibles: mismos
-nombres y contenido de los 14 CSV Summary/Points, ignorando únicamente
-`run_id` y `source_run_dir`. Incluye cuatro transectos válidos, dos MAT con área
-ausente y uno con perfiles nulos. Los archivos privados no se incorporan al repo.
-
-Queda pendiente repetir la ingesta de los 181 MAT del usuario con las políticas
-predeterminadas y compararla con `runs/ingest_m9/20261016_184249`. Conserve esa
-carpeta de referencia. Ejecute `aforix ingest m9 -c configs/examples/main.yaml`
-y use la ruta del nuevo run que imprime el comando. Compare primero el conjunto
-de nombres CSV dentro de `outputs/raw_canonical/m9`, después todas las filas y
-columnas como texto (para preservar ceros iniciales), excluyendo únicamente
-`run_id` y `source_run_dir`. No ignore diferencias hidráulicas, de identidad ni
-de `source_file`; use los mismos MAT en las mismas rutas para ambas ejecuciones.
-No es necesario ejecutar build-groups ni normalize para esa comparación.
-
-Para comparar sin modificar los CSV, sustituya `NUEVO_RUN` por el nombre que
-imprimió la nueva ingesta y ejecute desde la raíz del repo:
-
-```powershell
-$anterior = ".\runs\ingest_m9\20261016_184249"
-$nuevo = ".\runs\ingest_m9\NUEVO_RUN"
-@'
-import sys
-from pathlib import Path
-import pandas as pd
-roots = [Path(x) / 'outputs/raw_canonical/m9' for x in sys.argv[1:]]
-files = [{p.relative_to(r): p for p in r.rglob('*.csv')} for r in roots]
-assert files[0] and files[0].keys() == files[1].keys(), 'Difieren los nombres o faltan CSV'
-for name in sorted(files[0]):
-    tables = [pd.read_csv(f[name], dtype=str, keep_default_na=False).drop(
-        columns=['run_id', 'source_run_dir']) for f in files]
-    pd.testing.assert_frame_equal(*tables, check_exact=True, obj=str(name))
-print(f'PASS: {len(files[0])} CSV identicos salvo run_id/source_run_dir')
-'@ | python - "$anterior" "$nuevo"
-```
-
-Una discrepancia detiene la comparación con un error. Mantenga ambos runs para
-investigarla; no copie archivos de uno sobre el otro ni elimine diferencias.
+Para instrucciones de uso M9 desde MAT hasta SIH, consulte [M9_PROCESSING_GUIDE.md](M9_PROCESSING_GUIDE.md). Los resultados generales de aceptación están en [M9_ACCEPTANCE.md](M9_ACCEPTANCE.md).
