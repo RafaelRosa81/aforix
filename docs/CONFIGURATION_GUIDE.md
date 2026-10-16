@@ -182,6 +182,8 @@ ingest:
     # metadata_policy se define en configs/examples/main.yaml
 ```
 
+M9 usa `metadata_policy` para `station_id`, `station_name`, `measurement_date` y `measurement_time`. El YAML de ejemplo conserva los valores de la ingesta verificada; consulte [la guía específica de metadatos M9](M9_METADATA_POLICY.md) para personalizarlos y [la guía del proceso M9](M9_PROCESSING_GUIDE.md) para el flujo hasta SIH.
+
 ### 7.1 enabled
 
 ```yaml
