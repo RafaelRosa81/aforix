@@ -132,3 +132,10 @@ Antes de integrar la rama y declarar la entrega definitiva: obtener ese resultad
 confirmar la importación SIH y dejar documentados los supuestos de IVE adaptado
 y radio estimado. Los controles automatizados no sustituyen la aceptación en el
 sistema receptor.
+
+## Auditoría de la colección local
+
+Para procesar archivos locales con resultados individuales, exclusiones explícitas,
+comparación CSV/XLSX y logs, usar [M9_LOCAL_AUDIT.md](M9_LOCAL_AUDIT.md).
+Este procedimiento registra los fallos por archivo sin dar por aprobada la colección
+completa si hay errores, claves ambiguas o IVE que requiere revisión.
