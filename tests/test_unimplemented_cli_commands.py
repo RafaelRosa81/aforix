@@ -8,10 +8,6 @@ from aforix.cli.main import app
     ("args", "expected_message"),
     [
         (
-            ["ingest", "m9", "-c", "configs/examples/main.yaml"],
-            "M9/ADCP ingestion is not implemented yet",
-        ),
-        (
             ["analyze", "statistics", "-c", "configs/examples/main.yaml"],
             "Statistical analysis is not implemented yet",
         ),
