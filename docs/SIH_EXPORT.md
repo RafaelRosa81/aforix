@@ -755,4 +755,4 @@ Según el estado actual del código:
 - el matching de fechas/hora tolera algunos formatos en normalized, pero conviene estandarizar a `YYYYMMDD` y `HHMMSS`;
 - los CSV de lookups deben existir en las rutas configuradas para que la exportación funcione.
 
-Para M9 se selecciona el MAT mediante `source_file`. Copias antiguas y nuevas compatibles de una muestra (`source_file`, `sample_number`) se unifican conservando la más completa; valores físicos contradictorios bloquean IVE. No se promedian transectos. Ver [auditoría M9](M9_ACCEPTANCE.md).
+Para M9 se selecciona el MAT mediante `source_file`. Copias antiguas y nuevas compatibles de una muestra (`source_file`, `sample_number`) se unifican conservando la más completa; valores físicos contradictorios bloquean IVE. No se promedian transectas. Para el flujo completo, el contenido MAT y los motivos por los que puede quedar IVE no disponible, consulte la [guía de procesamiento M9](M9_PROCESSING_GUIDE.md) y la [auditoría M9](M9_LOCAL_AUDIT.md).
