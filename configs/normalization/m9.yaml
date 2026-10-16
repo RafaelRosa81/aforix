@@ -123,6 +123,7 @@ tables:
       timestamp: {source: timestamp, dtype: string}
       elapsed_seconds: {source: elapsed_seconds, dtype: float}
       distance_along_transect_m: {source: distance_along_transect_m, dtype: float}
+      distance_m: {source: distance_m, dtype: float}
       width_m: {source: width_m, dtype: float}
       track_x_m: {source: track_x_m, dtype: float}
       track_y_m: {source: track_y_m, dtype: float}
@@ -132,6 +133,7 @@ tables:
       mean_velocity_x_m_s: {source: mean_velocity_x_m_s, dtype: float}
       mean_velocity_y_m_s: {source: mean_velocity_y_m_s, dtype: float}
       normal_velocity_m_s: {source: normal_velocity_m_s, dtype: float}
+      velocity_mean_m_s: {source: velocity_mean_m_s, dtype: float}
       boat_velocity_x_m_s: {source: boat_velocity_x_m_s, dtype: float}
       boat_velocity_y_m_s: {source: boat_velocity_y_m_s, dtype: float}
       temperature_c: {source: temperature_c, dtype: float}

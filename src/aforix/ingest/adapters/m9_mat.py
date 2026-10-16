@@ -254,6 +254,12 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
             "timestamp": sample_dt.isoformat(timespec="seconds") if sample_dt else None,
             "elapsed_seconds": elapsed - good_times[0] if np.isfinite(elapsed) else np.nan,
             "distance_along_transect_m": float(projected[idx]) if idx < len(projected) else np.nan,
+            # Canonical SIH distance is measured from the physical left bank,
+            # including the edge distance omitted by the projected boat track.
+            "distance_m": (
+                float(projected[idx]) + float(left_edge or 0.0)
+                if idx < len(projected) else np.nan
+            ),
             # Aforix's shared Points model fills this with the transect width
             # from Summary during normalization; it is not a sample interval.
             "width_m": np.nan,
@@ -265,6 +271,8 @@ def parse_m9_mat(path: Path, *, timezone_name: str = "America/Montevideo") -> di
             "mean_velocity_x_m_s": float(mean_v[idx, 0]) if mean_v.ndim == 2 and idx < len(mean_v) else np.nan,
             "mean_velocity_y_m_s": float(mean_v[idx, 1]) if mean_v.ndim == 2 and idx < len(mean_v) else np.nan,
             "normal_velocity_m_s": float(normal_v[idx]) if idx < len(normal_v) else np.nan,
+            # The shared IVE input expects velocity normal to the transect.
+            "velocity_mean_m_s": float(normal_v[idx]) if idx < len(normal_v) else np.nan,
             "boat_velocity_x_m_s": float(boat_v[idx, 0]) if boat_v.ndim == 2 and idx < len(boat_v) else np.nan,
             "boat_velocity_y_m_s": float(boat_v[idx, 1]) if boat_v.ndim == 2 and idx < len(boat_v) else np.nan,
             "temperature_c": sample("Temperature", idx),
