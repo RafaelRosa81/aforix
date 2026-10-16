@@ -160,7 +160,7 @@ def test_m9_repeated_positions_preserve_file_and_explain_unavailable_ive(tmp_pat
     rows[1]["depth_m"] = .4
     root = _write_points(tmp_path, rows)
     before = (root / "Points.csv").read_bytes()
-    with pytest.raises(ValueError, match="2 muestras en 1 posiciones.*sin promediar"):
+    with pytest.raises(ValueError, match="2 muestras en 1 posiciones.*sin promediar.*Razon:.*Accion:"):
         load_ive_points(root, "m9", pd.Series(rows[0]))
     assert (root / "Points.csv").read_bytes() == before
 
