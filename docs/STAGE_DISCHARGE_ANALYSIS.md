@@ -255,7 +255,7 @@ Instrumentos actuales:
 | `NV` | `nivus` |
 | `FT` | `flowtracker` |
 | `ML` | `molinete` |
-| `M9` | `m9`, previsto para una etapa posterior |
+| `M9` | `m9`, cuando hay Summary normalizado disponible |
 
 En `configs/examples/main.yaml`, el módulo incluye configuración para:
 
@@ -908,4 +908,3 @@ Trabajo futuro posible:
 - definir ranking hidráulico más avanzado;
 - consolidar export de curvas finales si se requiere un formato separado;
 - integrar salidas de caudal–altura en reportes generales de Aforix;
-- completar integración futura de M9.
