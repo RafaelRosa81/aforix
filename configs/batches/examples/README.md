@@ -117,7 +117,6 @@ Cada archivo ejecuta una sola funcionalidad o un caso muy acotado. Son útiles p
 | `atomic/ingest_molinete.yaml` | `ingest.molinete` | ingesta Molinete Excel |
 | `atomic/ingest_nivus.yaml` | `ingest.nivus` | ingesta Nivus XML |
 | `atomic/ingest_m9.yaml` | `ingest.m9` | ingesta SonTek M9 desde MAT |
-
 | `atomic/build_groups.yaml` | `build-groups` | consolidación hacia `database/raw_canonical` |
 | `atomic/normalize_run.yaml` | `normalize.run` | normalización hacia `database/normalized` |
 | `atomic/validate_run.yaml` | `validate.run` | validación de datasets normalizados |
