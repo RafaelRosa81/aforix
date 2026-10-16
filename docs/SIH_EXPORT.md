@@ -707,6 +707,9 @@ measurement_date
 measurement_time
 normalized_source
 raw_canonical_found
+uncertainty_method
+uncertainty_status
+uncertainty_reason
 actuaciones_file
 aforos_file
 ive_report_file

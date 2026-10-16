@@ -1,0 +1,155 @@
+instrument: m9
+
+tables:
+  Summary:
+    canonical_name: summary
+    metadata:
+      station_id: {sources: [station_id]}
+      station_name: {sources: [station_name]}
+      measurement_date: {sources: [measurement_date]}
+      measurement_time: {sources: [measurement_time]}
+      instrument: {sources: [instrument]}
+      source_file: {sources: [source_file, input_path]}
+      source_run_dir: {sources: [source_run_dir]}
+      run_id: {sources: [run_id]}
+    metadata_policy:
+      station_id: {}
+      measurement_date:
+        input_formats: ["%Y%m%d", "%Y-%m-%d"]
+        output_format: "%Y%m%d"
+      measurement_time:
+        input_formats: ["%H%M%S", "%H:%M:%S"]
+        output_format: "%H%M%S"
+    columns:
+      station_id: {source: station_id, dtype: string}
+      station_name: {source: station_name, dtype: string}
+      measurement_date: {source: measurement_date, dtype: string}
+      measurement_time: {source: measurement_time, dtype: string}
+      instrument: {source: instrument, dtype: string}
+      source_file: {source: source_file, dtype: string}
+      source_run_dir: {source: source_run_dir, dtype: string}
+      run_id: {source: run_id, dtype: string}
+      q_total_m3s: {source: q_total_m3s, dtype: float}
+      q_total_ls:
+        source: __derived__
+        dtype: float
+      area_total_m2: {source: area_total_m2, dtype: float}
+      wetted_perimeter_m: {source: wetted_perimeter_m, dtype: float}
+      hydraulic_radius_m: {source: hydraulic_radius_m, dtype: float}
+      hydraulic_radius_method: {source: hydraulic_radius_method, dtype: string}
+      width_total_m: {source: width_total_m, dtype: float}
+      width_track_span_m: {source: width_track_span_m, dtype: float}
+      width_left_bank_distance_m: {source: width_left_bank_distance_m, dtype: float}
+      width_right_bank_distance_m: {source: width_right_bank_distance_m, dtype: float}
+      width_method: {source: width_method, dtype: string}
+      velocity_mean_m_s: {source: velocity_mean_m_s, dtype: float}
+      velocity_mean_method: {source: velocity_mean_method, dtype: string}
+      depth_mean_m: {source: depth_mean_m, dtype: float}
+      depth_max_m: {source: depth_max_m, dtype: float}
+      uncertainty_method: {source: uncertainty_method, dtype: string}
+      uncertainty_status: {source: uncertainty_status, dtype: string}
+      uncertainty_reason: {source: uncertainty_reason, dtype: string}
+      uncertainty_ive_relative: {source: uncertainty_ive_relative, dtype: float}
+      uncertainty_ive_absolute_m3s: {source: uncertainty_ive_absolute_m3s, dtype: float}
+      uncertainty_ive_quality: {source: uncertainty_ive_quality, dtype: string}
+      ive_method: {source: ive_method, dtype: string}
+      ive_status: {source: ive_status, dtype: string}
+      ive_reason: {source: ive_reason, dtype: string}
+      ive_profile_sample_count: {source: ive_profile_sample_count, dtype: int}
+      ive_wet_sample_count: {source: ive_wet_sample_count, dtype: int}
+      ive_q_midsection_m3s: {source: ive_q_midsection_m3s, dtype: float}
+      ive_s_d_ive_m: {source: ive_s_d_ive_m, dtype: float}
+      ive_s_d_effective_m: {source: ive_s_d_effective_m, dtype: float}
+      ive_s_v_ive_m_s: {source: ive_s_v_ive_m_s, dtype: float}
+      ive_u_s: {source: ive_u_s, dtype: float}
+      ive_u_b_q: {source: ive_u_b_q, dtype: float}
+      ive_u_d_q: {source: ive_u_d_q, dtype: float}
+      ive_u_v_q: {source: ive_u_v_q, dtype: float}
+      normal_velocity_method: {source: normal_velocity_method, dtype: string}
+      coordinate_system_code: {source: coordinate_system_code, dtype: int}
+      sample_count: {source: sample_count, dtype: int}
+      serial_number: {source: serial_number, dtype: string}
+      manufacturer: {source: manufacturer, dtype: string}
+      model: {source: model, dtype: string}
+      firmware_version: {source: firmware_version, dtype: string}
+      comments: {source: comments, dtype: string}
+      measurement_end_date: {source: measurement_end_date, dtype: string}
+      measurement_end_time: {source: measurement_end_time, dtype: string}
+    derived:
+      q_total_ls: {from: q_total_m3s, operation: multiply, value: 1000}
+    required:
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - q_total_m3s
+      - area_total_m2
+    transforms:
+      - {name: strip_strings}
+      - {name: numeric_commas_to_dots}
+      - {name: enforce_dtypes}
+    qc:
+      non_negative: [area_total_m2, wetted_perimeter_m, hydraulic_radius_m, width_total_m, depth_mean_m, depth_max_m]
+
+  Points:
+    canonical_name: points
+    metadata:
+      station_id: {sources: [station_id]}
+      station_name: {sources: [station_name]}
+      measurement_date: {sources: [measurement_date]}
+      measurement_time: {sources: [measurement_time]}
+      instrument: {sources: [instrument]}
+      source_file: {sources: [source_file, input_path]}
+      source_run_dir: {sources: [source_run_dir]}
+      run_id: {sources: [run_id]}
+    metadata_policy:
+      station_id: {}
+      measurement_date:
+        input_formats: ["%Y%m%d", "%Y-%m-%d"]
+        output_format: "%Y%m%d"
+      measurement_time:
+        input_formats: ["%H%M%S", "%H:%M:%S"]
+        output_format: "%H%M%S"
+    columns:
+      station_id: {source: station_id, dtype: string}
+      station_name: {source: station_name, dtype: string}
+      measurement_date: {source: measurement_date, dtype: string}
+      measurement_time: {source: measurement_time, dtype: string}
+      instrument: {source: instrument, dtype: string}
+      source_file: {source: source_file, dtype: string}
+      source_run_dir: {source: source_run_dir, dtype: string}
+      run_id: {source: run_id, dtype: string}
+      sample_number: {source: sample_number, dtype: int}
+      timestamp: {source: timestamp, dtype: string}
+      elapsed_seconds: {source: elapsed_seconds, dtype: float}
+      distance_along_transect_m: {source: distance_along_transect_m, dtype: float}
+      width_m: {source: width_m, dtype: float}
+      track_x_m: {source: track_x_m, dtype: float}
+      track_y_m: {source: track_y_m, dtype: float}
+      depth_m: {source: depth_m, dtype: float}
+      q_cumulative_m3s: {source: q_cumulative_m3s, dtype: float}
+      q_increment_m3s: {source: q_increment_m3s, dtype: float}
+      mean_velocity_x_m_s: {source: mean_velocity_x_m_s, dtype: float}
+      mean_velocity_y_m_s: {source: mean_velocity_y_m_s, dtype: float}
+      normal_velocity_m_s: {source: normal_velocity_m_s, dtype: float}
+      boat_velocity_x_m_s: {source: boat_velocity_x_m_s, dtype: float}
+      boat_velocity_y_m_s: {source: boat_velocity_y_m_s, dtype: float}
+      temperature_c: {source: temperature_c, dtype: float}
+      heading_deg: {source: heading_deg, dtype: float}
+      pitch_deg: {source: pitch_deg, dtype: float}
+      roll_deg: {source: roll_deg, dtype: float}
+      latitude: {source: latitude, dtype: float}
+      longitude: {source: longitude, dtype: float}
+    required:
+      - station_id
+      - measurement_date
+      - measurement_time
+      - instrument
+      - sample_number
+      - depth_m
+    transforms:
+      - {name: strip_strings}
+      - {name: numeric_commas_to_dots}
+      - {name: enforce_dtypes}
+    qc:
+      non_negative: [elapsed_seconds, depth_m]

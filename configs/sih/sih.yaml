@@ -180,18 +180,38 @@ sih:
           malo:
             max_lt: 40
     m9:
-      enabled: false
+      enabled: true
       normalized_name: m9
-      id_tipo_actuacion: null
+      id_tipo_actuacion: 4
       tipo_aforo_lookup: BOTE
       instrumentos_rangos_lookup: ADCP
       instrument_lookup_fields:
-        marca: null
-        nro_serie: null
-        modelo: instrument
+        marca: manufacturer
+        nro_serie: serial_number
+        modelo: model
         codigo: null
-      raw_canonical_fields: {}
-      normalized_fields: {}
+      raw_canonical_fields:
+        id_operador: null
+        lectura_escala: null
+        escala_inicio: null
+        escala_fin: null
+        escala_media: null
+        observaciones: comments
+        radio_hidraulico: null
+      normalized_fields:
+        ancho: width_total_m
+        caudal: q_total_m3s
+        profundidad: depth_mean_m
+        seccion: area_total_m2
+        velocidad_media: velocity_mean_m_s
+        radio_hidraulico: hydraulic_radius_m
+        incertidumbre_IVE: uncertainty_ive_relative
+        error_IVE: uncertainty_ive_absolute_m3s
+        calidad_IVE: uncertainty_ive_quality
+        fecha_inicio_date: measurement_date
+        fecha_inicio_time: measurement_time
+        fecha_fin_date: measurement_end_date
+        fecha_fin_time: measurement_end_time
       quality:
         enabled: false
         source: null

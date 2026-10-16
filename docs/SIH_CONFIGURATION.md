@@ -248,7 +248,7 @@ Nivus       -> VADEO -> 57
 M9          -> BOTE  -> 59
 ```
 
-FlowTracker, Molinete y Nivus tienen además `id_tipo_actuacion: 4`. M9 permanece deshabilitado y todavía no cuenta con aceptación real end-to-end.
+Los instrumentos configurados tienen `id_tipo_actuacion: 4`. M9 usa las asociaciones declarativas `BOTE` y `ADCP`. El catálogo incluye la fila `503,SonTek,4980,M9,M9` para el equipo usado en la aceptación local; cada M9 con otro número de serie requiere su propia fila SIH.
 
 ### 9.3 instrumentos_rangos
 
@@ -276,7 +276,9 @@ nivus
 m9
 ```
 
-`m9` está configurado como `enabled: false`.
+`m9` está configurado como `enabled: true`. La fila SIH del M9 debe coincidir con marca, número de serie y modelo presentes en el Summary raw canonical.
+
+Para el M9, `radio_hidraulico` se toma de `Summary.hydraulic_radius_m`, calculado como área reportada dividida por el perímetro mojado del perfil de profundidades. El método y el supuesto de interpolación lineal de las distancias a las márgenes se registran en `hydraulic_radius_method`. La guía de DINAGUA recomienda QRev para M9; Aforix calcula aquí un IVE análogo sobre sus muestras de 1 s y lo identifica como `IVE_ADAPTADO_M9`, sin atribuirle equivalencia con QRev. La salida SIH agrega `incertidumbre_IVE` (fracción relativa), `error_IVE` (m³/s usando Q mid-section) y `calidad_IVE`. `sih_export_metadata.csv` conserva método y estado del cálculo.
 
 El modo interactivo recorre esta sección y solo intenta cargar instrumentos con `enabled: true`.
 
