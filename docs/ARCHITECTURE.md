@@ -122,7 +122,7 @@ Instrumentos actuales:
 - FlowTracker;
 - Molinete;
 - Nivus;
-- M9, previsto o experimental según el estado del adaptador.
+- SonTek M9, con adaptador MAT, normalización, validación y exportación SIH.
 
 Principio de diseño: las particularidades de cada instrumento deben quedar dentro de `ingest/`, no propagarse a análisis o exportación.
 
@@ -315,7 +315,6 @@ Componentes disponibles:
 
 Componentes pendientes o en evolución:
 
-- ingesta M9 completa;
 - análisis hidrológicos avanzados;
 - consolidación de modelo de datos documentado;
 - pruebas automáticas más amplias.
