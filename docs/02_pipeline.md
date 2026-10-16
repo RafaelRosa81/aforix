@@ -116,6 +116,7 @@ Ejemplo conceptual:
 runs/ingest_flowtracker/<timestamp>/outputs/raw_canonical/flowtracker/
 runs/ingest_molinete/<timestamp>/outputs/raw_canonical/molinete/
 runs/ingest_nivus/<timestamp>/outputs/raw_canonical/nivus/
+runs/ingest_m9/<timestamp>/outputs/raw_canonical/m9/
 ```
 
 Esta capa permite:
@@ -225,6 +226,7 @@ Ejemplo conceptual:
 database/raw_canonical/flowtracker/
 database/raw_canonical/molinete/
 database/raw_canonical/nivus/
+database/raw_canonical/m9/
 database/raw_canonical/_manifests/
 ```
 
