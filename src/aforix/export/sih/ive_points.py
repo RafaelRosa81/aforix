@@ -152,6 +152,13 @@ def load_ive_points(
 
     df = df.sort_values("distance_m", kind="stable").reset_index(drop=True)
     if df["distance_m"].duplicated().any():
+        if instrument.lower() == "m9":
+            repeated = df["distance_m"].duplicated(keep=False)
+            raise ValueError(
+                f"M9: {int(repeated.sum())} muestras en "
+                f"{df.loc[repeated, 'distance_m'].nunique()} posiciones distance_m repetidas. "
+                "IVE no disponible con el metodo actual; se conservan todas las muestras sin promediar."
+            )
         raise ValueError("Duplicate vertical distance_m in selected measurement")
     if (df["distance_m"] < 0).any() or (df["distance_m"] > widths[0]).any():
         raise ValueError("Vertical distance_m outside measurement width_m")
