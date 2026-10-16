@@ -99,3 +99,11 @@ def test_no_m9_preserves_existing_input_path(tmp_path):
         frame.assign(instrument="molinete").to_csv(tmp_path / f"{name}.csv", index=False)
     path, has_other, report = split_instruments(tmp_path, temporary)
     assert path == tmp_path and has_other and report is None
+
+
+def test_missing_distances_do_not_claim_repeated_positions():
+    summary, points = frames()
+    points["distance_m"] = np.nan
+    report = validate_m9(summary, points)
+    assert "finite" in set(report.rule)
+    assert "ive_positions" not in set(report.rule)
