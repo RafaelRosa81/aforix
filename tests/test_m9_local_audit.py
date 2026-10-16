@@ -119,3 +119,25 @@ def test_missing_summary_values_are_reviewed_without_hiding_export_changes(tmp_p
     aforo.to_csv(record.aforo_file, index=False)
     errors = audit.check_export(root, summary, meta, IVEParameters(left_bank_mode='zero', right_bank_mode='zero'), config)
     assert 'seccion: valor exportado sin dato normalizado' in errors
+
+
+def test_zero_profile_discharge_explains_cause_and_action(tmp_path):
+    from scipy.io import loadmat
+    raw = tmp_path / 'raw'; raw.mkdir()
+    source = raw / 'zero_velocity.mat'
+    write_mat(source)
+    data = loadmat(source, simplify_cells=True)
+    data['Summary']['Mean_Vel'][:] = 0
+    savemat(source, {k: v for k, v in data.items() if not k.startswith('__')})
+    audit = audit_module()
+    assert audit.main(['--raw-dir', str(raw), '--output-root', str(tmp_path / 'results')]) == 1
+    root = next((tmp_path / 'results').iterdir())
+    record = pd.read_csv(root / 'audit_manifest.csv', keep_default_na=False).iloc[0]
+    assert record.status == 'REVISAR'
+    assert 'caudal de referencia nulo' in record.message
+    assert 'Accion:' in record.message
+    meta = pd.read_csv(root / 'outputs/sih/sih_export_metadata.csv', keep_default_na=False).iloc[0]
+    assert 'caudal de referencia nulo' in meta.ive_reason
+    aforo = pd.read_csv(record.aforo_file, keep_default_na=False).iloc[0]
+    assert aforo.error_IVE == aforo.incertidumbre_IVE == ''
+    assert aforo.caudal == 2.4
