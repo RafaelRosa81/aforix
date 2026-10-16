@@ -114,3 +114,20 @@ Las diferencias numéricas continúan siendo errores. Los motivos de validación
 y el motivo IVE registrado en Summary se conservan en el manifiesto.
 Las incidencias incluyen el archivo fuente; la verificación posterior a la
 exportación muestra su avance como `06_check_exports`.
+
+
+### Seleccionar una versión para SIH
+
+Si dos MAT comparten estación, fecha y hora, la auditoría conserva ambos y
+los marca `REVISAR`. No elige por el sufijo `r` ni promedia resultados.
+Para la exportación operativa, agregue la columna opcional `source_file` al
+CSV de selección y copie el valor completo de la fila deseada de
+`database/normalized/m9/Summary.csv`. Seleccione una sola versión por clave
+SIH en cada entrega. Las columnas habituales siguen siendo obligatorias.
+Un origen inexistente no permite usar otra versión como alternativa.
+
+Las posiciones repetidas en M9 se mantienen sin alterar. La exportación
+informa cuántas muestras y posiciones están afectadas; los campos numéricos
+IVE quedan vacíos y la explicación queda en `calidad_IVE` y los metadatos.
+Esto indica una limitación del método actual y no elimina el aforo ni sus
+Points. Un CSV generado con advertencias no equivale a un aforo aprobado.
