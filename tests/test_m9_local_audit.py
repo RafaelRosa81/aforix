@@ -91,3 +91,31 @@ def test_isolation_overrides_operational_absolute_paths():
     assert cfg['validation']['output_dir'] == 'database/validation'
     assert sih['sih']['output']['output_dir'] == 'outputs/sih'
     assert '/' not in sih['sih']['output']['output_names']['aforos']
+
+
+def test_missing_summary_values_are_reviewed_without_hiding_export_changes(tmp_path):
+    from scipy.io import loadmat
+    import yaml
+    from aforix.analysis.uncertainty.calculator import IVEParameters
+    raw = tmp_path / 'raw'; raw.mkdir()
+    source = raw / 'missing_area.mat'
+    write_mat(source)
+    data = loadmat(source, simplify_cells=True)
+    data['Summary']['Area'] = np.nan
+    savemat(source, {k: v for k, v in data.items() if not k.startswith('__')})
+    audit = audit_module()
+    assert audit.main(['--raw-dir', str(raw), '--output-root', str(tmp_path / 'results')]) == 1
+    root = next((tmp_path / 'results').iterdir())
+    record = pd.read_csv(root / 'audit_manifest.csv', keep_default_na=False).iloc[0]
+    assert record.status == 'REVISAR'
+    assert 'area_total_m2: dato normalizado ausente' in record.message
+    assert record.ive == 'calculated'
+    summary = pd.read_csv(root / 'database/normalized/m9/Summary.csv', dtype=str, keep_default_na=False).iloc[0]
+    meta = pd.read_csv(root / 'outputs/sih/sih_export_metadata.csv', dtype=str, keep_default_na=False).iloc[0]
+    config = yaml.safe_load((root / 'configs/sih/sih.yaml').read_text(encoding='utf-8'))
+    aforo = pd.read_csv(record.aforo_file, dtype=str, keep_default_na=False)
+    assert aforo.loc[0, 'seccion'] == ''
+    aforo.loc[0, 'seccion'] = '0'
+    aforo.to_csv(record.aforo_file, index=False)
+    errors = audit.check_export(root, summary, meta, IVEParameters(left_bank_mode='zero', right_bank_mode='zero'), config)
+    assert 'seccion: valor exportado sin dato normalizado' in errors
