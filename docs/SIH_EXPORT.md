@@ -53,7 +53,7 @@ La metadata permite auditar qué filas se exportaron correctamente y cuáles fal
 
 ### 2.1 Cálculo de IVE en la exportación SIH
 
-Para cada medición seleccionada, la exportación intenta calcular IVE desde `Points.csv` normalizado. Busca el archivo en este orden:
+Para cada medición seleccionada, la exportación calcula IVE desde los puntos normalizados. Primero lee los CSV de `database/normalized/{instrument}/Points/`. Si no hay archivos en ese directorio, busca estas alternativas:
 
 ```text
 database/normalized/{instrument}/Points.csv
@@ -707,6 +707,9 @@ measurement_date
 measurement_time
 normalized_source
 raw_canonical_found
+uncertainty_method
+uncertainty_status
+uncertainty_reason
 actuaciones_file
 aforos_file
 ive_report_file
@@ -751,3 +754,5 @@ Según el estado actual del código:
 - `validation.py` es un placeholder para validaciones futuras;
 - el matching de fechas/hora tolera algunos formatos en normalized, pero conviene estandarizar a `YYYYMMDD` y `HHMMSS`;
 - los CSV de lookups deben existir en las rutas configuradas para que la exportación funcione.
+
+Para M9 se selecciona el MAT mediante `source_file`. Copias antiguas y nuevas compatibles de una muestra (`source_file`, `sample_number`) se unifican conservando la más completa; valores físicos contradictorios bloquean IVE. No se promedian transectos. Ver [auditoría M9](M9_ACCEPTANCE.md).

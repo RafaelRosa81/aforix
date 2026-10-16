@@ -21,7 +21,7 @@ Ejemplos:
 - archivos FlowTracker;
 - planillas Molinete;
 - archivos XML Nivus;
-- archivos M9 / ADCP, pendiente de definición completa.
+- exportaciones MAT de RiverSurveyor Live para SonTek M9.
 
 Reglas:
 
@@ -237,7 +237,7 @@ Algunos campos pueden variar mientras se consolidan adaptadores o instrumentos n
 
 En particular:
 
-- M9 queda pendiente hasta analizar los formatos base;
+- M9 utiliza Summary y Points por muestra; ver [alcance validado](M9_ACCEPTANCE.md);
 - algunas columnas pueden existir solo para ciertos instrumentos;
 - `Sections` y `Gates` pueden estar vacías para instrumentos que no las proveen.
 

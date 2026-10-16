@@ -201,9 +201,9 @@ ingest:
             - "%Y/%m/%d %H:%M:%S"
           output_format: "%H%M%S"
 
-  # M9/ADCP ingestion is not implemented; keep disabled for production.
+  # M9/ADCP ingestion uses RiverSurveyor Live MAT exports.
   m9:
-    enabled: false
+    enabled: true
     raw_subdir: M9
 
 build_groups:
@@ -236,6 +236,7 @@ build_groups:
     - flowtracker
     - molinete
     - nivus
+    - m9
 
 normalize:
   enabled: true
@@ -259,6 +260,7 @@ normalize:
     - flowtracker
     - molinete
     - nivus
+    - m9
 
 validation:
   enabled: true

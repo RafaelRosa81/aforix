@@ -107,6 +107,15 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
         & (_normalized_time_series(summary_df["measurement_time"]) == measurement_time)
     ]
 
+    # An explicit source selects a version, never a different measurement key.
+    requested_source = selection_row.get("source_file", "")
+    if pd.notna(requested_source) and str(requested_source).strip():
+        requested_source = str(requested_source).strip().replace("\\", "/")
+        if "source_file" not in matches.columns:
+            raise MeasurementNotFoundError("Summary lacks source_file for explicit version selection")
+        sources = matches["source_file"].astype(str).str.strip().str.replace("\\", "/", regex=False)
+        matches = matches[sources == requested_source]
+
     if matches.empty:
         raise MeasurementNotFoundError(
             f"No measurement found for station={station_id}, date={measurement_date}, time={measurement_time}"
@@ -114,7 +123,9 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
 
     if len(matches) > 1:
         raise DuplicateMeasurementError(
-            f"Multiple measurements found for station={station_id}, date={measurement_date}, time={measurement_time}"
+            f"Multiple measurements found for station={station_id}, date={measurement_date}, time={measurement_time}. "
+            "Razon: la clave estacion/fecha/hora identifica varias filas y no permite elegir una version. "
+            "Accion: comparar los archivos y seleccionar una sola version mediante source_file en el CSV de seleccion; copie su valor completo de Summary.csv. No se elige automaticamente la version r."
         )
 
     return matches.iloc[0]

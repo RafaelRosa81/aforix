@@ -381,6 +381,10 @@ def _deduplicate_csv_paths(
         return sorted(csv_paths)
 
     keys = _get_deduplicate_by(cfg)
+    # Distinct M9 transects can share station/date/time. Their input MAT path
+    # is part of their measurement identity, so retain it during deduplication.
+    if instrument == "m9" and "source_file" not in keys:
+        keys.append("source_file")
     selected: dict[tuple[str, ...], Path] = {}
 
     for csv_path in sorted(csv_paths):

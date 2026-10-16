@@ -102,13 +102,27 @@ aforix ingest nivus -c configs/examples/main.yaml
 
 ### M9 / ADCP
 
-M9 está pendiente de implementación y fuera del alcance de producción actual. El comando se conserva como marcador, pero termina con código de error y un mensaje explícito; no procesa archivos ni genera una corrida:
+La ingesta M9 procesa exportaciones MAT de RiverSurveyor Live. Alcance validado y pendientes de entrega: [aceptación M9](M9_ACCEPTANCE.md).
 
 ```bash
 aforix ingest m9 -c configs/examples/main.yaml
 ```
 
-No incluir este comando en flujos operativos ni batches de producción.
+La ingesta lee los archivos `.mat` exportados por RiverSurveyor Live desde `data/raw/M9/` y produce `Summary` y `Points`. El archivo nativo `.rivr` se conserva como original, pero no se interpreta directamente. El M9 está incorporado a la normalización y a la exportación SIH; el catálogo local usa el código de instrumento `503`.
+
+Flujo local completo, después de copiar los `.mat` a `data/raw/M9/`:
+
+```bash
+aforix ingest m9 -c configs/examples/main.yaml
+aforix build-groups -c configs/examples/main.yaml
+aforix normalize run -c configs/examples/main.yaml
+```
+
+La ingesta escribe una ejecución nueva bajo `runs/`; `build-groups` actualiza `database/raw_canonical/` y la normalización publica las tablas en `database/normalized/`.
+
+El `hydraulic_radius_m` del M9 se obtiene como `area_total_m2 / wetted_perimeter_m`. El perímetro se calcula sobre el perfil de profundidades de `Points`; cuando el MAT informa distancia a las márgenes, se agrega un segmento lineal desde profundidad cero hasta la primera/última muestra. Ese supuesto queda identificado por `hydraulic_radius_method` en `Summary`.
+
+Para revisión local, Aforix calcula un **IVE adaptado al M9** sobre las muestras de perfil de un segundo: proyecta `Mean_Vel` a la normal de la transecta y aplica la integración mid-section, los residuos de interpolación y los componentes sistemáticos/ancho del método IVE de Aforix (`u_s=1 %`, `u_b=0,5 %`, `s_d,min=0,01 m`; usa `s_v,IVE` sin piso instrumental). El resultado se etiqueta `IVE_ADAPTADO_M9` y no se presenta como equivalente a QRev. La exportación SIH incluye `incertidumbre_IVE` (porcentaje), `error_IVE` (m³/s, usando Q mid-section) y `calidad_IVE`. El carácter análogo debe tenerse en cuenta al interpretar estos resultados.
 
 ## build-groups
 

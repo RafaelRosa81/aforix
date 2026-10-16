@@ -25,6 +25,27 @@ def format_datetime(dt: datetime, fmt: str) -> str:
     return dt.strftime(fmt)
 
 
+def _mapped_datetime(
+    measurement: pd.Series,
+    *,
+    date_column: str | None,
+    time_column: str | None,
+) -> datetime | None:
+    """Parse an optional normalized date/time pair; missing values use fallback."""
+    if not date_column or not time_column:
+        return None
+    date_str = str(measurement.get(date_column, "")).strip()
+    time_str = str(measurement.get(time_column, "")).strip()
+    date_str = date_str.replace("-", "").replace("/", "")
+    time_str = time_str.replace(":", "")[:6]
+    if not date_str or not time_str:
+        return None
+    try:
+        return datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
+
+
 def _normalized_field(measurement: pd.Series, config: dict[str, Any], key: str) -> str:
     column = (config or {}).get(key)
     if column in (None, ""):
@@ -363,15 +384,29 @@ def build_sdh_aforos_row(
         escala_fin = _raw_field(raw_measurement, raw_fields, "escala_fin")
     escala_media = _raw_field(raw_measurement, raw_fields, "escala_media")
 
+    start_dt = _mapped_datetime(
+        measurement,
+        date_column=normalized_fields.get("fecha_inicio_date"),
+        time_column=normalized_fields.get("fecha_inicio_time"),
+    )
+    end_dt = _mapped_datetime(
+        measurement,
+        date_column=normalized_fields.get("fecha_fin_date"),
+        time_column=normalized_fields.get("fecha_fin_time"),
+    )
     fecha_inicio_value = _normalized_field(measurement, normalized_fields, "fecha_inicio")
     fecha_fin_value = _normalized_field(measurement, normalized_fields, "fecha_fin")
     fecha_inicio = (
-        _format_datetime_value(fecha_inicio_value, datetime_format)
+        format_datetime(start_dt, datetime_format)
+        if start_dt is not None
+        else _format_datetime_value(fecha_inicio_value, datetime_format)
         if "fecha_inicio" in normalized_fields
         else format_datetime(dt, datetime_format)
     )
     fecha_fin = (
-        _format_datetime_value(fecha_fin_value, datetime_format)
+        format_datetime(end_dt, datetime_format)
+        if end_dt is not None
+        else _format_datetime_value(fecha_fin_value, datetime_format)
         if "fecha_fin" in normalized_fields
         else format_datetime(dt, datetime_format)
     )
@@ -395,6 +430,8 @@ def build_sdh_aforos_row(
         "profundidad": field("profundidad"),
         "seccion": field("seccion"),
         "velocidad_media": field("velocidad_media"),
-        "radio_hidraulico": _normalized_field(measurement, normalized_fields, "radio_hidraulico"),
+        "radio_hidraulico": _normalized_field(
+            measurement, normalized_fields, "radio_hidraulico"
+        ),
         "nivel_confiabilidad": "",
     }

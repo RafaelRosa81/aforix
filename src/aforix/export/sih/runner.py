@@ -169,7 +169,15 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                 elif ive_status == "not_applicable":
                     ive_reason = "No se cumplen los requisitos para calcular IVE."
                 elif ive_status == "not_available":
-                    ive_reason = "No fue posible obtener una incertidumbre IVE."
+                    ive_reason = (
+                        "Que sucede: IVE no disponible. "
+                        f"Detalle del motor: {ive_result.quality}. "
+                        f"Caudal mid-section: {ive_result.q_mid_m3s} m3/s. "
+                        "Razon: no se puede obtener una incertidumbre relativa con caudal de referencia nulo. "
+                        "Accion: revisar velocidades, profundidades, posiciones y orientacion del perfil; "
+                        "corregir y reingerir si hay errores. Si el caudal calculado es realmente cero, "
+                        "conservar los datos y dejar IVE no disponible; no sustituir el caudal por el de Summary."
+                    )
 
             except (ValueError, FileNotFoundError, KeyError, TypeError, OverflowError) as exc:
                 ive_reason = str(exc)
@@ -254,6 +262,9 @@ def run_sih_export(request: SihExportRequest) -> SihExportResult:
                     "measurement_time": measurement.get("measurement_time", ""),
                     "normalized_source": "Summary.csv",
                     "raw_canonical_found": raw_measurement is not None,
+                    "uncertainty_method": measurement.get("uncertainty_method", ""),
+                    "uncertainty_status": measurement.get("uncertainty_status", ""),
+                    "uncertainty_reason": measurement.get("uncertainty_reason", ""),
                     "actuaciones_file": str(actuaciones_path),
                     "aforos_file": str(aforos_path),
                     "ive_report_file": ive_report_path,

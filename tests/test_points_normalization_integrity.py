@@ -269,6 +269,55 @@ def test_points_width_rejects_conflicting_summary_values():
         )
 
 
+def test_m9_points_width_uses_source_file_to_disambiguate_same_timestamp():
+    shared = {
+        "instrument": "m9",
+        "station_id": "7071",
+        "measurement_date": "20260120",
+        "measurement_time": "141519",
+    }
+    points = pd.DataFrame(
+        [{**shared, "source_file": "second.mat", "width_m": pd.NA}]
+    )
+    summary = pd.DataFrame(
+        [
+            {**shared, "source_file": "first.mat", "width_total_m": 10.0},
+            {**shared, "source_file": "second.mat", "width_total_m": 12.0},
+        ]
+    )
+
+    enriched = _enrich_points_with_summary_width(
+        points,
+        summary,
+        label="m9/fixture",
+        key_columns=[*normalize_run_module.POINT_MEASUREMENT_KEYS, "source_file"],
+    )
+
+    assert enriched.loc[0, "width_m"] == pytest.approx(12.0)
+
+
+def test_m9_points_width_can_remain_empty_when_summary_width_is_unavailable():
+    shared = {
+        "instrument": "m9",
+        "station_id": "7071",
+        "measurement_date": "20260120",
+        "measurement_time": "141519",
+        "source_file": "transect.mat",
+    }
+    points = pd.DataFrame([{**shared, "width_m": pd.NA}])
+    summary = pd.DataFrame([{**shared, "width_total_m": pd.NA}])
+
+    enriched = _enrich_points_with_summary_width(
+        points,
+        summary,
+        label="m9/fixture",
+        key_columns=[*normalize_run_module.POINT_MEASUREMENT_KEYS, "source_file"],
+        allow_missing_width=True,
+    )
+
+    assert pd.isna(enriched.loc[0, "width_m"])
+
+
 def test_written_width_enrichment_supports_summary_file_group(tmp_path):
     output_root = tmp_path / "normalized"
     instrument = "molinete"
