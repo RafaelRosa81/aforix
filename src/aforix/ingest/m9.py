@@ -12,6 +12,7 @@ from aforix.config.paths import config_root_from_path
 from aforix.ingest.adapters.m9_mat import parse_m9_mat
 from aforix.ingest.discovery import fallback_station_id_from_parents, find_files_recursive
 from aforix.ingest.metadata import clean_station_id, clean_station_name
+from aforix.ingest.metadata_policy import MetadataExtractionContext, extract_metadata
 from aforix.runs.manager import create_run
 
 
@@ -51,6 +52,34 @@ def _station_id(value: Any, fallback: str | None) -> str:
     return clean_station_id(text or None, fallback=fallback)
 
 
+def _extract_m9_metadata(summary: dict[str, Any], source_path: Path,
+                         m9_cfg: dict[str, Any]) -> dict[str, Any]:
+    """Resolve operational metadata through the shared engine, retaining legacy defaults."""
+    start = summary["measurement_start"]
+    fallback = fallback_station_id_from_parents(source_path)
+    defaults = {
+        "station_id": _station_id(summary.get("station_id"), fallback),
+        "station_name": clean_station_name(summary.get("station_name")),
+        "measurement_date": start.strftime("%Y%m%d"),
+        "measurement_time": start.strftime("%H%M%S"),
+    }
+    raw_fields = dict(summary)
+    # Preserve the M9 representation cleanup before policy transformations.
+    primary = summary.get("station_id")
+    raw_fields["station_id"] = _station_id(primary, None) if str(primary or "").strip() else ""
+    raw_fields["fallback_station_id"] = fallback or ""
+    raw_fields["measurement_start"] = start.isoformat()
+    raw_fields["measurement_date"] = defaults["measurement_date"]
+    raw_fields["measurement_time"] = defaults["measurement_time"]
+    raw_fields["filename"] = source_path.name
+    raw_fields["stem"] = source_path.stem
+    resolved = extract_metadata(
+        m9_cfg.get("metadata_policy", {}) or {},
+        context=MetadataExtractionContext(raw_fields=raw_fields, source_path=source_path),
+    )
+    return {field: resolved.get(field) or value for field, value in defaults.items()}
+
+
 def _add_metadata(row: dict[str, Any], *, metadata: dict[str, Any]) -> dict[str, Any]:
     return {**metadata, **row}
 
@@ -86,17 +115,11 @@ def run(config_path: Path) -> Path:
         try:
             parsed = parse_m9_mat(source_path, timezone_name=timezone)
             summary = parsed["summary"]
-            start_dt = summary["measurement_start"]
             end_dt = summary["measurement_end"]
-            station_id = _station_id(
-                summary.get("station_id"), fallback_station_id_from_parents(source_path)
-            )
-            station_name = clean_station_name(summary.get("station_name"))
+            resolved_metadata = _extract_m9_metadata(summary, source_path, m9_cfg)
+            station_id = resolved_metadata["station_id"]
             metadata = {
-                "station_id": station_id,
-                "station_name": station_name,
-                "measurement_date": start_dt.strftime("%Y%m%d"),
-                "measurement_time": start_dt.strftime("%H%M%S"),
+                **resolved_metadata,
                 "instrument": INSTRUMENT_NAME,
                 "source_file": str(source_path.resolve()),
                 "input_file": source_path.name,
