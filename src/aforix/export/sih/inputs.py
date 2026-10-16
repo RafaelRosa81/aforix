@@ -124,7 +124,8 @@ def resolve_measurement(summary_df: pd.DataFrame, selection_row: pd.Series) -> p
     if len(matches) > 1:
         raise DuplicateMeasurementError(
             f"Multiple measurements found for station={station_id}, date={measurement_date}, time={measurement_time}. "
-            "Seleccione una version mediante source_file en el CSV de seleccion; copie su valor de Summary.csv."
+            "Razon: la clave estacion/fecha/hora identifica varias filas y no permite elegir una version. "
+            "Accion: comparar los archivos y seleccionar una sola version mediante source_file en el CSV de seleccion; copie su valor completo de Summary.csv. No se elige automaticamente la version r."
         )
 
     return matches.iloc[0]
