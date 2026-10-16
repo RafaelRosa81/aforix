@@ -11,12 +11,12 @@ no es una validación hidrométrica independiente del método IVE adaptado.
 Desde la raíz del repositorio, con el entorno aforix activado:
 
 ```powershell
-git pull --ff-only origin feature/m9-ingest-normalization
+git pull --ff-only origin main
 python scripts/audit_m9_local.py --raw-dir .\data\raw\M9 --exclude 20170901153604.mat
 ```
 
 La exclusión es explícita y queda registrada. El archivo de 2017 no se procesa
-porque carece de muestras; se conserva intacto en raw. Los demás errores no se
+porque carece de las estructuras requeridas; se conserva intacto en raw. Los demás errores no se
 ocultan: la auditoría registra cada MAT fallido y continúa con los que pudo ingerir.
 
 Para comenzar solo con los cuatro MAT de julio de 2026:
@@ -135,8 +135,8 @@ Points. Un CSV generado con advertencias no equivale a un aforo aprobado.
 
 ### Criterio para los avisos
 
-Los avisos de validacion M9 explican **que sucede**, **por que requiere
-revision** y **que accion realizar**. Los datos ausentes requieren comparar
+Los avisos de validación M9 explican **qué sucede**, **por qué requiere
+revisión** y **qué acción realizar**. Los datos ausentes requieren comparar
 MAT, mapeo y normalizado; no se rellenan con cero. Las claves SIH ambiguas
 requieren elegir una version mediante `source_file`. Las distancias repetidas
 requieren revisar la trayectoria: si son reales, el IVE queda no disponible
