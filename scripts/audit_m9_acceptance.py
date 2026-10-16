@@ -14,6 +14,13 @@ def run(args):
  r=subprocess.run([sys.executable, '-c', 'from aforix.cli.main import app; app()', *args],cwd=root,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
  print(r.stdout); r.check_returncode()
 for args in [['ingest','m9'],['build-groups'],['normalize','run']]: run([*args,'-c',str(cfg)])
+from aforix.validation.run import run_validation
+validation_dir = run_validation(cfg)
+validation_status = pd.read_csv(validation_dir / "validation_summary.csv")
+assert not validation_status.empty and validation_status["status"].eq("ok").all(), (
+    f"Validation requires review: {validation_dir}"
+)
+print("PASS: M9 normalized validation")
 s=pd.read_csv(root/'database/normalized/m9/Summary.csv',dtype=str)
 sel=s[['station_id','measurement_date','measurement_time','instrument']].copy(); sel['export_id']=[f'M9_AUDIT_{i}' for i in range(len(sel))]; sel.to_csv(root/'selection.csv',index=False)
 run(['export','sih','-c',str(cfg),'--sih-config',str(root/'configs/sih/sih.yaml'),'--selection-file',str(root/'selection.csv'),'--yes'])
