@@ -54,7 +54,7 @@ def check_export(root, measurement, metadata, parameters, sih, reviews=None):
                            ('velocidad_media', 'velocity_mean_m_s'), ('radio_hidraulico', 'hydraulic_radius_m')]:
         expected = measurement[source]
         if pd.isna(expected) or str(expected).strip() == '':
-            reviews.append(f'{source}: dato normalizado ausente')
+            reviews.append(f'{source}: dato normalizado ausente. Razon: no permite validar el campo SIH ni sus calculos dependientes. Accion: comparar con el MAT y revisar el mapeo; corregir y reingerir si procede. Si el dato no existe, mantenerlo vacio y pendiente de revision')
             check(aforo[target] == '', f'{target}: valor exportado sin dato normalizado')
         else:
             equal(aforo[target], expected, target)
@@ -233,7 +233,7 @@ def main(argv=None):
                 rec.update(status='ERROR', message='Trazabilidad MAT/normalizado incorrecta')
                 continue
             if duplicate.loc[index]:
-                rec.update(status='REVISAR', export='bloqueada', message='Clave SIH ambigua: misma estacion/fecha/hora en distintos MAT; no se elige ni promedia automaticamente')
+                rec.update(status='REVISAR', export='bloqueada', message='Clave SIH ambigua: misma estacion/fecha/hora en distintos MAT. Razon: existen varias versiones y pueden tener resultados distintos. Accion: compararlas y elegir una sola por clave SIH, copiando su source_file completo desde Summary al CSV de seleccion. No se elige la version r ni se promedia automaticamente')
                 continue
             export_id = f'M9_AUDIT_{index:04d}'
             rec['export_id'] = export_id
