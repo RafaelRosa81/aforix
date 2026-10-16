@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,7 @@ def run(config_path: Path) -> Path:
     timezone = str(cfg.get("project", {}).get("timezone", "America/Montevideo"))
     succeeded = 0
     failed: list[tuple[Path, str]] = []
+    used_output_names = {group: set() for group in GROUPS}
 
     for source_path in candidates:
         try:
@@ -115,8 +117,28 @@ def run(config_path: Path) -> Path:
             summary_row["measurement_end_date"] = end_dt.strftime("%Y%m%d")
             summary_row["measurement_end_time"] = end_dt.strftime("%H%M%S")
 
-            summary_name = f"{station_id}_Summary_{metadata['measurement_date']}_{metadata['measurement_time']}.csv"
-            points_name = f"{station_id}_Points_{metadata['measurement_date']}_{metadata['measurement_time']}.csv"
+            # The same station and timestamp can appear in paired .mat and r.mat
+            # exports. Include the input stem so each transect gets its own
+            # Summary and Points files rather than overwriting an earlier one.
+            source_stem = source_path.stem
+            name_stem = (
+                f"{station_id}_{metadata['measurement_date']}_"
+                f"{metadata['measurement_time']}_{source_stem}"
+            )
+            summary_name = f"{name_stem}_Summary.csv"
+            points_name = f"{name_stem}_Points.csv"
+            if (
+                summary_name in used_output_names["Summary"]
+                or points_name in used_output_names["Points"]
+            ):
+                source_hash = hashlib.sha256(
+                    str(source_path.resolve()).encode("utf-8")
+                ).hexdigest()[:10]
+                name_stem = f"{name_stem}_{source_hash}"
+                summary_name = f"{name_stem}_Summary.csv"
+                points_name = f"{name_stem}_Points.csv"
+            used_output_names["Summary"].add(summary_name)
+            used_output_names["Points"].add(points_name)
             _write_rows([summary_row], path=output_dirs["Summary"] / summary_name)
             point_rows = [_add_metadata(row, metadata=metadata) for row in parsed["points"]]
             _write_rows(point_rows, path=output_dirs["Points"] / points_name)

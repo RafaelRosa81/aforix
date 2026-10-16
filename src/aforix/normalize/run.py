@@ -182,9 +182,13 @@ POINT_MEASUREMENT_KEYS = [
 ]
 
 
-def _normalized_measurement_keys(df: pd.DataFrame) -> pd.DataFrame:
+def _normalized_measurement_keys(
+    df: pd.DataFrame,
+    *,
+    key_columns: list[str] = POINT_MEASUREMENT_KEYS,
+) -> pd.DataFrame:
     out = df.copy()
-    for col in POINT_MEASUREMENT_KEYS:
+    for col in key_columns:
         if col in out.columns:
             out[col] = out[col].astype("string").str.strip()
     return out
@@ -195,10 +199,11 @@ def _validate_measurement_keys_populated(
     *,
     label: str,
     frame_name: str,
+    key_columns: list[str] = POINT_MEASUREMENT_KEYS,
 ) -> None:
     invalid: dict[str, int] = {}
 
-    for col in POINT_MEASUREMENT_KEYS:
+    for col in key_columns:
         values = df[col].astype("string").str.strip()
         bad = values.isna() | values.eq("")
         if bad.any():
@@ -215,10 +220,12 @@ def _enrich_points_with_summary_width(
     summary_df: pd.DataFrame,
     *,
     label: str,
+    key_columns: list[str] = POINT_MEASUREMENT_KEYS,
+    allow_missing_width: bool = False,
 ) -> pd.DataFrame:
     """Repeat Summary.width_total_m on every normalized Points row."""
-    required_points = [*POINT_MEASUREMENT_KEYS, "width_m"]
-    required_summary = [*POINT_MEASUREMENT_KEYS, "width_total_m"]
+    required_points = [*key_columns, "width_m"]
+    required_summary = [*key_columns, "width_total_m"]
 
     missing_points = [col for col in required_points if col not in points_df.columns]
     missing_summary = [col for col in required_summary if col not in summary_df.columns]
@@ -229,25 +236,27 @@ def _enrich_points_with_summary_width(
             f"missing summary columns={missing_summary}"
         )
 
-    points = _normalized_measurement_keys(points_df)
-    summary = _normalized_measurement_keys(summary_df)
+    points = _normalized_measurement_keys(points_df, key_columns=key_columns)
+    summary = _normalized_measurement_keys(summary_df, key_columns=key_columns)
 
     _validate_measurement_keys_populated(
         points,
         label=label,
         frame_name="Points",
+        key_columns=key_columns,
     )
     _validate_measurement_keys_populated(
         summary,
         label=label,
         frame_name="Summary",
+        key_columns=key_columns,
     )
 
     summary = summary[required_summary].copy()
     summary["width_total_m"] = pd.to_numeric(summary["width_total_m"], errors="coerce")
 
     conflicts = (
-        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False)["width_total_m"]
+        summary.groupby(key_columns, dropna=False)["width_total_m"]
         .nunique(dropna=True)
     )
     conflicting_keys = conflicts[conflicts > 1]
@@ -258,13 +267,13 @@ def _enrich_points_with_summary_width(
         )
 
     width_lookup = (
-        summary.groupby(POINT_MEASUREMENT_KEYS, dropna=False, as_index=False)["width_total_m"]
+        summary.groupby(key_columns, dropna=False, as_index=False)["width_total_m"]
         .first()
     )
 
     merged = points.merge(
         width_lookup,
-        on=POINT_MEASUREMENT_KEYS,
+        on=key_columns,
         how="left",
         validate="many_to_one",
     )
@@ -272,7 +281,7 @@ def _enrich_points_with_summary_width(
     existing = pd.to_numeric(merged["width_m"], errors="coerce")
     from_summary = pd.to_numeric(merged["width_total_m"], errors="coerce")
 
-    if from_summary.isna().any():
+    if from_summary.isna().any() and not allow_missing_width:
         missing = int(from_summary.isna().sum())
         raise ValueError(
             f"Missing matching Summary.width_total_m for {missing} "
@@ -292,7 +301,7 @@ def _enrich_points_with_summary_width(
     merged["width_m"] = existing.combine_first(from_summary)
     merged = merged.drop(columns=["width_total_m"])
 
-    if merged["width_m"].isna().any():
+    if merged["width_m"].isna().any() and not allow_missing_width:
         missing = int(merged["width_m"].isna().sum())
         raise ValueError(
             f"Missing width_m for {missing} normalized Points rows in {label}."
@@ -507,11 +516,29 @@ def _enrich_written_points_width(
     enriched_frames: list[pd.DataFrame] = []
     for points_path in point_paths:
         points_df = _read_csv(points_path)
+        # M9 can contain multiple transects from the same station and second.
+        # source_file keeps their Summary-to-Points join distinct.
+        key_columns = list(POINT_MEASUREMENT_KEYS)
+        if (
+            instrument == "m9"
+            and "source_file" in points_df.columns
+            and "source_file" in summary_df.columns
+        ):
+            key_columns.append("source_file")
         enriched = _enrich_points_with_summary_width(
             points_df,
             summary_df,
             label=f"{instrument}/{points_path.name}",
+            key_columns=key_columns,
+            allow_missing_width=instrument == "m9",
         )
+        missing_width = pd.to_numeric(enriched["width_m"], errors="coerce").isna()
+        if instrument == "m9" and missing_width.any():
+            missing = int(missing_width.sum())
+            print(
+                f"WARNING: {missing} M9 Points rows have no matching Summary width; "
+                f"keeping width_m empty in {points_path.name}."
+            )
         _write_normalized_file(
             enriched,
             output_path=points_path,
