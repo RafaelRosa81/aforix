@@ -31,6 +31,7 @@ def write_mat(path, seconds=836393424., n=12):
 
 
 def test_local_audit_exports_good_file_and_reports_failure_and_exclusion(tmp_path):
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname = \"outer-repo\"\n')
     raw = tmp_path / 'raw'; raw.mkdir()
     write_mat(raw / 'good.mat')
     write_mat(raw / 'short.mat', seconds=836394424., n=8)
@@ -42,6 +43,9 @@ def test_local_audit_exports_good_file_and_reports_failure_and_exclusion(tmp_pat
     root = next((tmp_path / 'results').iterdir())
     manifest = pd.read_csv(root / 'audit_manifest.csv', keep_default_na=False)
     statuses = {Path(row.source_file).name: row.status for row in manifest.itertuples()}
+    assert not (tmp_path / 'runs').exists()
+    assert not (tmp_path / 'database').exists()
+    assert not (tmp_path / 'outputs').exists()
     assert code == 1
     assert statuses == {'good.mat': 'OK', 'short.mat': 'REVISAR', 'bad.mat': 'ERROR', 'excluded.mat': 'EXCLUIDO'}
     assert json.loads((root / 'audit_summary.json').read_text())['actual_sih_import_tested'] is False
