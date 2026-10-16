@@ -157,7 +157,11 @@ def load_ive_points(
             raise ValueError(
                 f"M9: {int(repeated.sum())} muestras en "
                 f"{df.loc[repeated, 'distance_m'].nunique()} posiciones distance_m repetidas. "
-                "IVE no disponible con el metodo actual; se conservan todas las muestras sin promediar."
+                "IVE no disponible con el metodo actual; se conservan todas las muestras sin promediar. "
+                "Razon: el motor requiere una distancia distinta por vertical; las muestras repetidas pueden tener distinta profundidad o velocidad. "
+                "Accion: revisar esas muestras y la trayectoria en el origen. Si existe un error, corregirlo y reingerir; "
+                "si son mediciones reales en la misma posicion, conservarlas e informar IVE no disponible. "
+                "Agrupar o seleccionar muestras exige un criterio validado; no hay correccion automatica."
             )
         raise ValueError("Duplicate vertical distance_m in selected measurement")
     if (df["distance_m"] < 0).any() or (df["distance_m"] > widths[0]).any():
