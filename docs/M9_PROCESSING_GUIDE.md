@@ -113,4 +113,4 @@ La misma cautela se aplica a promediar distintas transectas. El Summary del MAT 
 - `REVISAR`: Aforix preserva los datos y describe la incidencia y acción; requiere evaluación del usuario.
 - `ERROR`: discrepancia introducida por el proceso o fallo de exportación que debe corregirse antes de considerar esa salida confiable.
 
-El procesamiento local y la generación de CSV han sido verificados con datos M9 reales. La importación de esos archivos en el sistema SIH receptor y la validación hidrométrica independiente del IVE adaptado requieren aceptación aparte.
+El procesamiento local y la generación de CSV han sido verificados con datos M9 reales. **No se probó la importación de esos archivos en el sistema SIH receptor**, y la validación hidrométrica independiente del IVE adaptado requiere aceptación aparte.
