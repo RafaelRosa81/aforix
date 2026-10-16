@@ -112,10 +112,13 @@ def load_ive_points(
         value_columns = ["distance_m", "depth_m", "velocity_mean_m_s", "width_m"]
         duplicated = df.duplicated(identity, keep=False)
         if duplicated.any():
+            duplicate_values = df.loc[duplicated, value_columns].replace(
+                r"^\s*$", pd.NA, regex=True
+            )
             conflicts = (
-                df.loc[duplicated]
+                pd.concat([df.loc[duplicated, identity], duplicate_values], axis=1)
                 .groupby(identity, dropna=False)[value_columns]
-                .nunique(dropna=False)
+                .nunique(dropna=True)
                 .gt(1)
                 .any(axis=1)
             )
@@ -123,6 +126,16 @@ def load_ive_points(
                 raise ValueError(
                     "Conflicting duplicate M9 Points rows for source_file/sample_number"
                 )
+            # Prefer the copy with the most populated IVE fields. Some older
+            # normalized exports have the same sample identity but blank
+            # distance/velocity columns; they should not mask a complete copy.
+            completeness = duplicate_values.notna().sum(axis=1)
+            preferred = df.loc[duplicated].copy()
+            preferred["_ive_completeness"] = completeness
+            preferred = preferred.sort_values(
+                "_ive_completeness", ascending=False, kind="stable"
+            ).drop(columns="_ive_completeness")
+            df = pd.concat([df.loc[~duplicated], preferred], ignore_index=True)
             df = df.drop_duplicates(identity, keep="first").copy()
 
     # Reject partial numeric data; silently dropping verticals changes the IVE.
